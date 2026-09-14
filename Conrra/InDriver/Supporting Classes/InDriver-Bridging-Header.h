@@ -1,0 +1,28 @@
+//
+//  InDriver-Bridging-Header.m
+//  InDriver
+//
+//  Created by Grepix on 03/07/21.
+//  Copyright © 2023 Grepixit. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+#import "TripModel.h"
+#import <GIKit/GIKit.h>
+#import "WebCallConstants.h"
+#import "Utilities.h"
+#import "UIImageView+WebCache.h"
+#import "CityModel.h"
+#import "ApiHelperObj.h"
+#import "ConstantModel.h"
+#import "TripOfferAcceptHelper.h"
+#import "TripNotificationHelper.h"
+#import "TripModel.h"
+#import "TextFieldPadding.h"
+#import "DriverTrackViewController.h"
+#import "AutoHideAlert.h"
+#import "ChatViewController.h"
+#import "NotificationViewController.h"
+#import "CategoryModel.h"
+#import "ConrraCarruselBanners.h"
+

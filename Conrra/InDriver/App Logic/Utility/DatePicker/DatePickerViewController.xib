@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.XIB" version="3.0" toolsVersion="21507" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES">
+    <device id="retina6_5" orientation="portrait" appearance="light"/>
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="21505"/>
+        <capability name="Named colors" minToolsVersion="9.0"/>
+        <capability name="Safe area layout guides" minToolsVersion="9.0"/>
+        <capability name="System colors in document resources" minToolsVersion="11.0"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <customFonts key="customFonts">
+        <array key="Karla-Bold.ttf">
+            <string>Karla-Bold</string>
+        </array>
+        <array key="Karla-Regular.ttf">
+            <string>Karla-Regular</string>
+        </array>
+    </customFonts>
+    <objects>
+        <placeholder placeholderIdentifier="IBFilesOwner" id="-1" userLabel="File's Owner" customClass="DatePickerViewController">
+            <connections>
+                <outlet property="btnCancel" destination="2qK-i1-03b" id="mDf-7g-GNE"/>
+                <outlet property="btnSelect" destination="tjR-mA-Kas" id="QEQ-HB-a55"/>
+                <outlet property="datePicker" destination="TUw-Br-hT5" id="ceD-fy-6ia"/>
+                <outlet property="lblDateSuggest" destination="jY4-MZ-F4f" id="I2E-nV-d4N"/>
+                <outlet property="lblTitle" destination="h9G-Y6-ULX" id="iFe-HC-CXQ"/>
+                <outlet property="view" destination="i5M-Pr-FkT" id="sfx-zR-JGt"/>
+                <outlet property="viewDatePicker" destination="OSL-WC-weh" id="pZv-vZ-UrU"/>
+            </connections>
+        </placeholder>
+        <placeholder placeholderIdentifier="IBFirstResponder" id="-2" customClass="UIResponder"/>
+        <view clearsContextBeforeDrawing="NO" contentMode="scaleToFill" id="i5M-Pr-FkT">
+            <rect key="frame" x="0.0" y="0.0" width="414" height="896"/>
+            <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+            <subviews>
+                <view clipsSubviews="YES" contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="OSL-WC-weh">
+                    <rect key="frame" x="10" y="512" width="394" height="340"/>
+                    <subviews>
+                        <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="GGO-mw-RII">
+                            <rect key="frame" x="0.0" y="0.0" width="394" height="42"/>
+                            <subviews>
+                                <label opaque="NO" clipsSubviews="YES" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Select date for your ride" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="h9G-Y6-ULX">
+                                    <rect key="frame" x="20" y="10" width="354" height="21"/>
+                                    <constraints>
+                                        <constraint firstAttribute="height" constant="21" id="aaW-X5-e4K"/>
+                                    </constraints>
+                                    <fontDescription key="fontDescription" name="Karla-Bold" family="Karla" pointSize="18"/>
+                                    <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                    <nil key="highlightedColor"/>
+                                </label>
+                                <label hidden="YES" opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Select" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="jY4-MZ-F4f">
+                                    <rect key="frame" x="8" y="10.666666666666629" width="378" height="21"/>
+                                    <fontDescription key="fontDescription" name="Karla-Regular" family="Karla" pointSize="18"/>
+                                    <color key="textColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
+                                    <nil key="highlightedColor"/>
+                                </label>
+                            </subviews>
+                            <color key="backgroundColor" name="app_theame"/>
+                            <constraints>
+                                <constraint firstAttribute="trailing" secondItem="jY4-MZ-F4f" secondAttribute="trailing" constant="8" id="2x3-M2-aYQ"/>
+                                <constraint firstAttribute="height" relation="greaterThanOrEqual" constant="42" id="4Bv-NZ-Csl"/>
+                                <constraint firstItem="jY4-MZ-F4f" firstAttribute="leading" secondItem="GGO-mw-RII" secondAttribute="leading" constant="8" id="H7c-Af-elS"/>
+                                <constraint firstAttribute="trailing" secondItem="h9G-Y6-ULX" secondAttribute="trailing" constant="20" symbolic="YES" id="L5L-Mt-UKA"/>
+                                <constraint firstItem="h9G-Y6-ULX" firstAttribute="top" secondItem="GGO-mw-RII" secondAttribute="top" constant="10" id="TDj-Al-1gc"/>
+                                <constraint firstItem="h9G-Y6-ULX" firstAttribute="leading" secondItem="GGO-mw-RII" secondAttribute="leading" constant="20" symbolic="YES" id="ZDi-al-tbj"/>
+                                <constraint firstAttribute="bottom" secondItem="h9G-Y6-ULX" secondAttribute="bottom" constant="11" id="kJT-zW-WYm"/>
+                                <constraint firstItem="jY4-MZ-F4f" firstAttribute="centerY" secondItem="GGO-mw-RII" secondAttribute="centerY" id="mwq-x6-qMH"/>
+                            </constraints>
+                        </view>
+                        <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="OFa-XJ-WOo">
+                            <rect key="frame" x="0.0" y="299" width="394" height="1"/>
+                            <color key="backgroundColor" white="0.66666666669999997" alpha="1" colorSpace="calibratedWhite"/>
+                            <constraints>
+                                <constraint firstAttribute="height" constant="1" id="sdJ-xY-tpl"/>
+                            </constraints>
+                        </view>
+                        <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="2qK-i1-03b">
+                            <rect key="frame" x="0.0" y="300" width="197" height="40"/>
+                            <color key="backgroundColor" red="1" green="1" blue="0.99607843139999996" alpha="1" colorSpace="calibratedRGB"/>
+                            <constraints>
+                                <constraint firstAttribute="height" constant="40" id="V2a-p7-ASV"/>
+                            </constraints>
+                            <fontDescription key="fontDescription" name="Karla-Bold" family="Karla" pointSize="18"/>
+                            <state key="normal" title="CANCEL">
+                                <color key="titleColor" white="0.0" alpha="1" colorSpace="calibratedWhite"/>
+                            </state>
+                            <connections>
+                                <action selector="onCancelButtonTap:" destination="-1" eventType="touchUpInside" id="YmD-GC-m4K"/>
+                            </connections>
+                        </button>
+                        <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="tjR-mA-Kas">
+                            <rect key="frame" x="197" y="299" width="197" height="41"/>
+                            <color key="backgroundColor" name="app_theame"/>
+                            <rect key="contentStretch" x="0.0" y="0.050000000000000003" width="1" height="1"/>
+                            <constraints>
+                                <constraint firstAttribute="height" constant="41" id="f47-ds-bJa"/>
+                            </constraints>
+                            <fontDescription key="fontDescription" name="Karla-Bold" family="Karla" pointSize="18"/>
+                            <state key="normal" title="SELECT">
+                                <color key="titleColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
+                            </state>
+                            <connections>
+                                <action selector="onDateSelect:" destination="-1" eventType="touchUpInside" id="Ytd-tx-xdT"/>
+                            </connections>
+                        </button>
+                        <datePicker contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" datePickerMode="dateAndTime" minuteInterval="5" style="wheels" translatesAutoresizingMaskIntoConstraints="NO" id="TUw-Br-hT5">
+                            <rect key="frame" x="10" y="62" width="374" height="218"/>
+                        </datePicker>
+                    </subviews>
+                    <color key="backgroundColor" systemColor="systemBackgroundColor"/>
+                    <constraints>
+                        <constraint firstItem="2qK-i1-03b" firstAttribute="width" secondItem="tjR-mA-Kas" secondAttribute="width" id="8IU-Pl-H79"/>
+                        <constraint firstItem="2qK-i1-03b" firstAttribute="leading" secondItem="OSL-WC-weh" secondAttribute="leading" id="9rw-eu-es3"/>
+                        <constraint firstItem="2qK-i1-03b" firstAttribute="top" secondItem="TUw-Br-hT5" secondAttribute="bottom" constant="20" id="H7g-ZN-ZP2"/>
+                        <constraint firstItem="GGO-mw-RII" firstAttribute="leading" secondItem="OSL-WC-weh" secondAttribute="leading" id="IlI-f9-MMf"/>
+                        <constraint firstAttribute="trailing" secondItem="tjR-mA-Kas" secondAttribute="trailing" id="JlN-Cb-jRu"/>
+                        <constraint firstItem="TUw-Br-hT5" firstAttribute="top" secondItem="GGO-mw-RII" secondAttribute="bottom" constant="20" id="JwF-Fw-Slw"/>
+                        <constraint firstAttribute="trailing" secondItem="GGO-mw-RII" secondAttribute="trailing" id="KdH-g1-UbN"/>
+                        <constraint firstItem="2qK-i1-03b" firstAttribute="top" secondItem="OFa-XJ-WOo" secondAttribute="bottom" id="LdZ-qZ-4F6"/>
+                        <constraint firstAttribute="trailing" secondItem="TUw-Br-hT5" secondAttribute="trailing" constant="10" id="NMS-Wf-5dY"/>
+                        <constraint firstItem="OFa-XJ-WOo" firstAttribute="leading" secondItem="OSL-WC-weh" secondAttribute="leading" id="Q2E-9u-Q16"/>
+                        <constraint firstAttribute="height" constant="340" id="Zjb-Vn-OL6"/>
+                        <constraint firstItem="TUw-Br-hT5" firstAttribute="leading" secondItem="OSL-WC-weh" secondAttribute="leading" constant="10" id="gJY-pT-F0C"/>
+                        <constraint firstAttribute="trailing" secondItem="OFa-XJ-WOo" secondAttribute="trailing" id="hjl-Sy-C2g"/>
+                        <constraint firstAttribute="bottom" secondItem="2qK-i1-03b" secondAttribute="bottom" id="hsu-rP-rHK"/>
+                        <constraint firstAttribute="bottom" secondItem="tjR-mA-Kas" secondAttribute="bottom" id="oae-p3-qHx"/>
+                        <constraint firstItem="GGO-mw-RII" firstAttribute="top" secondItem="OSL-WC-weh" secondAttribute="top" id="q9t-8I-Apb"/>
+                        <constraint firstItem="tjR-mA-Kas" firstAttribute="leading" secondItem="2qK-i1-03b" secondAttribute="trailing" id="suu-2A-asl"/>
+                    </constraints>
+                    <userDefinedRuntimeAttributes>
+                        <userDefinedRuntimeAttribute type="number" keyPath="layer.cornerRadius">
+                            <integer key="value" value="8"/>
+                        </userDefinedRuntimeAttribute>
+                    </userDefinedRuntimeAttributes>
+                </view>
+            </subviews>
+            <viewLayoutGuide key="safeArea" id="5AD-AQ-rzv"/>
+            <color key="backgroundColor" red="0.0" green="0.0" blue="0.0" alpha="0.5" colorSpace="custom" customColorSpace="calibratedRGB"/>
+            <constraints>
+                <constraint firstItem="OSL-WC-weh" firstAttribute="trailing" secondItem="5AD-AQ-rzv" secondAttribute="trailing" constant="-10" id="ei1-OW-Sk5"/>
+                <constraint firstItem="OSL-WC-weh" firstAttribute="leading" secondItem="5AD-AQ-rzv" secondAttribute="leading" constant="10" id="hr7-hY-mxo"/>
+                <constraint firstItem="5AD-AQ-rzv" firstAttribute="bottom" secondItem="OSL-WC-weh" secondAttribute="bottom" constant="10" id="omc-EN-jkc"/>
+            </constraints>
+            <point key="canvasLocation" x="142" y="105"/>
+        </view>
+    </objects>
+    <resources>
+        <namedColor name="app_theame">
+            <color red="0.0" green="0.0" blue="0.0" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <systemColor name="systemBackgroundColor">
+            <color white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+        </systemColor>
+    </resources>
+</document>

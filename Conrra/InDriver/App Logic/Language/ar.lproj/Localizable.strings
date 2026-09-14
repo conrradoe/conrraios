@@ -1,0 +1,155 @@
+/*
+ Localizable.strings
+ TaxiDriver
+ 
+ Created by Appicial Taxi App Solutions on 30/06/17.
+ Copyright © 2017 Appicial. All rights reserved.
+ */
+
+"HelloKey" = "مرحبا";
+"Profile" = "الملف الشخصي";
+"Trip_History" = "مشاويري";
+"Logout" = "تسجيل الخروج";
+"Rating" = "التقييم";
+"Availability On" = "متوفر";
+"Availability Off" = "غير متوفر";
+"Profile Updated" = "تم تحديث الملف الشخصي بنجاح";
+"Password Updated" = "تم تحديث الرقم السري بنجاح";
+"Password alert" = "فضلا ادخل رقم سري صالح";
+"Password_old_alert" = "فضلا ادخل الرقم السري القديم";
+"password not matching" = "الرقم السري غير مطابق";
+"Warning!"="تحذير";
+"email_invalid_error"="يجب تعبئة خانة الايميل والرقم السري";
+"invalid_email"="فضلا ادخل ايميل صحيح";
+"login_error_message"="فضلا ادخل ايميل ورقم سري صحيح";
+"alert_ok"="موافق";
+"loading"="جاري التحميل ";
+"forgot_password_link"="تم ارسال رابط تغيير الرقم السري عبر الايميل";
+"network_error"="لايوجد اتصال بالانترنت";
+"Network Error"="خطاء في الشبكه ";
+"Alert !"=" انذار ";
+"password must be atleast 6 character long."="يجب ان يكون طول الرقم السري على الاقل 6 خانات";
+"logout_alert_message"="هل تريد الخروج الآن؟";
+"Yes"="نعم";
+"No"="لا";
+
+"Loading Route..."="جاري التحميل ";
+"min"="min";
+"document_verification"= "مستنداتك قيد المراجعه الرجاء الانتضار بعض من الوقت";
+"firstname_alert"="فضلا ادخل اسمك الاول";
+"lastname_alert"="فضلا ادخل الاسم الاخير";
+"mobile_alert"="فضلا ادخل رقم جوال صحيح";
+
+"MESSAGE_ACCEPTED"= "تم تاكيد طلبك ";
+"MESSAGE_END"=      "انتهت رحلتك";
+"MESSAGE_ARRIVE"=      "سوف يصل التاكسي قريبا";
+"MESSAGE_BEGIN"=      "بدات رحلتك" ;
+"MESSAGE_DRIVER_CANCEL" =      "السائق قام بالغاء الرحله";
+"MESSAGE_PAID"=      "تم الدفع بنجاح ";
+"MESSAGE_CASH"=      "فضلا استلم المبلغ نقدا من الراكب";
+"MESSAGE_WALLET"=    "Rider is paying through wallet";
+"MESSAGE_PAYPAL"=      "الراكب دفع عن طريق بيبال";
+"write_reason"=      "فضلا اكتب السبب ";
+"permission_denied"=      "تم رفض السماح بالتطبيق";
+"location_turn_on"=      "لاعادة التمكين فضلا اذهب الى الاعدادات وقم بتشغيل خدمة المواقع لتبيق سريع";
+"Something_went_Wrong"=      "حدث خطاء ما";
+"Contact Service Provider" = "لقد استنفذت حد الاتعلام الخاص بك فضلا تواصل مع مزود الخدمه";
+"Terms_Conditions" = "شروط الاستخدام ";
+"Share" = "مشاركه ";
+"Deactivate_Acc" = "تعطيل";
+"Url_Cannot_Open" = "لايمكن فتح المنفذ الان";
+"Support" = "الدعم";
+"Config_Mail" = "فضلاانشاء ايميلك ";
+
+"Deactivate_Alert" = "هل تريد تعطيل حسابك";
+
+"Registeration_Success" = "لديك مسجلة بنجاح";
+"Account_Hold" = "تم تعليق حسابك الرجاء الاتصال بمزود الخدمه";
+"Car_Registered" = "رقم لوحة سيارتك مسجل مسبقا";
+"offline_alert_message" = "هل تريد عدم الضهور";
+"too_late" ="متاخر جدا";
+"another_driver_accepted" = "تم تسجيل الرحله لسائق اخر";
+"Enter_Lic_Number"="فضلا ادخل رقم لوجة سياراتك";
+"Pick" ="اختر";
+"Accept"= "قبول";
+"Decline" ="رفض";
+"Begin Trip"="بدء الرحلة";
+"End Trip" = "انهاء الرحلة";
+"Go" ="اشعار بالوصول";
+"DROP LOCATION" ="الوجهة";
+"PICKUP LOCATION"="نقطة الالتقاء";
+"Lower_DROP LOCATION" ="الوجهة";
+"Lower_PICKUP LOCATION"="نقطة الالتقاء";
+"Client Picked Up ?" ="هل تم استلام الزبون؟";
+"Client reached destination ?" ="هل تم توصيل الزبون؟";
+"Added ID Proof" = "الهوية الشخصية";
+"Add ID Proof" = "صورة الهوية";
+"Added License" = "الترخيص الإضافي";
+"Add License"="إضافة ترخيص" ;
+"Added Insurance" ="التامين";
+"Add Insurance"="إضافة التأمين";
+"upload document" ="تحميل المستندات";
+"update document" ="تحديث الوثائق";
+"Promo Code Applied:" =":استخدم الرمز الترويجي";
+"Select_Car_Type" ="يرجى تحديد نوع السيارة.";
+"Select_Category"="الرجاء تحديد الفئة";
+"Select_Year" ="يرجى تحديد سنة";
+"Select a Category" ="اختر تصنيف";
+"Select a Make"="حدد إجراء";
+"Select a Model"="حدد نموذجا";
+"add your own"="اضف اشياءك الخاصة";
+"Select a Year" ="سنة الصنع";
+"Select_Car_Model"="يرجى تحديد نموذج";
+"Rating Count"="عدد التقييمات";
+"NO_Internet" = "يبدو اتصال الإنترنت الخاص بك إلى أسفل. يرجى التحقق من ذلك وحاول مرة أخرى.";
+"Contact US" ="اتصل بنا";
+"touch in" ="لمس في";
+"sec to accept." =" ثانية لقبول.";
+"Trip Cancelled by Rider." ="الراكب ألغى الرحلة";
+"Email_exists"="بعد فوات الأوان! يتم استخدام هذا البريد الإلكتروني";
+"Have You Received Cash?"="هل استلمت ثمن الرحلة؟";
+
+"BIKE" ="دراجة هوائية";
+"HATCHBACK" ="سياره كبيره";
+"SEDAN" ="سياره متوسطه";
+"SUV" ="سيارات الدفع الرباعي";
+
+"received_cash"="المبلغ المستلم";
+
+"Pickup At" ="تلتقط في:";
+"Drop At" ="انخفاض في:";
+"Trip Requests" ="الطلبات";
+"Waiting for New Trip Requests" ="في انتظار طلبات جديدة";
+
+
+"No Trips Available" ="لا يوجد رحلات";
+"App restart required" ="إعادة تشغيل التطبيق مطلوب";
+"Change_language" ="من أجل تغيير اللغة ، يجب إغلاق التطبيق وإعادة فتحه من قبلك.";
+"Language"="اللغة";
+"Notifications"="إشعارات";
+"Your Rides"="رحلاتي";
+"Wallet"="محفظة نقود";
+
+"yesterday"="في الامس";
+"Loading..."="جار التحميل...";
+"sec"="sec";
+"Promo code applied"="استخدم الرمز الترويجي";
+"Please wait..." ="... يرجى الانتظار";
+"tap to enter email"="انقر لإدخال البريد الإلكتروني";
+"tap to enter password"="اضغط لإدخال كلمة المرور";
+"Log In"="تسجيل الدخول";
+"Register"="سجل الان";
+"Update Password"="تطوير كلمة السر";
+"Cancel"="إلغاء";
+"Feedback"="ملاحظات";
+"Pick Up Details"="تفاصيل نقطة الالتقاء";
+"Drop off Details"="تفاصيل الوجهة";
+"Assign"="تعيين";
+"Arrive"="تم الوصول";
+"Select"="اختر";
+"Select City"="اختر مدينة";
+"Single Mode"="وضع فردي";
+"single_mode_error_message"="أنت بالفعل في رحلة";
+"Waiting Time"="وقت الانتظار";
+"Start Waiting"="ابدأ الانتظار";
+"Stop Waiting"="توقف عن الانتظار";

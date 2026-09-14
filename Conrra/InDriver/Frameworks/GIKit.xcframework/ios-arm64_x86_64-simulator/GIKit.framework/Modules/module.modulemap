@@ -1,0 +1,11 @@
+framework module GIKit {
+  umbrella header "GIKit.h"
+  export *
+
+  module * { export * }
+}
+
+module GIKit.Swift {
+  header "GIKit-Swift.h"
+  requires objc
+}

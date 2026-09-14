@@ -1,0 +1,58 @@
+//
+//  PendingTripCell.h
+//  Captain Sareeie
+//
+//  Created by Devineer on 08/05/18.
+//  Copyright © 2023 Grepixit. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+#import "TripModel.h"
+#import "LanguageHelper.h"
+#import "CityModel.h"
+@protocol UpcommingTripCellDelegate
+
+-(void)refreshOnAssginedTrip:(TripModel *)trip;
+-(void)refreshOnAcceptOnGoingTrip:(TripModel *)trip;
+-(void)refreshONRejectTripGoingTrip:(TripModel *)trip;
+-(void)showAlert:(NSString *)title message:(NSString *)msg;
+-(void)onPickupLocationButonTap:(TripModel *)trip;
+-(void)onDropLocationButonTap:(TripModel *)trip;
+-(void)onPassengerDetailsButonTap:(TripModel *)trip;
+-(void)onCallToRiderButonTap:(TripModel *)trip;
+-(void)requestGetButtonTapWithTrip:(TripModel *)trip;
+
+@end
+
+@interface UpcommingTripCell : UITableViewCell
+
+@property (nonatomic, strong)TripModel *currTripModel;
+@property (weak, nonatomic) IBOutlet UIButton *btnCall;
+@property (weak, nonatomic) IBOutlet NSLayoutConstraint *nameTopMargin;
+
+-(void)setdataWithTripModel:(TripModel *)tripModel;
+@property (strong, nonatomic) IBOutlet UIImageView *imgRider;
+@property (strong, nonatomic) IBOutlet UILabel *lblRiderName;
+@property (strong, nonatomic) IBOutlet UILabel *lblPickupAddress;
+@property (strong, nonatomic) IBOutlet UILabel *lblDropAddress;
+@property (strong, nonatomic) IBOutlet UIView *viewAcceptRequest;
+@property (strong, nonatomic) IBOutlet UIView *viewBottomSeparator;
+@property (weak, nonatomic) IBOutlet UIImageView *viewVerticalLine;
+
+@property (weak, nonatomic) IBOutlet UILabel *lbTripPickupTime;
+
+@property (weak, nonatomic) IBOutlet UILabel *lbTimeRemaining;
+@property(weak,nonatomic) id<UpcommingTripCellDelegate> delegate;
+@property (strong, nonatomic) IBOutlet UIView *viewTopSeparator;
+@property (weak, nonatomic) IBOutlet UIButton *btAccept;
+@property (weak, nonatomic) IBOutlet UILabel *lblPicupLocation;
+@property (weak, nonatomic) IBOutlet UILabel *lblDropLocation;
+@property (weak, nonatomic) IBOutlet UILabel *lblFareEstmate;
+@property (weak, nonatomic) IBOutlet UILabel *lblPaymentMode;
+@property (weak, nonatomic) IBOutlet UIButton *btnPessangeDetails;
+@property (weak, nonatomic) IBOutlet UIButton *btnPaymentStatus;
+@property (assign, nonatomic) BOOL isUpcommingRide;
+
+@property (weak, nonatomic) IBOutlet UIButton *btnReject;
+
+@end

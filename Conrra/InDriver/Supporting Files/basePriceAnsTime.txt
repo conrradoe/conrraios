@@ -1,0 +1,107 @@
+
+{
+  "Mon": [
+    {
+      "time": "9:00am - 11:00am",
+      "price_per_km": 40
+    },
+    {
+      "time": "11:00am - 1:00pm",
+      "price_per_km": 20
+    },
+    {
+      "time": "01:00am - 9:00pm",
+      "price_per_km": 10
+    }
+  ],
+  "Tue": [
+    {
+      "time": "9:00am - 11:00am",
+      "price_per_km": 30
+    },
+    {
+      "time": "11:00am - 1:00pm",
+      "price_per_km": 20
+    },
+    {
+      "time": "01:00am - 9:00pm",
+      "price_per_km": 10
+    }
+  ],
+  "Wed": [
+    {
+      "time": "9:00am - 11:00am",
+      "price_per_km": 30
+    },
+    {
+      "time": "11:00am - 1:00pm",
+      "price_per_km": 20
+    },
+    {
+      "time": "01:00am - 9:00pm",
+      "price_per_km": 10
+    }
+  ],
+  "Thu": [
+    {
+      "time": "9:00am - 11:00am",
+      "price_per_km": 30
+    },
+    {
+      "time": "11:00am - 1:00pm",
+      "price_per_km": 20
+    },
+    {
+      "time": "01:00am - 9:00pm",
+      "price_per_km": 10
+    }
+  ],
+  "Fri": [
+    {
+      "time": "9:00am - 11:00am",
+      "price_per_km": 30
+    },
+    {
+      "time": "11:00am - 1:00pm",
+      "price_per_km": 20
+    },
+    {
+      "time": "01:00am - 9:00pm",
+      "price_per_km": 10
+    }
+  ],
+  "Sat": [
+    {
+      "time": "9:00am - 11:00am",
+      "price_per_km": 30
+    },
+    {
+      "time": "11:00am - 1:00pm",
+      "price_per_km": 20
+    },
+    {
+      "time": "01:00am - 9:00pm",
+      "price_per_km": 10
+    }
+  ],
+  "Sun": [
+    {
+      "time": "9:00am - 11:00am",
+      "price_per_km": 30
+    },
+    {
+      "time": "11:00am - 1:00pm",
+      "price_per_km": 20
+    },
+    {
+      "time": "01:00am - 9:00pm",
+      "price_per_km": 10
+    }
+  ]
+}
+
+
+//{"Mon":[{"time":"2:30am - 2:00am","perc":"9"},{"time":"1:00am - 2:00am","perc":"7"}],"Tue":[{"time":"12:30am - 1:30am","perc":"4"},{"time":"1:00am - 2:00am","perc":"5"}],"Wed":[{"time":"1:00am - 2:00am","perc":"5"},{"time":"1:30am - 2:30am","perc":"5"}],"Thu":[{"time":"1:30am - 2:30am","perc":"5"},{"time":"2:00am - 3:00am","perc":"8"}],"Fri":[{"time":"1:30am - 2:30am","perc":"5"},{"time":"1:00am - 2:00am","perc":"5"}],"Sat":[{"time":"1:30am - 2:30am","perc":"5"},{"time":"2:00am - 3:00am","perc":"8"}],"Sun":[{"time":"1:30am - 2:30am","perc":"5"},{"time":"1:30am - 2:30am","perc":"9"}]}
+
+
+

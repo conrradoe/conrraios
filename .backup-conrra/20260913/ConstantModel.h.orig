@@ -1,0 +1,84 @@
+//
+//  ConstantModel.h
+//  HireMe Rider
+//
+//  Created by  Appicial on 04/09/17.
+//  Copyright © 2023 Appicial. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+#import <CoreLocation/CoreLocation.h>
+@interface ConstantModel : NSObject
+#define ckey_erf @"erf"
+#define ckey_eer @"eer"
+#define ckey_en @"en"
+#define ckey_adv @"adv"
+#define ckey_e1 @"e1"
+#define ckey_rdl @"rdl"
+#define ckey_ebi @"ebi"
+#define ckey_ewl @"ewl"
+#define ckey_srd @"srd"
+#define ckey_epr @"epr"
+#define ckey_ech @"ech"
+#define ckey_elg @"elg"
+#define ckey_epo @"epo"
+#define ckey_eat @"eat"
+#define ckey_eds @"eds"
+#define ckey_rds @"rds"
+#define ckey_eod @"eod"
+#define ckey_efi @"efi"
+#define ckey_elg @"elg"
+#define ckey_etld @"etld"
+#define ckey_edd @"edd"
+#define ckey_epp @"epp"
+#define ckey_est @"est"
+
+
+
+
+@property(nonatomic,strong) NSString *gKey;
+@property(nonatomic,strong) NSString *ios_app_ver;
+@property(nonatomic,assign) float constant_driver_radius; 
+@property(nonatomic,assign) BOOL otp_off;
+@property(nonatomic,assign) int max_time_span;
+@property(nonatomic,assign) BOOL enable_aboutus;
+@property(nonatomic,assign) BOOL enable_pp;
+
+@property(nonatomic,strong) NSString * support_email;
+@property(nonatomic,strong) NSString * share_text;
+@property(nonatomic,strong) NSString *fare_policy_url; 
+
+@property(nonatomic,assign) BOOL otp_end;
+@property(nonatomic,assign) BOOL otp_start;
+@property(nonatomic,strong)NSString *app_prefix;
+@property(nonatomic,assign) int min_password_length;
+@property(nonatomic,assign) int min_phone_length;
+@property(nonatomic,assign) int max_phone_length;
+@property(nonatomic,assign) int exp_time;
+@property(nonatomic,assign) BOOL enable_share;
+@property(nonatomic,assign) BOOL enable_contactus;  
+
+@property(nonatomic,strong) NSString * stripe_s_key;
+@property(nonatomic,strong) NSString * stripe_p_key;
+@property(nonatomic,strong) NSString * stripe_s_dev_key;
+@property(nonatomic,strong) NSString * stripe_p_dev_key;
+@property(nonatomic,assign) BOOL is_stripe_live;
+
+@property(nonatomic,strong) NSString * currency_conversion;
+@property(nonatomic,strong) CLLocation * def_location;
+@property(nonatomic,assign)int common_api_ver;
+@property(nonatomic,assign)BOOL enable_chat;
+@property(nonatomic,assign) BOOL  is_demo;
+@property(nonatomic,assign) int  dummy_driver_count;
+@property(nonatomic,assign) float  dummy_driver_radius; 
+@property(nonatomic,assign)float offer_step_amount;
+@property(strong,nonatomic) NSString *car_brands;
+-(instancetype)initItemWithDict:(NSArray *)array;
+@property(nonatomic,assign) int max_decimal_allowed;
++(ConstantModel *) getConstantsObject;
+-(BOOL) getBoolValueForKey:(NSString *) key;
+-(void)manageCP;
+-(BOOL) getCValueFK:(NSString *) key;
+-(void) refreshObject;
+
+@end

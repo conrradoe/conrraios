@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.XIB" version="3.0" toolsVersion="15705" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" colorMatched="YES">
+    <device id="retina4_7" orientation="portrait" appearance="light"/>
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="15706"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <customFonts key="customFonts">
+        <array key="OpenSans-Regular.ttf">
+            <string>OpenSans-Regular</string>
+        </array>
+    </customFonts>
+    <objects>
+        <placeholder placeholderIdentifier="IBFilesOwner" id="-1" userLabel="File's Owner"/>
+        <placeholder placeholderIdentifier="IBFirstResponder" id="-2" customClass="UIResponder"/>
+        <tableViewCell clipsSubviews="YES" contentMode="scaleToFill" selectionStyle="default" indentationWidth="10" reuseIdentifier="LegalCell" id="9CR-ux-Stq" customClass="LegalCell">
+            <rect key="frame" x="0.0" y="0.0" width="375" height="35"/>
+            <autoresizingMask key="autoresizingMask"/>
+            <tableViewCellContentView key="contentView" opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center" tableViewCell="9CR-ux-Stq" id="fWR-Jd-e1P">
+                <rect key="frame" x="0.0" y="0.0" width="375" height="35"/>
+                <autoresizingMask key="autoresizingMask"/>
+                <subviews>
+                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="jsL-rN-jgR">
+                        <rect key="frame" x="15" y="7" width="345" height="21"/>
+                        <constraints>
+                            <constraint firstAttribute="height" relation="greaterThanOrEqual" constant="21" id="Nol-Oz-Bh8"/>
+                        </constraints>
+                        <fontDescription key="fontDescription" name="OpenSans-Regular" family="Open Sans" pointSize="15"/>
+                        <color key="textColor" red="0.1058823529" green="0.1058823529" blue="0.14117647059999999" alpha="0.80000000000000004" colorSpace="custom" customColorSpace="sRGB"/>
+                        <nil key="highlightedColor"/>
+                    </label>
+                    <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="mOC-7b-brW">
+                        <rect key="frame" x="0.0" y="34.5" width="375" height="0.5"/>
+                        <color key="backgroundColor" white="0.66666666666666663" alpha="1" colorSpace="calibratedWhite"/>
+                        <constraints>
+                            <constraint firstAttribute="height" constant="0.5" id="1sR-Gb-iZv"/>
+                        </constraints>
+                    </view>
+                </subviews>
+                <constraints>
+                    <constraint firstItem="jsL-rN-jgR" firstAttribute="leading" secondItem="fWR-Jd-e1P" secondAttribute="leading" constant="15" id="6pU-Yf-Kno"/>
+                    <constraint firstItem="jsL-rN-jgR" firstAttribute="centerY" secondItem="fWR-Jd-e1P" secondAttribute="centerY" id="Fmt-yl-oY5"/>
+                    <constraint firstAttribute="trailing" secondItem="mOC-7b-brW" secondAttribute="trailing" id="Q9m-Nd-aQM"/>
+                    <constraint firstAttribute="trailing" secondItem="jsL-rN-jgR" secondAttribute="trailing" constant="15" id="Qp2-2M-L51"/>
+                    <constraint firstItem="mOC-7b-brW" firstAttribute="leading" secondItem="fWR-Jd-e1P" secondAttribute="leading" id="Qt7-76-Jgf"/>
+                    <constraint firstAttribute="bottom" secondItem="mOC-7b-brW" secondAttribute="bottom" id="utm-kc-a0a"/>
+                </constraints>
+            </tableViewCellContentView>
+            <connections>
+                <outlet property="lblLanguage" destination="jsL-rN-jgR" id="cC5-AF-syj"/>
+            </connections>
+            <point key="canvasLocation" x="-106.5" y="-70.5"/>
+        </tableViewCell>
+    </objects>
+</document>

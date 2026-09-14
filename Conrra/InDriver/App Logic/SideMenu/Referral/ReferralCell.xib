@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.XIB" version="3.0" toolsVersion="17156" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" colorMatched="YES">
+    <device id="retina4_7" orientation="portrait" appearance="light"/>
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="17125"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <customFonts key="customFonts">
+        <array key="Karla-Regular.ttf">
+            <string>Karla-Regular</string>
+        </array>
+    </customFonts>
+    <objects>
+        <placeholder placeholderIdentifier="IBFilesOwner" id="-1" userLabel="File's Owner"/>
+        <placeholder placeholderIdentifier="IBFirstResponder" id="-2" customClass="UIResponder"/>
+        <tableViewCell clipsSubviews="YES" contentMode="scaleToFill" selectionStyle="default" indentationWidth="10" reuseIdentifier="ReferralCell" rowHeight="65" id="9CR-ux-Stq" customClass="ReferralCell">
+            <rect key="frame" x="0.0" y="0.0" width="375" height="65"/>
+            <autoresizingMask key="autoresizingMask"/>
+            <tableViewCellContentView key="contentView" opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center" tableViewCell="9CR-ux-Stq" id="fWR-Jd-e1P">
+                <rect key="frame" x="0.0" y="0.0" width="375" height="65"/>
+                <autoresizingMask key="autoresizingMask"/>
+                <subviews>
+                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Baij Gupta" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="ULw-Uz-12n">
+                        <rect key="frame" x="64" y="10" width="211" height="21.5"/>
+                        <color key="backgroundColor" white="0.0" alpha="0.0" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                        <constraints>
+                            <constraint firstAttribute="height" relation="greaterThanOrEqual" constant="18" id="dvh-wI-d4L"/>
+                        </constraints>
+                        <fontDescription key="fontDescription" name="Karla-Regular" family="Karla" pointSize="18"/>
+                        <color key="textColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                        <nil key="highlightedColor"/>
+                    </label>
+                    <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="mOC-7b-brW">
+                        <rect key="frame" x="0.0" y="64.5" width="375" height="0.5"/>
+                        <color key="backgroundColor" white="0.66666666666666663" alpha="1" colorSpace="calibratedWhite"/>
+                        <constraints>
+                            <constraint firstAttribute="height" constant="0.5" id="1sR-Gb-iZv"/>
+                        </constraints>
+                    </view>
+                    <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="Profile Icon Crop Image" translatesAutoresizingMaskIntoConstraints="NO" id="Fw9-Qf-b8c">
+                        <rect key="frame" x="10" y="10" width="44" height="45"/>
+                        <constraints>
+                            <constraint firstAttribute="width" constant="44" id="Dmk-F5-vTY"/>
+                            <constraint firstAttribute="height" constant="45" id="VC5-qP-xjp"/>
+                        </constraints>
+                    </imageView>
+                    <view clipsSubviews="YES" contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="Hdu-9F-xac">
+                        <rect key="frame" x="306.5" y="10" width="58.5" height="22"/>
+                        <subviews>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Joined" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="jsL-rN-jgR">
+                                <rect key="frame" x="10" y="3" width="38.5" height="15.5"/>
+                                <color key="backgroundColor" white="0.0" alpha="0.0" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                <constraints>
+                                    <constraint firstAttribute="height" relation="greaterThanOrEqual" constant="15" id="Nol-Oz-Bh8"/>
+                                    <constraint firstAttribute="width" relation="greaterThanOrEqual" constant="30" id="UkL-5N-HEV"/>
+                                </constraints>
+                                <fontDescription key="fontDescription" name="Karla-Regular" family="Karla" pointSize="13"/>
+                                <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                        </subviews>
+                        <color key="backgroundColor" red="0.0" green="0.39215686274509803" blue="0.0" alpha="1" colorSpace="calibratedRGB"/>
+                        <constraints>
+                            <constraint firstAttribute="trailing" secondItem="jsL-rN-jgR" secondAttribute="trailing" constant="10" id="Ccj-ET-YCE"/>
+                            <constraint firstAttribute="height" constant="22" id="NNF-1m-egD"/>
+                            <constraint firstItem="jsL-rN-jgR" firstAttribute="centerY" secondItem="Hdu-9F-xac" secondAttribute="centerY" id="zlg-YI-Veg"/>
+                            <constraint firstItem="jsL-rN-jgR" firstAttribute="leading" secondItem="Hdu-9F-xac" secondAttribute="leading" constant="10" id="zoa-S3-7u2"/>
+                        </constraints>
+                        <userDefinedRuntimeAttributes>
+                            <userDefinedRuntimeAttribute type="number" keyPath="layer.cornerRadius">
+                                <integer key="value" value="6"/>
+                            </userDefinedRuntimeAttribute>
+                        </userDefinedRuntimeAttributes>
+                    </view>
+                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Awating to 1st ride to be completed" textAlignment="natural" lineBreakMode="tailTruncation" numberOfLines="0" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="082-7Y-U5K">
+                        <rect key="frame" x="64" y="36" width="301" height="15.5"/>
+                        <color key="backgroundColor" white="0.0" alpha="0.0" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                        <constraints>
+                            <constraint firstAttribute="height" relation="greaterThanOrEqual" constant="15" id="hY0-HZ-bR3"/>
+                        </constraints>
+                        <fontDescription key="fontDescription" name="Karla-Regular" family="Karla" pointSize="13"/>
+                        <color key="textColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                        <nil key="highlightedColor"/>
+                    </label>
+                    <activityIndicatorView opaque="NO" contentMode="scaleToFill" horizontalHuggingPriority="750" verticalHuggingPriority="750" style="large" translatesAutoresizingMaskIntoConstraints="NO" id="X8Q-iY-uyD">
+                        <rect key="frame" x="177.5" y="22.5" width="20" height="20"/>
+                        <constraints>
+                            <constraint firstAttribute="height" constant="20" id="Fan-bx-f5O"/>
+                            <constraint firstAttribute="width" constant="20" id="xuH-a4-uiQ"/>
+                        </constraints>
+                        <color key="color" red="0.28627450980000002" green="0.28627450980000002" blue="0.31372549020000001" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                    </activityIndicatorView>
+                </subviews>
+                <constraints>
+                    <constraint firstAttribute="trailing" secondItem="Hdu-9F-xac" secondAttribute="trailing" constant="10" id="Oor-CS-w7K"/>
+                    <constraint firstAttribute="trailing" secondItem="mOC-7b-brW" secondAttribute="trailing" id="Q9m-Nd-aQM"/>
+                    <constraint firstItem="mOC-7b-brW" firstAttribute="leading" secondItem="fWR-Jd-e1P" secondAttribute="leading" id="Qt7-76-Jgf"/>
+                    <constraint firstItem="X8Q-iY-uyD" firstAttribute="centerX" secondItem="fWR-Jd-e1P" secondAttribute="centerX" id="U3O-ug-4JZ"/>
+                    <constraint firstItem="082-7Y-U5K" firstAttribute="top" secondItem="Hdu-9F-xac" secondAttribute="bottom" constant="4" id="V2C-oe-2Jr"/>
+                    <constraint firstItem="ULw-Uz-12n" firstAttribute="top" secondItem="fWR-Jd-e1P" secondAttribute="top" constant="10" id="VpH-oR-lH3"/>
+                    <constraint firstItem="Hdu-9F-xac" firstAttribute="centerY" secondItem="ULw-Uz-12n" secondAttribute="centerY" id="YSc-58-gYb"/>
+                    <constraint firstItem="Fw9-Qf-b8c" firstAttribute="top" secondItem="fWR-Jd-e1P" secondAttribute="top" constant="10" id="YuD-xV-ucd"/>
+                    <constraint firstAttribute="trailing" secondItem="ULw-Uz-12n" secondAttribute="trailing" constant="100" id="cox-mM-WVL"/>
+                    <constraint firstItem="ULw-Uz-12n" firstAttribute="leading" secondItem="Fw9-Qf-b8c" secondAttribute="trailing" constant="10" id="eSH-gL-046"/>
+                    <constraint firstItem="Fw9-Qf-b8c" firstAttribute="leading" secondItem="fWR-Jd-e1P" secondAttribute="leading" constant="10" id="r0n-ds-dZa"/>
+                    <constraint firstItem="082-7Y-U5K" firstAttribute="leading" secondItem="Fw9-Qf-b8c" secondAttribute="trailing" constant="10" id="sxm-SV-TuQ"/>
+                    <constraint firstItem="X8Q-iY-uyD" firstAttribute="centerY" secondItem="fWR-Jd-e1P" secondAttribute="centerY" id="t6y-EW-QjD"/>
+                    <constraint firstAttribute="bottom" secondItem="mOC-7b-brW" secondAttribute="bottom" id="utm-kc-a0a"/>
+                    <constraint firstAttribute="trailing" secondItem="082-7Y-U5K" secondAttribute="trailing" constant="10" id="yUT-pF-uda"/>
+                </constraints>
+            </tableViewCellContentView>
+            <connections>
+                <outlet property="imageDriver" destination="Fw9-Qf-b8c" id="c70-AH-QSh"/>
+                <outlet property="lblActivityLoader" destination="X8Q-iY-uyD" id="KZk-NV-oOb"/>
+                <outlet property="lblDriverName" destination="ULw-Uz-12n" id="ibE-eA-Fsx"/>
+                <outlet property="lblLanguage" destination="jsL-rN-jgR" id="cC5-AF-syj"/>
+                <outlet property="lblMessage" destination="082-7Y-U5K" id="jSv-sk-GbU"/>
+                <outlet property="viewStatusBg" destination="Hdu-9F-xac" id="f9l-bu-Uyg"/>
+            </connections>
+            <point key="canvasLocation" x="-108" y="-57.121439280359823"/>
+        </tableViewCell>
+    </objects>
+    <resources>
+        <image name="Profile Icon Crop Image" width="50" height="50"/>
+    </resources>
+</document>

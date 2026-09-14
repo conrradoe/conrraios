@@ -1,0 +1,1460 @@
+//
+//  AppDelegate.m
+//  Store_project
+//
+//  Created by  Appicial on 06/02/17.
+//  Copyright © 2023 Appicial. All rights reserved.
+//
+
+#import "AppDelegate.h"
+#import "WebCallConstants.h"
+#import <GIKit/GIKit.h>
+#import <AudioToolbox/AudioServices.h>
+#import "HomeViewController.h"
+#import "TripModel.h"
+#import "WebCallConstants.h" 
+#import "ChatViewController.h"
+#import <IQKeyboardManager.h>
+#import "FareAmmountViewController.h"
+#import "RiderCancelTripViewController.h"
+#import <Conrra-Swift.h>
+#import "Utilities.h"
+#import "MainViewController.h"
+#import "UMainViewController.h"
+#import "UHomeViewController.h"
+#import "UpdateUserCurrentLocation.h"
+#import "UploadDocumentViewController.h"
+#import "UChatViewController.h"
+#import "NotificationViewController.h"
+#import "AutoHideAlert.h"
+#import "BeginTripViewController.h"
+//#import "UNotificationViewController.h"
+//@import FBSDKCoreKit;
+@interface AppDelegate ()<FIRMessagingDelegate,AutoHideAlertDelegate>{
+    BOOL appLaunched;
+    NSTimer *timerForOffScreen;
+    UIAlertController *alertAutoHide;
+    NSTimer *timerForHideAlert ;
+    AutoHideAlert * autoHideTripStatus;
+    AppPushNotificationHandler * pushNotificationHandler;
+    AutoHideAlert * autoHideChat;
+}
+@end
+
+
+
+
+@implementation AppDelegate{
+    SystemSoundID completeSoundRequest;
+    SocketHelperSwift *socketHelperSwift;
+    BOOL _switchingToDriverMode;
+}
+
+- (BOOL)switchingToDriverMode {
+    return _switchingToDriverMode;
+}
+
+- (void)setSwitchingToDriverMode:(BOOL)switchingToDriverMode {
+    _switchingToDriverMode = switchingToDriverMode;
+}
+
+-(id) getSockethelperSwift{
+    return socketHelperSwift;
+}
+
+
+-(void) connectToSocket{
+    NSDictionary * dict=defaults_object(P_USER_DICT);
+    if(dict){
+        SocketHelperSwift * socketHelper = [APP_DELEGATE getSockethelperSwift];
+        if(![socketHelper isConnected]){
+            [socketHelper connect];
+        }
+    }
+}
+-(void) disconnectToSocket{
+    NSDictionary * dict=defaults_object(P_USER_DICT);
+    if(dict){
+        SocketHelperSwift * socketHelper = [APP_DELEGATE getSockethelperSwift];
+        if([socketHelper isConnected]){
+            [socketHelper disconnect];
+        }
+    }
+}
+
+
+-(NSString * ) getGoogleKey{
+    NSString * googleKey=defaults_object(@"google_key_server");
+    if(googleKey.length>0)
+    {
+        return googleKey;
+    }
+    return @"";
+}
+
+- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
+#if DEBUG
+    [[NSBundle bundleWithPath:@"/Applications/InjectionIII.app/Contents/Resources/iOSInjection.bundle"] load];
+#endif
+    self.notificationCount= 0;
+//    [[FBSDKSettings sharedSettings] enableLoggingBehavior:FBSDKLoggingBehaviorAppEvents];
+//    [[FBSDKAppEvents shared] activateApp];
+//    [[FBSDKApplicationDelegate sharedInstance] application:application
+//                             didFinishLaunchingWithOptions:launchOptions];
+    defaults_set_object(ABU,BASE_URL_DRIVER);
+    defaults_set_object(@"EN_IV", IV);
+    defaults_set_object(@"EN_KEY", KEY);
+    [GIKCommon enabledEn:YES];
+    pushNotificationHandler = [[AppPushNotificationHandler alloc] init];
+    socketHelperSwift =[[SocketHelperSwift alloc] init];
+    [UIApplication sharedApplication].idleTimerDisabled = YES;
+    [IQKeyboardManager.sharedManager setLayoutIfNeededOnUpdate:YES];
+    [DataBase setUpRoutTrack];
+    if([[[NSUserDefaults standardUserDefaults]   objectForKey:P_IS_SINGLE_MODE] boolValue])
+    {
+        NSString *status =defaults_object(DRIVER_STATUS);
+        if ( status ==nil ||[status isEqualToString:TS_WAITING] || [status isEqualToString:TS_REQUEST] || [status isEqualToString:TS_END] || [status isEqualToString:TS_DRIVER_CANCEL_AT_PICKUP] || [status isEqualToString:TS_DRIVER_CANCEL_AT_DROP]){
+            
+        }
+        else {
+            
+        }
+        
+    }
+    
+    if (@available(iOS 13, *)) {
+        if([[ConstantModel getConstantsObject] getCValueFK:ckey_etld]){
+            if (@available(iOS 13, *)) {
+                NSString * uiOri=defaults_object(@"app_mode");
+                if(uiOri&&[uiOri isEqualToString:@"light"]){
+                    self.window.overrideUserInterfaceStyle = UIUserInterfaceStyleLight;
+                }else  if(uiOri&&[uiOri isEqualToString:@"dark"]){
+                    self.window.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
+                }else  if(uiOri&&[uiOri isEqualToString:@"auto"]){
+                    NSDate *date = [NSDate date];
+                    NSCalendar *calendar = [NSCalendar currentCalendar];
+                    NSDateComponents *components = [calendar components:(NSCalendarUnitHour | NSCalendarUnitMinute) fromDate:date];
+                    NSInteger hour = [components hour];
+                    if(hour<=DAY_START_HURS){
+                        self.window.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
+                    }else if(hour>DAY_START_HURS&&hour<DAY_END_HURS){
+                        self.window.overrideUserInterfaceStyle = UIUserInterfaceStyleLight;
+                    }else{
+                        self.window.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
+                    }
+                }else{
+                    self.window.overrideUserInterfaceStyle = UIUserInterfaceStyleLight;
+                }
+            }
+        }else{
+            self.window.overrideUserInterfaceStyle = UIUserInterfaceStyleLight;
+        }
+    }
+   
+    if (launchOptions != nil){
+        NSDictionary* userInfo = [launchOptions objectForKey:UIApplicationLaunchOptionsRemoteNotificationKey];
+        if (userInfo != nil){
+            self.userInfoAppLaunch =[self mapUserInfoFcmToApns:userInfo];
+        }
+    }
+    
+    UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
+    center.delegate = self;
+    [center requestAuthorizationWithOptions:(UNAuthorizationOptionSound | UNAuthorizationOptionAlert | UNAuthorizationOptionBadge) completionHandler:^(BOOL granted, NSError * _Nullable error) {
+        if( !error ) {
+            // required to get the app to do anything at all about push notifications
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [[UIApplication sharedApplication] registerForRemoteNotifications];
+            });
+            
+            
+        } else {
+            
+        }
+    }];
+    [FIRApp configure];
+    [FIRMessaging messaging].delegate = self;
+    [self getDeviceToken];
+    NSDictionary *notification = [launchOptions objectForKey:UIApplicationLaunchOptionsRemoteNotificationKey];
+    if (notification) {
+        appLaunched = YES;
+    } else {         
+        appLaunched = NO;
+    }
+    [self startTimer];
+     
+
+    return YES;
+}
+
+-(void) stopRequestSound{
+    @try {
+        if(completeSoundRequest>0) {
+            AudioServicesDisposeSystemSoundID(completeSoundRequest);
+            completeSoundRequest=0;
+        }
+    } @catch (NSException *exception) {
+        [self openAlertNotificationDebug:[NSString stringWithFormat:@"%@",exception] ];
+    } @finally {
+        
+    }
+}
+
+//-(BOOL)application:(UIApplication *)app openURL:(NSURL *)url options:(NSDictionary<UIApplicationOpenURLOptionsKey,id> *)options{
+//    return [[FBSDKApplicationDelegate sharedInstance] application:app openURL:url options:options];
+//}
+-(void) handleNotificationIfHasData{
+    if(_userInfoAppLaunch==nil){
+        return;
+    }
+    NSDictionary *userInfo=[[NSDictionary alloc] initWithDictionary:_userInfoAppLaunch];
+    self.userInfoAppLaunch=nil;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
+        NSMutableDictionary *dicAps=[userInfo valueForKey:@"aps"];
+        NSString *type=[dicAps objectForKey:@"type"];
+        if(type.length>0){
+            if([type isEqualToString:@"wallet_notif"]){
+            }else{
+                [self handleSideNotificationWithMessage:[dicAps objectForKey:@"alert"]];
+            }
+        }else{
+            if ([[dicAps objectForKey:@"trip_status"] isEqualToString:TS_REQUEST]||[[dicAps objectForKey:@"trip_status"] isEqualToString:TS_ACCEPTED]) {
+                self.isFromInactive =YES;
+                [self manageRemoteNotification:userInfo application:[UIApplication sharedApplication]];
+            }else if ([[dicAps objectForKey:@"trip_status"] isEqualToString:TS_ACCEPTED]) {
+                [self handleAcceptNotification:[dicAps objectForKey:@"trip_id"] message:[dicAps objectForKey:@"alert"] userInfo:userInfo];
+            }
+            else if ([[dicAps objectForKey:@"trip_status"] isEqualToString:TS_CHAT]) {
+                [self handleChatNotification:dicAps ];
+            }
+            else if ([[dicAps objectForKey:@"trip_status"] isEqualToString:CASH_PAY]) {
+                [self handleCashNotification:[dicAps objectForKey:@"trip_id"] message:[dicAps objectForKey:@"alert"]];
+            }else if([[dicAps objectForKey:@"trip_status"] isEqualToString:TS_RIDER_CANCEL_CANCEL]){
+                [self handleRiderCancelNotification:[dicAps objectForKey:@"trip_id"] message:[dicAps objectForKey:@"alert"]];
+            }else if ([[dicAps objectForKey:@"trip_status"] isEqualToString:TS_OFFER]) {
+                [self handleOfferNotification:[dicAps objectForKey:@"trip_id"] message:[dicAps objectForKey:@"alert"] userInfo:userInfo];
+            }
+        }
+    });
+}
+
+- (void)applicationWillResignActive:(UIApplication *)application {
+    // Sent when the application is about to move from active to inactive state. This can occur for certain types of temporary interruptions (such as an incoming phone call or SMS message) or when the user quits the application and it begins the transition to the background state.
+    // Use this method to pause ongoing tasks, disable timers, and invalidate graphics rendering callbacks. Games should use this method to pause the game.
+}
+
+
+- (void)applicationDidEnterBackground:(UIApplication *)application {
+    // Use this method to release shared resources, save user data, invalidate timers, and store enough application state information to restore your application to its current state in case it is terminated later.
+    // If your application supports background execution, this method is called instead of applicationWillTerminate: when the user quits.
+    [self stopTimer];
+}
+
+
+- (void)applicationWillEnterForeground:(UIApplication *)application {
+    // Called as part of the transition from the background to the active state; here you can undo many of the changes made on entering the background.
+    application.applicationIconBadgeNumber =0;
+    NSLog(@"*********** applicationWillEnterForeground ***********");
+    [self startTimer];
+}
+
+
+- (void)applicationDidBecomeActive:(UIApplication *)application {
+    NSLog(@"*********** applicationDidBecomeActive ***********");
+    // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
+    
+}
+
+
+- (void)applicationWillTerminate:(UIApplication *)application {
+    // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
+    
+}
+
+- (void)application:(UIApplication *)application
+didFailToRegisterForRemoteNotificationsWithError:(NSError *)error {
+    
+}
+
+- (void)application:(UIApplication *)application didReceiveRemoteNotification:(NSDictionary *)userInfo fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler
+{
+    
+    if (application.applicationState == UIApplicationStateBackground) {
+        
+        
+        NSString* contentAvailable = [NSString stringWithFormat:@"%@", [[userInfo valueForKey:@"aps"] valueForKey:@"content-available"]];
+        
+        if([contentAvailable isEqualToString:@"1"]) {
+            // do tasks
+            //            [self manageRemoteNotification:userInfo application:application];
+            [self manageRemoteNotification:[self mapUserInfoFcmToApns:userInfo] application:application];
+            completionHandler(UIBackgroundFetchResultNewData);
+        }
+    }
+    else {
+        
+        //Show an in-app banner
+        //do tasks
+        //        [self manageRemoteNotification:userInfo application:application];
+        [self manageRemoteNotification:[self mapUserInfoFcmToApns:userInfo] application:application];
+        completionHandler(UIBackgroundFetchResultNewData);
+        
+    }
+}
+
+- (void)application:(UIApplication *)application didRegisterForRemoteNotificationsWithDeviceToken:(NSData *) deviceToken {
+    
+    [FIRMessaging messaging].APNSToken = deviceToken;
+    NSString *strDeviceToken;
+    if (SYSTEM_VERSION_GREATER_THAN_OR_EQUAL_TO(@"13.0")) {
+        strDeviceToken = [self hexadecimalStringFromData:deviceToken];
+    }
+    else {
+        strDeviceToken =
+        [[[[deviceToken description] stringByReplacingOccurrencesOfString:@"<"
+                                                               withString:@""]
+          stringByReplacingOccurrencesOfString:@">"
+          withString:@""]
+         stringByReplacingOccurrencesOfString:@" "
+         withString:@""];
+        
+    }
+    
+    //    NSLog(@"Device token  %@", strDeviceToken);
+    //    [[NSUserDefaults standardUserDefaults]setObject:strDeviceToken forKey:P_DEVICE_TOKEN];
+    //    [[NSUserDefaults standardUserDefaults]synchronize];
+    
+}
+
+- (NSString *)hexadecimalStringFromData:(NSData *)data
+{
+    NSUInteger dataLength = data.length;
+    if (dataLength == 0) {
+        return nil;
+    }
+    
+    const unsigned char *dataBuffer = (const unsigned char *)data.bytes;
+    NSMutableString *hexString  = [NSMutableString stringWithCapacity:(dataLength * 2)];
+    for (int i = 0; i < dataLength; ++i) {
+        [hexString appendFormat:@"%02x", dataBuffer[i]];
+    }
+    return [hexString copy];
+}
+
+
+-(void)manageRemoteNotification:(NSDictionary *)userInfo application:(UIApplication *)application{
+    if(userInfo.count==0){
+        return;
+    }
+    NSMutableDictionary *dicAps=[userInfo valueForKey:@"aps"];
+    NSString * to =[dicAps objectForKey:@"to"];
+    NSString * type =[dicAps objectForKey:@"type"];
+    if(type.length>0){
+        SystemSoundID completeSound;
+        NSURL *audioPath = [[NSBundle mainBundle] URLForResource:@"Alert" withExtension:@"mp3"];
+        AudioServicesCreateSystemSoundID((__bridge CFURLRef)audioPath, &completeSound);
+        AudioServicesPlaySystemSound (completeSound);
+        if([type isEqualToString:@"wallet_notif"]){
+            [self refreshUserProfile];
+        }else{
+            [[NSNotificationCenter defaultCenter]
+             postNotificationName:@"noti_refresh"
+             object:nil userInfo:userInfo];
+            [self handleSideNotificationWithMessage:[dicAps objectForKey:@"alert"]];
+        }
+        return;
+    }
+    if(type.length>0){
+        [self openAlertNotificationDebug:[NSString stringWithFormat:@"%@",userInfo] ];
+        return;
+    }
+    if(to.length==0){
+        NSString * tripStatus = [dicAps objectForKey:TRIP_STATUS];
+        if([tripStatus isEqualToString:TS_ASSIGNED]||[tripStatus isEqualToString:TS_REQUEST]){
+            to = @"driver";
+        }else{
+            //[self openAlertNotificationDebug:[NSString stringWithFormat:@"%@",userInfo] ];
+            return;
+        }
+    }
+    
+    
+    BOOL isUserLogin=[defaults_object(P_IS_USER_LOGIN) boolValue];
+    if(isUserLogin==YES){
+        if(![to isEqualToString:@"user"]){
+            [self openAlertNotificationDifferentType:[LanguageHelper getStringWithKey:@"k_76_s4_crs_app_noti_rdr"]];
+            return;
+        }
+        
+    }else{
+        if(![to isEqualToString:@"driver"]){
+            [self openAlertNotificationDifferentType:[LanguageHelper getStringWithKey:@"k_76_s4_crs_app_noti_drvr"]];
+            return;
+        }
+    }
+    
+    if(to.length>0&&[to isEqualToString:@"user"]){
+        [self manageRemoteNotificationUser:userInfo application:application];
+        return;
+    }
+    
+    
+    if (application.applicationState == UIApplicationStateActive) {
+        if([[dicAps objectForKey:@"trip_status"] isEqualToString:TS_RIDER_CANCEL])
+        {
+            SystemSoundID completeSound;
+            NSURL *audioPath = [[NSBundle mainBundle] URLForResource:@"driver_cancel" withExtension:@"caf"];
+            AudioServicesCreateSystemSoundID((__bridge CFURLRef)audioPath, &completeSound);
+            AudioServicesPlaySystemSound (completeSound);
+        }else{
+            if([[dicAps objectForKey:@"trip_status"] isEqualToString:TS_REQUEST]){
+                [self stopRequestSound];
+                NSURL *audioPath = [[NSBundle mainBundle] URLForResource:@"request_sound" withExtension:@"caf"];
+                AudioServicesCreateSystemSoundID((__bridge CFURLRef)audioPath, &completeSoundRequest);
+                AudioServicesPlaySystemSound (completeSoundRequest);
+            }else if([[dicAps objectForKey:@"trip_status"] isEqualToString:@"hide_alert"]){
+                
+            }
+            else{
+                SystemSoundID completeSound;
+                NSURL *audioPath = [[NSBundle mainBundle] URLForResource:@"Alert" withExtension:@"mp3"];
+                AudioServicesCreateSystemSoundID((__bridge CFURLRef)audioPath, &completeSound);
+                AudioServicesPlaySystemSound (completeSound);
+                
+            }
+        }
+    }
+    
+    if([[dicAps objectForKey:@"trip_status"] isEqualToString:@"hide_alert"]){
+        NSString *tripId= defaults_object(TRIP_ID);
+        if([tripId intValue ]>0){
+            if([tripId intValue]==[[dicAps objectForKey:@"trip_id"] intValue]){
+                defaults_remove(TRIP_ID);
+                defaults_remove(TRIP_STATUS);
+            }
+        }
+        [self stopRequestSound];
+        [[NSNotificationCenter defaultCenter]
+         postNotificationName:AppNotificationName.DRIVER_HIDE_ALERT_NOTIFICATION
+         object:nil userInfo:userInfo];
+    }
+    else if([[dicAps objectForKey:@"trip_status"] isEqualToString:TS_RIDER_CANCEL_CANCEL]){
+        
+        [self handleRiderCancelNotification:[dicAps objectForKey:@"trip_id"] message:[dicAps objectForKey:@"alert"]];
+    }
+    else if([[dicAps objectForKey:@"trip_status"] isEqualToString:TS_CHAT]){
+        [self handleChatNotification:dicAps ];
+    }
+    else if ([[dicAps objectForKey:@"trip_status"] isEqualToString:TS_OFFER]) {
+        [self handleOfferNotification:[dicAps objectForKey:@"trip_id"] message:[dicAps objectForKey:@"alert"] userInfo:userInfo];
+    }
+    else if ([[dicAps objectForKey:@"trip_status"] isEqualToString:TS_REQUEST] || [[dicAps objectForKey:@"trip_status"] isEqualToString:TS_RIDER_CANCEL] ) {
+        [[NSNotificationCenter defaultCenter]
+         postNotificationName:AppNotificationName.DRIVER_ACCEPT_NOTIFICATION
+         object:nil userInfo:userInfo];
+    }
+    else if([[dicAps objectForKey:@"trip_status"] isEqualToString:TS_ARRIVE]) {
+        [self handleTripRunninNotification:[dicAps objectForKey:@"trip_id"] message:[dicAps objectForKey:@"alert"] tripStatus:[dicAps objectForKey:@"trip_status"]];
+    }
+    else if([[dicAps objectForKey:@"trip_status"] isEqualToString:TS_BEGIN]) {
+        [self handleTripRunninNotification:[dicAps objectForKey:@"trip_id"] message:[dicAps objectForKey:@"alert"] tripStatus:[dicAps objectForKey:@"trip_status"]];
+    }
+//    else if([[dicAps objectForKey:@"trip_status"] isEqualToString:TS_ACCEPTED]) {
+//        [self handleTripRunninNotification:[dicAps objectForKey:@"trip_id"] message:[dicAps objectForKey:@"alert"] tripStatus:[dicAps objectForKey:@"trip_status"]];
+//    }
+    else if([[dicAps objectForKey:@"trip_status"] isEqualToString:TS_END]) {
+        [self handleTripRunninNotification:[dicAps objectForKey:@"trip_id"] message:[dicAps objectForKey:@"alert"] tripStatus:[dicAps objectForKey:@"trip_status"]];
+    }
+    else if([[dicAps objectForKey:@"trip_status"] isEqualToString:TS_ASSIGNED]) {
+        [self handleTripRunninNotification:[dicAps objectForKey:@"trip_id"] message:[dicAps objectForKey:@"alert"] tripStatus:[dicAps objectForKey:@"trip_status"]];
+    }else if ([[dicAps objectForKey:@"trip_status"] isEqualToString:@"declined"]) {
+        [[NSNotificationCenter defaultCenter] postNotificationName:AppNotificationName.USER_OFFER_NOTIFICATION object:nil userInfo:userInfo];
+        //        [self handleOfferNotification:[dicAps objectForKey:@"trip_id"] message:[dicAps objectForKey:@"alert"] userInfo:userInfo];
+    }
+    else if ([[dicAps objectForKey:@"trip_status"] isEqualToString:CASH_PAY] || [[dicAps objectForKey:@"trip_status"] isEqualToString:PAYPAL_PAY]){
+        [[NSNotificationCenter defaultCenter]
+         postNotificationName:AppNotificationName.DRIVER_RECEIVEDATFARE_NOTIFICATION
+         object:nil userInfo:userInfo];
+        UINavigationController *navController = (UINavigationController *)self.window.rootViewController.navigationController.viewControllers;
+        
+        UIViewController *currentControllerName = [navController topViewController];
+        if(![currentControllerName  isKindOfClass:[FareAmmountViewController class]])  {
+            [self handleCashNotification:[dicAps objectForKey:@"trip_id"]  message:[dicAps objectForKey:@"alert"]];
+        }
+    }else  if([[dicAps objectForKey:@"trip_status"] isEqualToString:TS_ACCEPTED]){
+        defaults_set_object(TRIP_ID, isEmpty([dicAps objectForKey:@"trip_id"]));
+        [self stopRequestSound];
+        [self handleAcceptNotification:[dicAps objectForKey:@"trip_id"] message:[dicAps objectForKey:@"alert"] userInfo:userInfo];
+    }else{
+        //        [self openAlertNotificationDebug:[NSString stringWithFormat:@"Else Condition %@",dicAps] ];
+    }
+    
+    
+    
+    UINavigationController *navController = (UINavigationController *)self.window.rootViewController.navigationController.viewControllers;
+    
+    UIViewController *currentControllerName = [navController topViewController];
+    
+    
+    NSString *status =defaults_object(DRIVER_STATUS);
+    
+    if([status isEqualToString:TS_WAITING] && ![currentControllerName  isKindOfClass:[HomeViewController class]]) {
+        [currentControllerName.navigationController popToRootViewControllerAnimated:NO];
+    }
+}
+
+
+-(void) handleChatNotification:(NSDictionary *)dicAps{
+    NSString * type =[dicAps objectForKey:@"type"];
+    NSString * to =[dicAps objectForKey:@"to"];
+    BOOL isUserLogin=[defaults_object(P_IS_USER_LOGIN) boolValue];
+    if(isUserLogin==YES){
+        if([to isEqualToString:@"user"]){
+            if(![self.navigationController.topViewController isKindOfClass:[BeginTripViewController class]]){
+//                [pushNotificationHandler handleChatNotificationWithMessage:[dicAps objectForKey:@"alert"] tripId:[dicAps objectForKey:@"trip_id"] ];
+                [self handleChatNotificationMSG:[dicAps objectForKey:@"trip_id"] message:[dicAps objectForKey:@"alert"]];
+            }
+        }else{
+            [self openAlertNotificationDifferentType:[LanguageHelper getStringWithKey:@"k_76_s4_crs_app_noti_rdr"]];
+        }
+    }else{
+        if([to isEqualToString:@"driver"]){
+            if(![self.navigationController.topViewController isKindOfClass:[HomeViewController class]]){
+//                [pushNotificationHandler handleChatNotificationWithMessage:[dicAps objectForKey:@"alert"] tripId:[dicAps objectForKey:@"trip_id"] ];
+                [self handleChatNotificationMSG:[dicAps objectForKey:@"trip_id"] message:[dicAps objectForKey:@"alert"]];
+            }
+            return;
+        }else{
+            [self openAlertNotificationDifferentType:[LanguageHelper getStringWithKey:@"k_76_s4_crs_app_noti_rdr"]];
+        }
+    }
+    
+}
+
+
+-(void ) handleChatNotificationMSG:(NSString *) tripId message:(NSString *) message{
+    UIAlertController *alertController = [UIAlertController alertControllerWithTitle:[LanguageHelper getStringWithKey:@"k_97_s4_msg_revd" ]     message:message   preferredStyle:UIAlertControllerStyleAlert];
+   
+    UIAlertAction *actionOkCancel = [UIAlertAction actionWithTitle:[LanguageHelper getStringWithKey:@"k_30_s6_cancel_j"]
+                                                             style:UIAlertActionStyleDefault
+                                                           handler:nil];
+    [alertController addAction:actionOkCancel];
+    UIAlertAction *actionOk = [UIAlertAction actionWithTitle:[LanguageHelper getStringWithKey:@"k_18_s4_vw_cht"]
+                                                       style:UIAlertActionStyleDefault
+                                                     handler:^(UIAlertAction * _Nonnull action) {
+        [self openChatViewController:tripId];
+    }];
+    [alertController addAction:actionOk];
+    UIViewController * viewController=[self.navigationController topViewController];
+    if(![viewController isKindOfClass:[ChatViewController class]])  {
+        [self presentViewControllerCustom:alertController];
+        autoHideChat=[[AutoHideAlert alloc] init];
+        [autoHideChat handle:alertController];
+        autoHideChat.delegate=self;
+    }
+}
+-(void) openChatViewController:(NSString *) tripId{
+    ChatViewController *vc = (ChatViewController*)[StoryBoardUtiles viewContollerInMainWithIdentifier:StoryBoardUtiles.CHAT_VC];
+    vc.tripID=tripId;
+    [self.navigationController pushViewController:vc animated:YES];
+}
+
+
+-(void)manageRemoteNotificationUser:(NSDictionary *)userInfo application:(UIApplication *)application{
+    NSMutableDictionary *dicAps=[userInfo valueForKey:@"aps"];
+    NSString * type =[dicAps objectForKey:@"type"];
+    if(type.length>0){
+        if([type isEqualToString:@"wallet_notif"]){
+            [self refreshUserProfile];
+        }else{
+            [[NSNotificationCenter defaultCenter]
+             postNotificationName:@"noti_refresh"
+             object:nil userInfo:userInfo];
+            [self handleSideNotificationWithMessage:[dicAps objectForKey:@"alert"]];
+        }
+        return;
+    }
+    if (application.applicationState == UIApplicationStateActive) {
+        
+        if([[dicAps objectForKey:@"trip_status"] isEqualToString:TS_ARRIVE]){
+            SystemSoundID completeSound;
+            NSURL *audioPath = [[NSBundle mainBundle] URLForResource:@"cab_arrive" withExtension:@"caf"];
+            AudioServicesCreateSystemSoundID((__bridge CFURLRef)audioPath, &completeSound);
+            AudioServicesPlaySystemSound (completeSound);
+        }else{
+            SystemSoundID completeSound;
+            NSURL *audioPath = [[NSBundle mainBundle] URLForResource:@"Alert" withExtension:@"mp3"];
+            AudioServicesCreateSystemSoundID((__bridge CFURLRef)audioPath, &completeSound);
+            AudioServicesPlaySystemSound (completeSound);
+        }
+        
+    }
+    if([[dicAps objectForKey:@"trip_status"] isEqualToString:TS_CHAT]) {
+        [self handleChatNotification:dicAps];
+  
+        return;
+    }
+    if ([[dicAps objectForKey:@"trip_status"] isEqualToString:TS_ACCEPTED]) {
+        [[NSNotificationCenter defaultCenter] postNotificationName:AppNotificationName.USER_ON_ACCEPT_NOTIFICATION object:nil userInfo:userInfo];
+    } else if ([[dicAps objectForKey:@"trip_status"] isEqualToString:TS_OFFER]) {
+        //        [[NSNotificationCenter defaultCenter] postNotificationName:AppNotificationName.USER_OFFER_NOTIFICATION object:nil userInfo:userInfo];
+        [self handleOfferNotification:[dicAps objectForKey:@"trip_id"] message:[dicAps objectForKey:@"alert"] userInfo:userInfo];
+    } else if ([[dicAps objectForKey:@"trip_status"] isEqualToString:@"declined"]) {
+        [[NSNotificationCenter defaultCenter] postNotificationName:AppNotificationName.USER_OFFER_NOTIFICATION  object:nil userInfo:userInfo];
+    }
+    else{
+        [[NSNotificationCenter defaultCenter] postNotificationName:AppNotificationName.USER_ACCEPT_NOTIFICATION  object:nil userInfo:userInfo];
+    }
+    if ([[dicAps objectForKey:@"trip_status"] isEqualToString:TS_PAID]||[[dicAps objectForKey:@"trip_status"] isEqualToString:TS_PAID]) {
+        UINavigationController *navController = (UINavigationController *)self.window.rootViewController.navigationController.viewControllers;
+        UIViewController *currentControllerName = [navController topViewController];
+        if(![currentControllerName  isKindOfClass:[FareAmmountViewController class]]) {
+            [self handleCashNotification:[dicAps objectForKey:@"trip_id"] message:[dicAps objectForKey:@"alert"]];
+        }
+    }
+}
+/**
+ * This method validates whether the internet is reachable or  not
+ */
+- (void)checkNetworkStatus:(NSNotification *)notice {
+    // called after network status changes
+    NetworkStatus internetStatus = [internetReachable currentReachabilityStatus];
+    switch (internetStatus) {
+        case NotReachable: {
+            
+            if (self.connectionStatus) {
+                [UtilityClass swa:[LanguageHelper getStringWithKey:@"k_5_s10_internet_error"]
+                                m:[LanguageHelper getStringWithKey:@"k_5_s10_internet_error"]
+                              cbt:[LanguageHelper getStringWithKey:@"k_18_s4_Ok"]
+                              obt:nil
+                ];
+                
+            }
+            
+            self.connectionStatus = FALSE;
+            break;
+        }
+        case ReachableViaWiFi:
+        case ReachableViaWWAN: {
+            self.connectionStatus = TRUE;
+            
+            break;
+        }
+    }
+}
+
+
+ 
+
+
+
+
+-(void ) handleCashNotification:(NSString *) tripId message:(NSString *) message{
+    NSString * string=[LanguageHelper getStringWithKey:@"k_17_s8_payment_com"];
+    NSString *stringFinal = [string
+                             stringByReplacingOccurrencesOfString:@"%s" withString:@"%@"];
+    message=[NSString stringWithFormat:stringFinal,tripId];
+    UIAlertController *alertController = [UIAlertController alertControllerWithTitle:@""
+                                                                             message:message                                                                         preferredStyle:UIAlertControllerStyleAlert];
+    UIAlertAction *actionOkCancel = [UIAlertAction actionWithTitle:[LanguageHelper getStringWithKey:@"k_18_s4_Ok"]
+                                                             style:UIAlertActionStyleDefault
+                                                           handler:^(UIAlertAction * _Nonnull action) {
+        [self stopDissmissTimerAlert];
+    }];
+    [alertController addAction:actionOkCancel];
+    UIViewController * viewController=[self.navigationController topViewController];
+    if(![viewController isKindOfClass:[FareAmmountViewController class]]){
+        alertAutoHide=alertController;
+        [self.navigationController.topViewController presentViewController:alertController animated:YES completion:^{
+            [self setDissmissTimerAlert];
+        }];
+    }
+}
+
+-(void)setDissmissTimerAlert{
+    [self stopDissmissTimerAlert];
+    timerForHideAlert = [NSTimer scheduledTimerWithTimeInterval: 10 target: self
+                                                       selector: @selector(dissmissTimerAlertCalled) userInfo: nil repeats: NO];
+}
+-(void)stopDissmissTimerAlert{
+    if(timerForHideAlert){
+        [timerForHideAlert invalidate];
+        timerForHideAlert=nil;
+    }
+}
+-(void)dissmissTimerAlertCalled{
+    if(alertAutoHide!=nil){
+        [alertAutoHide  dismissViewControllerAnimated:YES completion:^{
+            self->alertAutoHide=nil;
+            [self stopDissmissTimerAlert];
+        }];
+    }
+}
+
+-(void) openFareSummeryViewController:(NSString *)tripId
+{
+    
+    NSMutableDictionary *dict = [NSMutableDictionary dictionaryWithDictionary:@{
+        TRIP_ID          :isEmpty(tripId),
+    }];
+    [UtilityClass setLH:NO wt:[LanguageHelper getStringWithKey:@"k_r30_s3_loading"]];
+    
+    [GIC mkwerwu:TRIP_GETTRIP
+               d:dict
+              cb:^(id results, NSError *error) {
+        [UtilityClass setLH:YES wt:[LanguageHelper getStringWithKey:@"k_r30_s3_loading"]];
+        if ([[results objectForKey:P_RESPONSE] isKindOfClass:[NSArray class]]) {
+            // success
+            NSArray * tripArray = [results objectForKey:P_RESPONSE];
+            if (tripArray.count>0) {
+                TripModel *currTrip = [[TripModel alloc] initItemWithDict:[[results objectForKey:P_RESPONSE]objectAtIndex:0]];
+                FareAmmountViewController *vc = (FareAmmountViewController*)[StoryBoardUtiles viewContollerInMainWithIdentifier:StoryBoardUtiles.FARE_AMOUNT_VC ];
+                vc.curr_trip=currTrip;
+                //                vc. constantModel =[ConstantModel getConstantsObject];
+                [self.navigationController pushViewController:vc animated:YES];
+            }
+        }
+    }];
+}
+
+
+-(void ) handleRiderCancelNotification:(NSString *)tripId message:(NSString *)message
+{
+    //    if ([UIApplication sharedApplication].applicationState==UIApplicationStateActive) {
+    
+    UIAlertController *alertController = [UIAlertController alertControllerWithTitle:@"Message Received"
+                                                                             message:isEmpty(message)                                                                         preferredStyle:UIAlertControllerStyleAlert];
+    UIAlertAction *actionOk = [UIAlertAction actionWithTitle:[LanguageHelper getStringWithKey:@"k_18_s4_Ok" defaultValue:@"Ok"]
+                                                       style:UIAlertActionStyleDefault
+                                                     handler:^(UIAlertAction * _Nonnull action) {
+        [self openRiderCancelViewController:tripId];
+    }];
+    [alertController addAction:actionOk];
+    UIAlertAction *actionOkCancel = [UIAlertAction actionWithTitle:[LanguageHelper getStringWithKey:@"k_30_s6_cancel_j" defaultValue:@"Cancel"]
+                                                             style:UIAlertActionStyleDefault
+                                                           handler:nil];
+    [alertController addAction:actionOkCancel];
+    UIViewController * viewController=[self.navigationController topViewController];
+    if(![viewController isKindOfClass:[ChatViewController class]])
+    {
+        [self.navigationController.topViewController presentViewController:alertController animated:YES completion:nil];
+    }
+}
+
+-(void) openRiderCancelViewController:(NSString *)tripId
+{
+    RiderCancelTripViewController *vc = (RiderCancelTripViewController*)[StoryBoardUtiles viewContollerInMainWithIdentifier:StoryBoardUtiles.RIDER_CANCEL_VC];
+    vc.tripId=tripId;
+    [self.navigationController pushViewController:vc animated:YES];
+}
+
+
+#pragma mark - FCM TOKEN Call Back
+
+-(void)messaging:(FIRMessaging *)messaging didReceiveRegistrationToken:(NSString *)fcmToken{
+    [[NSUserDefaults standardUserDefaults]setObject:fcmToken forKey:P_DEVICE_TOKEN];
+    [[NSUserDefaults standardUserDefaults]synchronize];
+}
+
+
+-(void)getDeviceToken{
+    //    [[FIRMessaging messaging] tokenWithCompletion:^(NSString *token, NSError *error) {
+    //        if (error != nil) {
+    //            NSLog(@"Error getting FCM registration token: %@", error);
+    //        } else {
+    //            NSLog(@"FCM registration token: %@", token);
+    //            [[NSUserDefaults standardUserDefaults]setObject:token forKey:P_DEVICE_TOKEN];
+    //            [[NSUserDefaults standardUserDefaults]synchronize];
+    //        }
+    //    }];
+}
+
+
+
+
+// Receive displayed notifications for iOS 10 devices.
+// Handle incoming notification messages while app is in the foreground.
+- (void)userNotificationCenter:(UNUserNotificationCenter *)center
+       willPresentNotification:(UNNotification *)notification
+         withCompletionHandler:(void (^)(UNNotificationPresentationOptions))completionHandler {
+    NSDictionary *userInfo = notification.request.content.userInfo;
+    //  NSLog(@"%@", userInfo);
+    if(SYSTEM_VERSION_GREATER_THAN(@"14")){
+        [self manageRemoteNotification:[self mapUserInfoFcmToApns:userInfo] application:[UIApplication sharedApplication]];
+    }
+    // Change this to your preferred presentation option
+    completionHandler( UNNotificationPresentationOptionNone);
+}
+
+// Handle notification messages after display notification is tapped by the user.
+- (void)userNotificationCenter:(UNUserNotificationCenter *)center
+didReceiveNotificationResponse:(UNNotificationResponse *)response
+         withCompletionHandler:(void(^)(void))completionHandler {
+    NSDictionary *userInfo = response.notification.request.content.userInfo;
+    NSLog(@"didReceiveNotificationResponse %@", userInfo);
+    [self manageRemoteNotification:[self mapUserInfoFcmToApns:userInfo] application:[UIApplication sharedApplication]];
+    completionHandler();
+}
+
+-(void) openAlertNotificationDebug:(NSString *) message{
+    UIAlertController *alertController = [UIAlertController alertControllerWithTitle:@"Notification Message"                    message:message
+                                                                      preferredStyle:UIAlertControllerStyleAlert];
+    UIAlertAction *actionOk = [UIAlertAction actionWithTitle:@"Ok"
+                                                       style:UIAlertActionStyleDefault
+                                                     handler:^(UIAlertAction * _Nonnull action) {
+        
+    }];
+    [alertController addAction:actionOk];
+    [self.navigationController.topViewController presentViewController:alertController animated:YES completion:nil];
+    
+}
+
+
+-(void) openAlertNotificationDifferentType:(NSString *) message{
+    
+    UIAlertController *alertController = [UIAlertController alertControllerWithTitle:[LanguageHelper getStringWithKey:@"k_33_s7_alert"]  message:message
+                                                                      preferredStyle:UIAlertControllerStyleAlert];
+    
+    UIAlertAction *actionCancel = [UIAlertAction actionWithTitle:[LanguageHelper getStringWithKey:@"k_30_s6_cancel_j"]
+                                                           style:UIAlertActionStyleDefault
+                                                         handler:^(UIAlertAction * _Nonnull action) {
+        
+    }];
+    [alertController addAction:actionCancel];
+    
+    UIAlertAction *actionOk = [UIAlertAction actionWithTitle:[LanguageHelper getStringWithKey:@"k_r35_s1_continue"]
+                                                       style:UIAlertActionStyleDefault
+                                                     handler:^(UIAlertAction * _Nonnull action) {
+        NSDictionary * dict=defaults_object(P_USER_DICT_LOGGED);
+        if(dict){
+            [self onDriverSwitchButtonTap:nil];
+        }
+    }];
+    [alertController addAction:actionOk];
+    
+    [self.navigationController.topViewController presentViewController:alertController animated:YES completion:nil];
+}
+
+-(NSDictionary *)mapUserInfoFcmToApns:(NSDictionary *)userInfoFCM{
+    NSMutableDictionary *userInfo=[[NSMutableDictionary alloc] init];
+    @try {
+        NSMutableDictionary *apns=[[NSMutableDictionary alloc] init];
+        NSDictionary *dictAlert =[[userInfoFCM objectForKey:@"aps"] objectForKey:@"alert"];
+        if ([dictAlert isKindOfClass: [NSDictionary class]]){
+            [apns setObject:isEmpty([dictAlert objectForKey:@"body"]) forKey:@"alert"];
+            //            [apns setObject:isEmpty([userInfoFCM objectForKey:@"gcm.notification.trip_id"]) forKey:@"trip_id"];
+            //            [apns setObject:isEmpty([userInfoFCM objectForKey:@"gcm.notification.trip_status"]) forKey:@"trip_status"];
+            NSString *tripId =[userInfoFCM objectForKey:@"trip_id"];
+            if(tripId.length>0){
+                [apns setObject:isEmpty([userInfoFCM objectForKey:@"trip_id"]) forKey:@"trip_id"];
+                [apns setObject:isEmpty([userInfoFCM objectForKey:@"trip_status"]) forKey:@"trip_status"];
+                [apns setObject:isEmpty([userInfoFCM objectForKey:@"to"]) forKey:@"to"];
+                
+            }else{
+                [apns setObject:isEmpty([userInfoFCM objectForKey:@"gcm.notification.to"]) forKey:@"to"];
+                [apns setObject:isEmpty([userInfoFCM objectForKey:@"gcm.notification.trip_id"]) forKey:@"trip_id"];
+                [apns setObject:isEmpty([userInfoFCM objectForKey:@"gcm.notification.trip_status"]) forKey:@"trip_status"];
+            }
+            
+            [apns setObject:isEmpty([userInfoFCM objectForKey:@"google.c.a.e"]) forKey:@"content-available"];
+            NSString *type=[userInfoFCM objectForKey:@"gcm.notification.type"];
+            if(type.length>0){
+                [apns setObject:isEmpty(type) forKey:@"type"];
+            }else{
+                NSString *type1=[userInfoFCM objectForKey:@"type"];
+                if(type1.length>0){
+                    [apns setObject:isEmpty(type1) forKey:@"type"];
+                }
+            }
+        }
+        
+        NSString * dataObject=[userInfoFCM  objectForKey:@"data"];
+        if(dataObject) {
+            NSError *jsonError;
+            NSData *objectData = [dataObject dataUsingEncoding:NSUTF8StringEncoding];
+            NSDictionary *dataDict = [NSJSONSerialization JSONObjectWithData:objectData
+                                                                     options:NSJSONReadingMutableContainers
+                                                                       error:&jsonError];
+            if(dataDict){
+                [apns setObject:dataDict forKey:@"data"];
+            }
+        }
+        [userInfo setObject:apns forKey:@"aps"];
+        return userInfo;
+    } @catch (NSException *exception) {
+        
+    } @finally {
+        
+    }
+    return userInfoFCM;
+}
+
+- (void)onDriverSwitchButtonTap:(id)sender {
+    NSString *tripId= defaults_object(TRIP_ID);
+    if([tripId intValue ]>0){
+        [self showAlertWithMessgae:[LanguageHelper getStringWithKey:@"k_67_s4_cnt_switch_drng_trp" defaultValue:@"Can't switch apps during trip"]];
+        return;
+    }
+    BOOL is_user_login = [defaults_object(P_IS_USER_LOGIN) boolValue];
+    if(is_user_login){
+        NSDictionary * dictLoggedUser=defaults_object(P_USER_DICT_LOGGED);
+        NSMutableDictionary * dict=[[NSMutableDictionary alloc] init];
+        [dict setObject:isEmpty([dictLoggedUser objectForKey:P_U_MOBILE]) forKey:P_MOBILE];
+        [dict setObject:isEmpty([dictLoggedUser objectForKey:P_C_CODE]) forKey:P_C_CODE];
+        [self loginAsDriver:dict];
+    }else{
+        [UtilityClass setLH:NO wt:[LanguageHelper getStringWithKey:@"k_r30_s3_loading"]];
+        [[UpdateUserCurrentLocation sharedInstance]  updateDriverActivityLogAvailablity:@"0" type:@"Logout" completionBlock:^(id results, NSError *error) {
+            [UtilityClass setLH:YES wt:[LanguageHelper getStringWithKey:@"k_r30_s3_loading"]];
+            if(results!=nil) {
+                NSDictionary * dictLoggedUser=defaults_object(P_USER_DICT_LOGGED);
+                defaults_set_object(P_USER_DICT, dictLoggedUser);
+                defaults_set_object(P_API_KEY, [dictLoggedUser objectForKey:P_API_KEY]);
+                [self getUserProfile];
+            }
+        }];
+    }
+}
+
+
+-(void) loginAsDriver:(NSDictionary *)dict{
+    [UtilityClass setLH:NO wt:[LanguageHelper getStringWithKey:@"k_r30_s3_loading"]];
+    [GIC mkwerwu:DRIVER_PH_SIGNIN
+               d:dict
+              cb:^(id results, NSError *error) {
+        if ([[[results objectForKey:P_STATUS] uppercaseString] isEqualToString:@"OK"]) {
+            NSObject * userDictObject=[results objectForKey:@"response"];
+            if([userDictObject isKindOfClass:[NSDictionary class]]){
+                NSDictionary *userDict =(NSDictionary *)userDictObject;
+                BOOL isVerified=[[userDict objectForKey:P_DRIVER_VERIFIED] boolValue];
+                isVerified =YES;
+                if([[userDict objectForKey:P_DRIVER_AVAILAILITY] boolValue]==NO){
+                    defaults_set_object(is_availability_on, @"0");
+                }else{
+                    defaults_set_object(is_availability_on, @"1");
+                }
+                if (isVerified==YES) {
+                    [[NSUserDefaults standardUserDefaults]setObject:[userDict objectForKey:P_API_KEY] forKey:P_API_KEY];
+                    [[NSUserDefaults standardUserDefaults]setObject:userDict  forKey:P_USER_DICT];
+                    [[NSUserDefaults standardUserDefaults]synchronize];
+                    [self updateDeviceToken];
+                }
+                else{
+                    [UtilityClass setLH:YES wt:[LanguageHelper getStringWithKey:@"k_r30_s3_loading"]];
+                    [self showWarningWithMessgae:[LanguageHelper getStringWithKey:@"k_d_msg_un_verified" defaultValue:@""]];
+                }
+            }
+            
+        }else if([[[results objectForKey:P_STATUS] uppercaseString] isEqualToString:@"ERROR"]){
+            NSObject * userDictObject=[results objectForKey:@"response"];
+            if([userDictObject isKindOfClass:[NSDictionary class]]){
+                NSDictionary *userDict =(NSDictionary *)userDictObject;
+                [self showAlertWithMessgae:[userDict objectForKey:@"message"]];
+            }else{
+                [self showAlertWithMessgae:[results objectForKey:@"message"]];
+            }
+        }
+        else{
+            NSDictionary *dictError=[Utilities handleErrorDict:error ];
+            [UtilityClass setLH:YES wt:[LanguageHelper getStringWithKey:@"k_r30_s3_loading"]];
+            if(dictError!=nil){
+                [self showWarningWithMessgae:[dictError objectForKey:@"message"]];
+            }else{
+                [Utilities  handleError:error viewController:self.navigationController defaultMessage:@""];
+            }
+        }
+    }];
+}
+
+-(void)updateDeviceToken{
+    // update token in driver
+    NSDictionary * dictDriver=defaults_object(P_USER_DICT);
+    NSString * deviceToken=[[NSUserDefaults standardUserDefaults] objectForKey:P_DEVICE_TOKEN];
+    NSMutableDictionary *dict = [NSMutableDictionary dictionaryWithDictionary:@{
+        P_DRIVER_ID   :[NSString stringWithFormat:@"%d",[[dictDriver objectForKey:P_DRIVER_ID]intValue]],
+        @"fire_password":default_fire_password
+    }];
+    if (deviceToken) {
+        [dict addEntriesFromDictionary:@{
+            P_D_DEVICE_TOKEN :deviceToken,
+            P_D_DEVICE_TYPE   :IOS,
+        }];
+    }
+    [dict addEntriesFromDictionary:[Utilities appBuildVersionAndOsInfo]];
+    [GIC mkwu:UPDATE_DRIVER_PROFILE
+            d:dict
+          isa:NO
+           cb:^(id results, NSError *error) {
+        [UtilityClass setLH:YES wt:[LanguageHelper getStringWithKey:@"k_r30_s3_loading"]];
+        if ([[[results objectForKey:P_STATUS] uppercaseString] isEqualToString:@"OK"]) {
+            defaults_set_object(P_USER_DICT, [results objectForKey:P_RESPONSE]);
+        }
+        self.switchingToDriverMode = YES;
+        defaults_set_object(P_IS_USER_LOGIN, @"0");
+        NSDictionary * dictUser=defaults_object(P_USER_DICT_LOGGED);
+        BOOL is_driver = [[dictUser objectForKey:@"is_driver"] boolValue];
+        if(is_driver){
+            [self openDriverHomeScreen:NO];
+        }else{
+            [self openDriverHomeScreen:YES];
+        }
+        self.switchingToDriverMode = NO;
+    }];
+}
+
+-(void) getUserProfile{
+    NSString *apiKey =[[NSUserDefaults standardUserDefaults]objectForKey:P_API_KEY];
+    if (apiKey.length==0) {
+        return;
+    }
+    NSMutableDictionary *dict = [NSMutableDictionary dictionaryWithDictionary:@{
+        P_API_KEY :apiKey,
+    }];
+    [GIC mkwerwu:GET_USER_PROFILE
+               d:dict
+              cb:^(id results, NSError *error) {
+        if ([[results objectForKey:P_STATUS] isEqualToString:@"OK"]) {
+            NSDictionary * userDict;
+            if([[results objectForKey:P_RESPONSE] isKindOfClass:[NSDictionary class ]]){
+                userDict=[results objectForKey:P_RESPONSE];
+                defaults_set_object(P_USER_DICT, userDict);
+                defaults_set_object(P_USER_DICT_LOGGED, [results objectForKey:P_RESPONSE]);
+                
+            }else {
+                if([[results objectForKey:P_RESPONSE] isKindOfClass:[NSArray class ]]) {
+                    NSArray *arra=[results objectForKey:P_RESPONSE];
+                    if(arra.count>0) {
+                        userDict = [arra objectAtIndex:0];
+                    }else {
+                        defaults_remove(P_USER_DICT);
+                        defaults_remove(P_API_KEY);
+                        return ;
+                    }
+                }else{
+                    defaults_remove(P_USER_DICT);
+                    defaults_remove(P_API_KEY);
+                    return ;
+                }
+            }
+            defaults_set_object(P_API_KEY, [userDict objectForKey:P_API_KEY]);
+            defaults_set_object(P_USER_DICT, userDict);
+            defaults_set_object(P_USER_DICT_LOGGED, userDict);
+            
+            NSString *language=[userDict objectForKey:P_LANGUAGE];
+            if(language!=nil&&language.length>0){
+                [[NSUserDefaults standardUserDefaults] setObject:language forKey:@"language"];
+                [[NSUserDefaults standardUserDefaults] synchronize];
+                [[LanguageHelper  sharedInstance] setCunnrentLanguage:language];
+                [[LanguageHelper  sharedInstance] configureLanguage];
+            }
+            [self updateDeviceTokenAsUser];
+            defaults_set_object(P_IS_USER_LOGIN, @"1");
+            [self loadUserHomeViewController];
+        }
+        else{
+            if(results!=nil){
+                if([[results objectForKey:@"code"] intValue]>=400){
+                    defaults_remove(P_USER_DICT);
+                    defaults_remove(P_API_KEY);
+                }
+            }else{
+                NSData *data=[error.userInfo objectForKey:AppKeysName.ERROR_DATA];
+                if(data){
+                    NSError * jsonError=nil;
+                    id json= [NSJSONSerialization JSONObjectWithData:data options:NSJSONReadingMutableContainers error:&jsonError];
+                    if([json isKindOfClass:[NSDictionary class]]){
+                        if([[json objectForKey:@"code"] intValue]>=400){
+                            defaults_remove(P_USER_DICT);
+                            defaults_remove(P_API_KEY);
+                        }
+                    }
+                }
+            }
+        }
+    }];
+}
+-(void)updateDeviceTokenAsUser{
+    NSDictionary * dictUser=defaults_object(P_USER_DICT_LOGGED);
+    NSString * deviceToken=[[NSUserDefaults standardUserDefaults] objectForKey:P_DEVICE_TOKEN];
+    NSMutableDictionary *dict = [NSMutableDictionary dictionaryWithDictionary:@{
+        P_USER_ID   :[NSString stringWithFormat:@"%d",[[dictUser objectForKey:P_USER_ID]intValue]],
+    }];
+    if (deviceToken) {
+        [dict addEntriesFromDictionary:@{
+            P_DEVICE_TOKEN :deviceToken,
+            P_DEVICE_TYPE   :IOS,
+        }];
+    }
+    [dict setObject:@"1" forKey:@"is_user_login"];
+    [dict addEntriesFromDictionary:[Utilities appBuildVersionAndOsInfo]];
+    [GIC mkwu:UPDATE_USER_PROFILE d:dict   isa:NO  cb:^(id results, NSError *error) {
+        if ([[[results objectForKey:P_STATUS] uppercaseString] isEqualToString:@"OK"]) {
+            BOOL is_user_login = [defaults_object(P_IS_USER_LOGIN) boolValue];
+            if(is_user_login){
+                defaults_set_object(P_USER_DICT, [results objectForKey:P_RESPONSE]);
+            }
+            defaults_set_object(P_USER_DICT_LOGGED, [results objectForKey:P_RESPONSE]);
+        }
+    }];
+}
+-(void)openDriverHomeScreen:(BOOL)isWithDocument{
+    for (UIViewController *vc in self.navigationController.viewControllers) {
+        if([vc isKindOfClass:[UHomeViewController class]]){
+            UHomeViewController *homeVc=(UHomeViewController *) vc;
+            [homeVc stopLocationUpdate];
+        }
+    }
+    UINavigationController *navigationController = [StoryBoardUtiles navigationHome];
+    if(isWithDocument){
+        UploadDocumentViewController *documentVc =(UploadDocumentViewController *)[StoryBoardUtiles viewContollerWithIdentifier:StoryBoardUtiles.UPLOAD_DOCUMENT name:StoryBoardUtiles.STORYBOARD_SIGNUP ];
+        HomeViewController *homeVc =(HomeViewController *)[StoryBoardUtiles viewContollerInMainWithIdentifier:StoryBoardUtiles.HOME_VC ];
+        [navigationController setViewControllers:@[homeVc,documentVc]];
+    }else{
+        HomeViewController *homeVc =(HomeViewController *)[StoryBoardUtiles viewContollerInMainWithIdentifier:StoryBoardUtiles.HOME_VC ];
+        [navigationController setViewControllers:@[homeVc]];
+    }
+    MainViewController *mainViewController =(MainViewController *)[StoryBoardUtiles viewContollerInMainWithIdentifier:StoryBoardUtiles.MAIN_VC ];
+    // Force view load so LGSideMenuController view hierarchy exists before we set root/left
+    (void)[mainViewController view];
+    mainViewController.rootViewController = navigationController;
+    // Use type 12: same "new menu" style as rider (UMainViewController type 2) — menu on top, dim overlay, content does not move, no shadow
+    [mainViewController setupWithType:12];
+    UIWindow *window = UIApplication.sharedApplication.delegate.window;
+    window.rootViewController = mainViewController;
+    self.driverSideMenuController = mainViewController;
+    [UIView transitionWithView:window
+                      duration:0.1
+                       options:UIViewAnimationOptionTransitionCrossDissolve
+                    animations:nil
+                    completion:nil];
+}
+
+
+-(void)loadUserHomeViewController{
+    self.switchingToDriverMode = NO;
+    self.driverSideMenuController = nil;
+    for (UIViewController *vc in self.navigationController.viewControllers) {
+        if([vc isKindOfClass:[HomeViewController class]]){
+            HomeViewController *homeVc=(HomeViewController *) vc;
+            [homeVc stopLocationUpdate];
+        }
+    }
+    UHomeViewController *homeVc =(UHomeViewController *)[StoryBoardUtiles viewContollerInUserWithIdentifier:StoryBoardUtiles.UHOME_VC ];
+    UINavigationController *navigationController = [StoryBoardUtiles navigationHomeInUser];
+    [navigationController setViewControllers:@[homeVc]];
+    UMainViewController *mainViewController =(UMainViewController *)[StoryBoardUtiles viewContollerInUserWithIdentifier:StoryBoardUtiles.UMAIN_VC ];
+    mainViewController.rootViewController = navigationController;
+    [mainViewController setupWithType:2];
+    UIWindow *window = UIApplication.sharedApplication.delegate.window;
+    window.rootViewController = mainViewController;
+    [UIView transitionWithView:window
+                      duration:0.1
+                       options:UIViewAnimationOptionTransitionCrossDissolve
+                    animations:nil
+                    completion:nil];
+}
+
+
+-(void) showWarningWithMessgae:(NSString *) message{
+    [self showAlert:[LanguageHelper getStringWithKey:@"k_23_s3_warning"] message:message];
+}
+
+-(void) showAlertWithMessgae:(NSString *) message{
+    [self showAlert:[LanguageHelper getStringWithKey:@"k_33_s7_alert"] message:message];
+}
+
+
+-(void) showAlert:(NSString *) title message:(NSString *) message
+{
+    UIAlertController *alertController = [UIAlertController alertControllerWithTitle:title
+                                                                             message:message
+                                                                      preferredStyle:UIAlertControllerStyleAlert];
+    UIAlertAction *actionOk = [UIAlertAction actionWithTitle:[LanguageHelper getStringWithKey:@"k_18_s4_Ok"]
+                                                       style:UIAlertActionStyleDefault
+                                                     handler:nil]; //You can use a block here to handle a press on this button
+    [alertController addAction:actionOk];
+    [self.navigationController presentViewController:alertController animated:YES completion:nil];
+}
+
+-(void)startTimer{
+    [self stopTimer];
+    timerForOffScreen= [NSTimer scheduledTimerWithTimeInterval: 2.0
+                                                        target: self
+                                                      selector:@selector(onTick:)
+                                                      userInfo: nil repeats:YES];
+    NSRunLoop *runner = [NSRunLoop currentRunLoop];
+    [runner addTimer: timerForOffScreen forMode: NSDefaultRunLoopMode];
+}
+-(void)stopTimer{
+    if(timerForOffScreen){
+        [timerForOffScreen invalidate];
+        timerForOffScreen=nil;
+    }
+}
+-(void)onTick:(NSTimer *)timer {
+    [UIApplication sharedApplication].idleTimerDisabled = YES;
+}
+
+
+-(void)handleOfferNotification:(NSString *)tripId message:(NSString *)message userInfo:(NSDictionary *)userInfo{
+    if([UIApplication sharedApplication].applicationState == UIApplicationStateActive){
+        BOOL is_user_login = [defaults_object(P_IS_USER_LOGIN) boolValue];
+        if(is_user_login){
+            [[NSNotificationCenter defaultCenter] postNotificationName:AppNotificationName.USER_OFFER_NOTIFICATION object:nil userInfo:userInfo];
+            return;
+        }else{
+            
+        }
+    }
+    UIAlertController *alertController = [UIAlertController alertControllerWithTitle:@""          message:message                                    preferredStyle:UIAlertControllerStyleAlert];
+    UIAlertAction *actionOkCancel = [UIAlertAction actionWithTitle:[LanguageHelper getStringWithKey:@"k_30_s6_cancel_j" defaultValue:@"Cancel"]
+                                                             style:UIAlertActionStyleDefault
+                                                           handler:nil];
+    [alertController addAction:actionOkCancel];
+    UIAlertAction *actionOk = [UIAlertAction actionWithTitle:[LanguageHelper getStringWithKey:@"Open" defaultValue:@"Ok"]
+                                                       style:UIAlertActionStyleDefault
+                                                     handler:^(UIAlertAction * _Nonnull action) {
+        
+        BOOL is_user_login = [defaults_object(P_IS_USER_LOGIN) boolValue];
+        if(is_user_login){
+            [[NSNotificationCenter defaultCenter] postNotificationName:AppNotificationName.USER_OFFER_NOTIFICATION object:nil userInfo:userInfo];
+        }else{
+            [self.navigationController popToRootViewControllerAnimated:NO];
+            if([self.navigationController.topViewController isKindOfClass:[HomeViewController class]]){
+                HomeViewController *homeVc=(HomeViewController *)self.navigationController.topViewController;
+                [homeVc onOpenRequestButtonTap:nil];
+            }
+        }
+    }];
+    [alertController addAction:actionOk];
+    
+    UIViewController * viewController=[self.navigationController topViewController];
+    if(!([viewController isKindOfClass:[TripOffersViewContoller class]]||[viewController isKindOfClass:[DTripOffersViewContoller class]]))   {
+        //        [self.navigationController.topViewController presentViewController:alertController animated:YES completion:nil];
+        if([self.navigationController.topViewController.presentedViewController isKindOfClass:[UIAlertController class]]){
+            [self.navigationController.topViewController.presentedViewController dismissViewControllerAnimated:NO completion:^{
+                [self.navigationController.topViewController presentViewController:alertController animated:YES completion:nil];
+            }];
+        }else{
+            [self.navigationController.topViewController presentViewController:alertController animated:YES completion:nil];
+        }
+        if([UIApplication sharedApplication].applicationState == UIApplicationStateBackground){
+            [[NSNotificationCenter defaultCenter]
+             postNotificationName:AppNotificationName.USER_OFFER_NOTIFICATION
+             object:nil userInfo:userInfo];
+        }
+    }else{
+        [[NSNotificationCenter defaultCenter]
+         postNotificationName:AppNotificationName.USER_OFFER_NOTIFICATION
+         object:nil userInfo:userInfo];
+    }
+}
+
+
+-(void ) handleAcceptNotification:(NSString *) tripId message:(NSString *) message userInfo:(NSDictionary *)userInfo{
+    UIAlertController *alertController = [UIAlertController alertControllerWithTitle:@""
+                                                                             message:message                                                                        preferredStyle:UIAlertControllerStyleAlert];
+    
+    
+    //    UIAlertAction *actionOkCancel = [UIAlertAction actionWithTitle:[LanguageHelper getStringWithKey:@"k_30_s6_cancel_j"]
+    //                                                             style:UIAlertActionStyleDefault
+    //                                                           handler:nil];
+    //    [alertController addAction:actionOkCancel];
+    UIAlertAction *actionOk = [UIAlertAction actionWithTitle:[LanguageHelper getStringWithKey:@"k_18_s4_Ok"]
+                                                       style:UIAlertActionStyleDefault
+                                                     handler:^(UIAlertAction * _Nonnull action) {
+        [self loadUserHomeViewController];
+//        HomeViewController * vcHome=[[UIStoryboard storyboardWithName:@"Main" bundle:nil] instantiateViewControllerWithIdentifier:@"HomeViewController"];
+//        [[NSUserDefaults standardUserDefaults] setObject:@(NO)  forKey:P_IS_SINGLE_MODE];
+//        [[NSUserDefaults standardUserDefaults]synchronize];
+//        [self.navigationController setViewControllers:@[vcHome] animated:YES];
+//        
+//        UINavigationController *mainNavigation=[StoryBoardUtiles navigationHome];
+//        MainViewController *mainViewController =(MainViewController *)[StoryBoardUtiles viewContollerInMainWithIdentifier:StoryBoardUtiles.MAIN_VC ];
+//        mainViewController.rootViewController = mainNavigation;
+//        [mainViewController setupWithType:2];
+//        
+//        [mainNavigation setViewControllers:@[vcHome,viewController] animated:YES];
+//        UIWindow *window = UIApplication.sharedApplication.delegate.window;
+//        window.rootViewController = mainViewController;
+//        [UIView transitionWithView:window
+//                          duration:0.1
+//                           options:UIViewAnimationOptionTransitionCrossDissolve
+//                        animations:nil
+//                        completion:nil];
+//        [APP_DELEGATE setNavigationController:mainNavigation];
+        
+    }];
+    [alertController addAction:actionOk];
+    UIViewController * viewController=[self.navigationController topViewController];
+    if(!([viewController isKindOfClass:[TripOffersViewContoller class]]||[viewController isKindOfClass:[DTripOffersViewContoller class]])){
+        //        [self.navigationController.topViewController presentViewController:alertController animated:YES completion:nil];
+        if([self.navigationController.topViewController.presentedViewController isKindOfClass:[UIAlertController class]]){
+            [self.navigationController.topViewController.presentedViewController dismissViewControllerAnimated:NO completion:^{
+                [self.navigationController.topViewController presentViewController:alertController animated:YES completion:nil];
+            }];
+        }else{
+            [self.navigationController.topViewController presentViewController:alertController animated:YES completion:nil];
+        }
+    }else{
+        [[NSNotificationCenter defaultCenter]
+         postNotificationName:AppNotificationName.DRIVER_ACCEPT_NOTIFICATION
+         object:nil userInfo:userInfo];
+    }
+}
+
+-(void)loadHomeWithContoller{
+    for (UIViewController *vc in self.navigationController.viewControllers) {
+        if([vc isKindOfClass:[HomeViewController class]]){
+            [((HomeViewController *)vc) stopLocationUpdate];
+        }else if([vc isKindOfClass:[BeginTripViewController class]]){
+            [((BeginTripViewController *)vc) stopLocationUpdate];
+        }
+    }
+    [APP_DELEGATE setNavigationController:nil];
+    BOOL is_user_login = [defaults_object(P_IS_USER_LOGIN) boolValue];
+    if(is_user_login){
+        UINavigationController *navigationController = [StoryBoardUtiles navigationHome];
+        [navigationController setViewControllers:@[[StoryBoardUtiles viewContollerInUserWithIdentifier:StoryBoardUtiles.UHOME_VC]]];
+        MainViewController *mainViewController =(MainViewController *)[StoryBoardUtiles viewContollerInMainWithIdentifier:StoryBoardUtiles.MAIN_VC ];
+        (void)[mainViewController view];
+        mainViewController.rootViewController = navigationController;
+        [mainViewController setupWithType:12];
+        UIWindow *window = UIApplication.sharedApplication.delegate.window;
+        window.rootViewController = mainViewController;
+        self.driverSideMenuController = mainViewController;
+        [UIView transitionWithView:window
+                          duration:0.1
+                           options:UIViewAnimationOptionTransitionCrossDissolve
+                        animations:nil
+                        completion:nil];
+        [APP_DELEGATE setNavigationController:navigationController];
+    }else{
+        HomeViewController * vcHome=[[UIStoryboard storyboardWithName:@"Main" bundle:nil] instantiateViewControllerWithIdentifier:@"HomeViewController"];
+        [[NSUserDefaults standardUserDefaults] setObject:@(NO)  forKey:P_IS_SINGLE_MODE];
+        [[NSUserDefaults standardUserDefaults]synchronize];
+        UINavigationController *navigationController = [StoryBoardUtiles navigationHome];
+        [navigationController setViewControllers:@[vcHome]];
+        MainViewController *mainViewController =(MainViewController *)[StoryBoardUtiles viewContollerInMainWithIdentifier:StoryBoardUtiles.MAIN_VC ];
+        (void)[mainViewController view];
+        mainViewController.rootViewController = navigationController;
+        [mainViewController setupWithType:12];
+        UIWindow *window = UIApplication.sharedApplication.delegate.window;
+        window.rootViewController = mainViewController;
+        self.driverSideMenuController = mainViewController;
+        [UIView transitionWithView:window
+                          duration:0.1
+                           options:UIViewAnimationOptionTransitionCrossDissolve
+                        animations:nil
+                        completion:nil];
+        [APP_DELEGATE setNavigationController:navigationController];
+    }
+     
+    
+}
+
+-(void)refreshUserProfile{
+    NSDictionary * dictUser=defaults_object(P_USER_DICT_LOGGED);
+    NSMutableDictionary *dict = [NSMutableDictionary dictionaryWithDictionary:@{
+        P_API_KEY :[dictUser objectForKey:P_API_KEY],
+    }];
+    [GIC mkwerwu:GET_USER_PROFILE     d:dict  cb:^(id results, NSError *error) {
+        if ([[results objectForKey:P_STATUS] isEqualToString:@"OK"]) {
+            NSDictionary * userDict;
+            if([[results objectForKey:P_RESPONSE] isKindOfClass:[NSDictionary class ]]){
+                userDict=[results objectForKey:P_RESPONSE];
+                defaults_set_object(P_USER_DICT_LOGGED, [results objectForKey:P_RESPONSE]);
+            }else {
+                if([[results objectForKey:P_RESPONSE] isKindOfClass:[NSArray class ]]) {
+                    NSArray *arra=[results objectForKey:P_RESPONSE];
+                    if(arra.count>0){
+                        defaults_set_object(P_USER_DICT_LOGGED, [arra firstObject]);
+                    }
+                }
+            }
+        }
+        else{
+            
+        }
+    }];
+}
+-(void ) handleSideNotificationWithMessage:(NSString *) message{
+    UIAlertController *alertController = [UIAlertController alertControllerWithTitle:[LanguageHelper getStringWithKey:@"k_r1_s11_notification"]
+                                                                             message:message                                                                         preferredStyle:UIAlertControllerStyleAlert];
+    
+    UIAlertAction *actionOkCancel = [UIAlertAction actionWithTitle:[LanguageHelper getStringWithKey:@"k_30_s6_cancel_j"]
+                                                             style:UIAlertActionStyleDefault
+                                                           handler:nil];
+    [alertController addAction:actionOkCancel];
+    UIAlertAction *actionOk = [UIAlertAction actionWithTitle:[LanguageHelper getStringWithKey:@"k_97_s4_view" defaultValue:@"View"]
+                                                       style:UIAlertActionStyleDefault
+                                                     handler:^(UIAlertAction * _Nonnull action) {
+        NSDictionary * dictUser=defaults_object(P_USER_DICT_LOGGED);
+//        BOOL is_driver = [[dictUser objectForKey:@"is_driver"] boolValue];
+//        if(is_driver){
+//            UNotificationViewController *vc = (UNotificationViewController*)[StoryBoardUtiles viewContollerInUserWithIdentifier:@"UNotificationViewController"];
+//            [self.navigationController pushViewController:vc animated:YES];
+//        }else{
+            NotificationViewController *vc = (NotificationViewController*)[StoryBoardUtiles viewContollerInMainWithIdentifier:@"NotificationViewController"];
+            [self.navigationController pushViewController:vc animated:YES];
+//        }
+        
+    }];
+    [alertController addAction:actionOk];
+    UIViewController * viewController=[self.navigationController topViewController];
+    if(![viewController isKindOfClass:[NotificationViewController class]])  {
+        [self.navigationController.topViewController presentViewController:alertController animated:YES completion:nil];
+    }
+}
+
+
+
+-(void ) handleTripRunninNotification:(NSString *) tripId message:(NSString *) message tripStatus:(NSString *)tripStatus{
+    UIAlertController *alertController = [UIAlertController alertControllerWithTitle:[LanguageHelper getStringWithKey:@"k_com_s_18_trip_status"]
+                                                                             message:message                                                                         preferredStyle:UIAlertControllerStyleAlert];
+    UIAlertAction *actionOkCancel = [UIAlertAction actionWithTitle:[LanguageHelper getStringWithKey:@"k_18_s4_Ok"]
+                                                             style:UIAlertActionStyleDefault
+                                                           handler:^(UIAlertAction * _Nonnull action) {
+        [self->autoHideTripStatus performAction];
+    }];
+    [alertController addAction:actionOkCancel];
+    BOOL isCanOpen=YES;
+    NSString *trip=defaults_object(TRIP_ID);
+    if(trip.length > 0){
+        if(![tripStatus isEqualToString:tripId]){
+          //  isCanOpen=NO;
+        }
+    }
+    if(isCanOpen){
+        [self presentViewControllerCustom:alertController];
+        autoHideTripStatus=[[AutoHideAlert alloc] init];
+        [autoHideTripStatus handle:alertController];
+        autoHideTripStatus.tripId=tripId;
+        autoHideTripStatus.tripStatus=tripStatus;
+        autoHideTripStatus.delegate=self;
+    }
+    
+     
+//    }
+}
+-(void) presentViewControllerCustom:(UIAlertController *)alertVc{
+    if([self.navigationController.topViewController isKindOfClass:[UIAlertController class]]){
+        [self.navigationController.topViewController dismissViewControllerAnimated:NO completion:^{
+            [self.navigationController.topViewController presentViewController:alertVc animated:YES completion:nil];
+        }];
+    }else{
+        [self.navigationController.topViewController presentViewController:alertVc animated:YES completion:nil];
+    }
+}
+#pragma - mark
+-(void)onAutoHide:(AutoHideAlert *)autoHideAlertHelper{
+    if(autoHideAlertHelper == autoHideTripStatus){
+        for (UIViewController * vc in self.navigationController.viewControllers){
+            if([vc isKindOfClass:[HomeViewController class]]){
+                [((HomeViewController *)vc) refreshTripStatusRefresh:autoHideTripStatus.tripId tripStatus:autoHideTripStatus.tripStatus];
+            }
+        }
+        autoHideTripStatus=nil;
+    }
+}
+@end

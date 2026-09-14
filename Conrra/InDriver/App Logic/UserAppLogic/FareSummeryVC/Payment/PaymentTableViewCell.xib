@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.XIB" version="3.0" toolsVersion="21701" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES">
+    <device id="retina6_1" orientation="portrait" appearance="light"/>
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="21678"/>
+        <capability name="Named colors" minToolsVersion="9.0"/>
+        <capability name="Safe area layout guides" minToolsVersion="9.0"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <customFonts key="customFonts">
+        <array key="Karla-Regular.ttf">
+            <string>Karla-Regular</string>
+        </array>
+    </customFonts>
+    <objects>
+        <placeholder placeholderIdentifier="IBFilesOwner" id="-1" userLabel="File's Owner"/>
+        <placeholder placeholderIdentifier="IBFirstResponder" id="-2" customClass="UIResponder"/>
+        <tableViewCell contentMode="scaleToFill" selectionStyle="default" indentationWidth="10" reuseIdentifier="PaymentTableViewCell" rowHeight="75" id="KGk-i7-Jjw" customClass="PaymentTableViewCell">
+            <rect key="frame" x="0.0" y="0.0" width="320" height="75"/>
+            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+            <tableViewCellContentView key="contentView" opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center" tableViewCell="KGk-i7-Jjw" id="H2p-sc-9uM">
+                <rect key="frame" x="0.0" y="0.0" width="320" height="75"/>
+                <autoresizingMask key="autoresizingMask"/>
+                <subviews>
+                    <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="MW1-Pp-iud">
+                        <rect key="frame" x="0.0" y="0.0" width="320" height="75"/>
+                        <subviews>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Label" textAlignment="right" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="cCr-Vm-qab">
+                                <rect key="frame" x="80" y="10" width="220" height="21"/>
+                                <constraints>
+                                    <constraint firstAttribute="height" constant="21" id="QBO-oq-E7b"/>
+                                </constraints>
+                                <fontDescription key="fontDescription" name="Karla-Regular" family="Karla" pointSize="17"/>
+                                <color key="textColor" name="color_app_label"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Label" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="jWO-Ku-ApG">
+                                <rect key="frame" x="20" y="11" width="80" height="21"/>
+                                <constraints>
+                                    <constraint firstAttribute="height" constant="21" id="PcQ-4j-9gh"/>
+                                    <constraint firstAttribute="width" relation="greaterThanOrEqual" constant="80" id="RKg-tL-GIh"/>
+                                </constraints>
+                                <fontDescription key="fontDescription" name="Karla-Regular" family="Karla" pointSize="17"/>
+                                <color key="textColor" name="color_app_label"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Label" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="CRq-cL-Zgm">
+                                <rect key="frame" x="20" y="43.5" width="80" height="21"/>
+                                <constraints>
+                                    <constraint firstAttribute="height" constant="21" id="SUr-xX-EHK"/>
+                                    <constraint firstAttribute="width" constant="80" id="XUo-rG-Bwk"/>
+                                </constraints>
+                                <fontDescription key="fontDescription" name="Karla-Regular" family="Karla" pointSize="14"/>
+                                <color key="textColor" name="color_app_label_gray"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                            <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="radio-unselected" translatesAutoresizingMaskIntoConstraints="NO" id="pbc-Sz-73K">
+                                <rect key="frame" x="280" y="44" width="22" height="23"/>
+                                <constraints>
+                                    <constraint firstAttribute="height" constant="23" id="YTw-sJ-Lei"/>
+                                    <constraint firstAttribute="width" constant="22" id="kvr-sd-bNn"/>
+                                </constraints>
+                            </imageView>
+                            <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="tQy-kg-aqb">
+                                <rect key="frame" x="20" y="74.5" width="280" height="0.5"/>
+                                <color key="backgroundColor" name="color_dev_line"/>
+                                <constraints>
+                                    <constraint firstAttribute="height" constant="0.5" id="h4y-S5-kQB"/>
+                                </constraints>
+                            </view>
+                        </subviews>
+                        <color key="backgroundColor" name="color_app_bg"/>
+                        <constraints>
+                            <constraint firstItem="jWO-Ku-ApG" firstAttribute="leading" secondItem="MW1-Pp-iud" secondAttribute="leading" constant="20" id="3rE-JI-H3o"/>
+                            <constraint firstAttribute="trailing" secondItem="tQy-kg-aqb" secondAttribute="trailing" constant="20" id="B6h-fB-ecd"/>
+                            <constraint firstAttribute="bottom" secondItem="tQy-kg-aqb" secondAttribute="bottom" id="K0z-2i-1sg"/>
+                            <constraint firstItem="cCr-Vm-qab" firstAttribute="leading" secondItem="MW1-Pp-iud" secondAttribute="leading" constant="80" id="Rer-6z-8MU"/>
+                            <constraint firstAttribute="trailing" secondItem="cCr-Vm-qab" secondAttribute="trailing" constant="20" id="VUz-uL-W7Q"/>
+                            <constraint firstItem="CRq-cL-Zgm" firstAttribute="leading" secondItem="MW1-Pp-iud" secondAttribute="leading" constant="20" id="dpm-gd-HyX"/>
+                            <constraint firstAttribute="trailing" secondItem="pbc-Sz-73K" secondAttribute="trailing" constant="18" id="gSU-vA-ti8"/>
+                            <constraint firstItem="cCr-Vm-qab" firstAttribute="top" secondItem="MW1-Pp-iud" secondAttribute="top" constant="10" id="hCK-7k-CqV"/>
+                            <constraint firstAttribute="bottom" secondItem="pbc-Sz-73K" secondAttribute="bottom" constant="8" id="lej-ek-X9e"/>
+                            <constraint firstItem="jWO-Ku-ApG" firstAttribute="top" secondItem="MW1-Pp-iud" secondAttribute="top" constant="11" id="sp6-VQ-4oh"/>
+                            <constraint firstItem="tQy-kg-aqb" firstAttribute="leading" secondItem="MW1-Pp-iud" secondAttribute="leading" constant="20" id="ujU-2E-rUd"/>
+                            <constraint firstItem="tQy-kg-aqb" firstAttribute="top" secondItem="CRq-cL-Zgm" secondAttribute="bottom" constant="10" id="zm6-yM-Lae"/>
+                        </constraints>
+                    </view>
+                </subviews>
+                <constraints>
+                    <constraint firstItem="MW1-Pp-iud" firstAttribute="top" secondItem="H2p-sc-9uM" secondAttribute="top" id="0vG-Cz-7xO"/>
+                    <constraint firstItem="MW1-Pp-iud" firstAttribute="leading" secondItem="H2p-sc-9uM" secondAttribute="leading" id="BFY-9w-HKu"/>
+                    <constraint firstAttribute="bottom" secondItem="MW1-Pp-iud" secondAttribute="bottom" id="bbG-hM-S4V"/>
+                    <constraint firstAttribute="trailing" secondItem="MW1-Pp-iud" secondAttribute="trailing" id="vOy-m9-jeb"/>
+                </constraints>
+            </tableViewCellContentView>
+            <viewLayoutGuide key="safeArea" id="aW0-zy-SZf"/>
+            <connections>
+                <outlet property="lbCard" destination="cCr-Vm-qab" id="waC-Sv-da8"/>
+                <outlet property="lbCardType" destination="jWO-Ku-ApG" id="Hle-tv-XzO"/>
+                <outlet property="lbExpiry" destination="CRq-cL-Zgm" id="itP-tR-uCk"/>
+                <outlet property="lbRadio" destination="pbc-Sz-73K" id="I0o-R8-D0O"/>
+            </connections>
+            <point key="canvasLocation" x="131.8840579710145" y="132.92410714285714"/>
+        </tableViewCell>
+    </objects>
+    <resources>
+        <image name="radio-unselected" width="24" height="24"/>
+        <namedColor name="color_app_bg">
+            <color red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="color_app_label">
+            <color red="0.1289999932050705" green="0.1289999932050705" blue="0.1289999932050705" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="color_app_label_gray">
+            <color red="0.3529411764705882" green="0.3529411764705882" blue="0.3529411764705882" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="color_dev_line">
+            <color red="0.8666666666666667" green="0.8666666666666667" blue="0.8666666666666667" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+    </resources>
+</document>

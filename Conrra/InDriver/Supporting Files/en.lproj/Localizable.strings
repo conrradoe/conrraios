@@ -1,0 +1,157 @@
+/*
+ Localizable.strings
+ TaxiDriver
+ 
+ Created by Appicial Taxi App Solutions on 30/06/17.
+ Copyright © 2023 Appicial. All rights reserved.
+ */
+
+"HelloKey" = "Hello EN";
+"Profile" = "Profile";
+"Trip_History" = "Rides History";
+"Logout" = "Logout";
+"Rating" = "Rating";
+"Availability On" = "Availability On";
+"Availability Off" = "Availability Off";
+"Profile Updated" = "Profile updated successfully.";
+"Password Updated" = "Password updated successfully.";
+"Password alert" = "Please enter valid password.";
+"Password_old_alert" = "please enter old password.";
+"password not matching" = "password is not matching.";
+"Warning!"="Warning!";
+"email_invalid_error"="Email or passowrd should not be empty.";
+"invalid_email"="please enter valid email.";
+"invalid_mobile"="please enter valid mobile number.";
+"login_error_message"="Please enter valid email and password.";
+"login_error_message_mobile"="Please enter valid mobile number and password.";
+"alert_ok"="OK";
+"loading"="Loading...";
+"forgot_password_link"="We've sent you an email with a link to reset your password.";
+"network_error"="Internet is not available";
+"Network Error"="Network Error";
+"Alert !"="Alert !";
+"password must be atleast 6 character long."="password must be atleast 6 character long.";
+"logout_alert_message"="Do you want to exit now?";
+"Yes"="Yes";
+"No"="No";
+
+"Loading Route..."="Loading...";
+"min"="min";
+
+
+"document_verification"= "Your documents are under verification. Please wait for some time.";
+"firstname_alert"="Please enter your first name.";
+"lastname_alert"="Please enter your last name.";
+"mobile_alert"="Please enter valid mobile number.";
+
+"MESSAGE_END"=      "Your ride has been finished."; //k_2_s14_trip_conplete
+"MESSAGE_ARRIVE"=      "Hey, Vehicle will arrive soon. Be Ready";//"k_3_s14_arrive_soon"
+"MESSAGE_BEGIN"=      "Your ride started.";//k_4_s14_trip_started
+"MESSAGE_DRIVER_CANCEL" =      "Driver has cancelled your ride.";//k_5_s14_trip_cancelled_by_driver
+"MESSAGE_PAID"=      "You have paid successfully.";//k_9_s14_paid_successfully
+"MESSAGE_CASH"=      "Please collect cash from rider."; //trip_noti_msg_pay_by_cash
+"MESSAGE_PAYPAL"=    "Rider is paying through paypal"; //trip_noti_msg_pay_by_card
+"MESSAGE_WALLET"=    "Rider is paying through wallet"; //trip_noti_msg_pay_by_wallet
+"write_reason"=      "Please write a reason.";
+
+
+"permission_denied"=      "App Permission Denied.";
+"location_turn_on"=      "To re-enable, please go to Settings and turn on Location Service for this app.";
+"Something_went_Wrong"=      "Something went wrong";
+"Contact Service Provider" = "You have reached your daily query limit. Please contact your service provider.";
+"Terms_Conditions" = "Terms of Use";
+"Share" = "Share";
+"Deactivate_Acc" = "Deactivate";
+"Url_Cannot_Open" = "Url cannot be opened now";
+"Support" = "Contact Us";
+"Config_Mail" = "Please configure your email";
+"Contact US" ="Contact Us";
+"Deactivate_Alert" = "Do you want to deactivate your account?";
+"Account_Hold" = "Your account is under hold. Please contact the service provider for more information.";
+"Car_Registered" = "Your license plate number is already registered.";
+"Registeration_Success" = "Your have registered successfully.";
+
+
+
+"offline_alert_message" = "Do you want to go to offline ?";
+"too_late" ="Too Late";
+"another_driver_accepted" = "Ride has been assigned to another driver.";
+"Enter_Lic_Number"="Please enter your license plate no.";
+"Pick" ="Pick";
+"Accept"="Accept";
+"Decline" ="Decline";
+"Begin Trip"="Begin Ride";
+"End Trip" = "End Ride";
+"Go" ="Arrived";
+
+
+
+"Lower_DROP LOCATION" ="Drop Location";
+"Lower_PICKUP LOCATION"="Pickup Location";
+"DROP LOCATION" ="DROP LOCATION";
+"PICKUP LOCATION"="PICKUP LOCATION";
+"Client Picked Up ?" ="Client Picked Up ?";
+"Client reached destination ?" ="Client reached destination ?";
+"Added ID Proof" = "Added ID Proof";
+"Add ID Proof" = "Add ID Proof";
+"Added License" = "Added License";
+"Add License"="Add License";
+"Added Insurance" ="Added Insurance";
+"Add Insurance"="Add Insurance";
+"upload document" ="Upload Documents";
+"update document" ="Update Documents";
+"Promo Code Applied:" ="Promo Code Applied:";
+"Select_Car_Type" ="Please select a car type.";
+"Select_Category"="Please select a category";
+"Select_Year" ="Please select a year";
+"Select a Category" ="Select a Category";
+"Select a Make"="Select a Make";
+"Select a Model"="Select a Model";
+"add your own"="add your own";
+"Select a Year" ="Vehicle MFG Year";
+"Select_Car_Model"="Please select a model";
+"Rating Count"="number of person’s reviewed";
+"NO_Internet" = "Your internet connection appears to be down. Please check it and try again.";
+"touch in" ="Touch in";
+"sec to accept." ="sec to accept.";
+"Trip Cancelled by Rider."= "Ride has been cancelled by rider";
+"Email_exists"="Too late! That email is being used";
+"Have You Received Cash?"="Have you received cash?";
+
+"received_cash"="RECEIVED CASH";
+"Pickup At" ="Pickup At:";
+"Drop At" ="Drop At:";
+"Trip Requests" ="Ride Requests";
+"Waiting for New Trip Requests" ="Waiting for New Ride Requests";
+
+"No Trips Available" ="No Rides";
+"App restart required" ="App restart required";
+"Change_language" ="In order to change the language, the App must be closed and reopened by you.";
+"Language"="Language";
+"Notifications"="Notifications";
+"Your Rides"="Your Rides";
+"Wallet"="Wallet";
+
+"yesterday"="yesterday";
+"Loading..."="Loading...";
+"sec"="sec";
+"Promo code applied"="Promo code applied";
+"Please wait..." ="Please wait...";
+"tap to enter email"="tap to enter email";
+"tap to enter password"="tap to enter password";
+"Log In"="Log In";
+"Register"="Register";
+"Update Password"="Update Password";
+"Cancel"="Cancel";
+"Feedback"="Feedback";
+"Pick Up Details"="Pick Up Details";
+"Drop off Details"="Drop off Details";
+"Assign"="Assign";
+"Arrive"="Arrive";
+"Select"="Select";
+"Select City"="Select City";
+"Single Mode"="Single Mode";
+"single_mode_error_message"="You are already in a trip";
+"Waiting Time"="Waiting Time";
+"Start Waiting"="Start Waiting";
+"Stop Waiting"="Stop Waiting";

@@ -1,0 +1,69 @@
+//
+//  Keys.h
+
+//
+//  Created by  Appicial on 06/10/17.
+//  Copyright © 2023 Appicial. All rights reserved.
+//
+
+#ifndef Keys_h
+#define Keys_h
+
+#define IS_USE_NODE_SERVER 1
+
+#define SOCKET @"https://socket.conrra.com"
+
+#define BASE_URL_DRIVER     @"https://apps.conrra.com/webservices/1.1.3/index.php/"       // add your base url here
+#define url_base_images     @"https://apps.conrra.com/webservices/images/originals/"      // add your image base url here
+
+#if( IS_USE_NODE_SERVER == 1)
+#define url_notification    @"https://notif.conrra.com/backend/notification/send"                  // add your notification base url here
+#else
+#define url_notification    @"https://apps.conrra.com/webservices/push/"                  // add your notification base url here
+#endif
+#define BASE_NODE_API    @"https://getservice.ca:3003/"
+
+
+
+#define url_booking @"https://bookaride.getservice.ca/"
+#define SHARE_TRIP_URL                @"https://indriver.stitchmyapp.com/indriver1.0/MapRoute/index.php"
+
+#define BASE_URL_OTP        @"https://apps.conrra.com/webservices/tw_sms/index2.php"
+#define BASE_URL_OTP_NO        @"https://apps.conrra.com/webservices/tw_sms/index.php"
+#define url_base_app_images             @"https://apps.conrra.com/webservices/images/app_images/"    // Image Base URL
+#define url_base_category             @"https://backend.conrra.com/"    // Image Base URL
+ 
+#define default_fire_password              @"testtest"
+#define pre_fix_fire_email              @""
+#define default_u_fire_password              @"testtest"
+#define pre_fix_u_fire_email              @""
+
+#define TRIP_TIMER_DURATION 5.0
+
+#define IS_PHONE_VERIFICATION   1
+#define IS_PHONE_VERIFICATION_WITH_PASSWORD   1
+
+
+#define IS_ENABLE_TRAFFIC    0   // Keep this value same in Driver also
+
+
+#define RIDE_LATER_DELAY 30*60 // one hours
+#define TRIP_EXPIRE_TIME 5*60 // one hours
+//#define TRIP_EXPIRE_TIME 125*60 // one hours
+
+#define  IV  @"OWMwZjczMDg2MGNm"
+#define  KEY  @"26kozQaKwRuNJ24t"
+#define  enabledEncy  YES
+
+
+#define  DAY_START_HURS  7
+#define  DAY_END_HURS  17
+
+#define Default_City_Count 1
+#define Data_BASE_NAME @"routePath.db"
+#define Default_Country_Code @"91"
+
+#define Password_Length 1
+#define  Mobile_Min_Length 5
+
+#endif /* Keys_h */

@@ -1,0 +1,41 @@
+# ---------------------------------------------------------------- macOS / Windows
+.DS_Store
+._*
+Thumbs.db
+desktop.ini
+
+# Restos del descomprimido original. No hacen falta y ensucian los diffs.
+__MACOSX/
+
+# ---------------------------------------------------------------- Xcode
+# Ajustes personales de cada maquina: esquemas, breakpoints, ventanas abiertas.
+# Si se versionan, cada vez que alguien abre el proyecto sale un cambio.
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+
+# Salidas de compilacion
+build/
+DerivedData/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# ---------------------------------------------------------------- CocoaPods
+# Pods/ NO se versiona, pero Podfile.lock SI.
+#
+# El lock es el que fija la version exacta de cada dependencia: sin el, dos
+# maquinas pueden bajarse Firebase distintos y perseguir errores que solo le
+# salen a una. Pods/ en cambio son ~200 MB que se reconstruyen con un comando.
+#
+# Al clonar, lo primero es:  cd Conrra && pod install
+Pods/
+
+# ---------------------------------------------------------------- Credenciales
+# Aqui no hay ninguna por ahora, pero que quede la puerta cerrada: las claves de
+# firma y los perfiles no van a un repositorio.
+*.p12
+*.mobileprovision
+*.cer
