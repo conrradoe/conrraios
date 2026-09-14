@@ -126,6 +126,8 @@
     BookingModel *_bookingModel;
     BOOL isFareCalculated;
     NSString *pickupNotes;
+    /** "Pago con $20, necesito vuelto en Bs." Solo cuando se paga en efectivo. */
+    NSString *instruccionesDeEfectivo;
     /** "Cash|Mascotas|3 Pasajero(s)": lo que se configuro al pedir, no lo que se escribio. */
     NSString *configDelViaje;
     BOOL sosApiCalled;
@@ -2154,6 +2156,15 @@
     }
     else{
         
+        // Sin metodo de pago no se pide el viaje. Android lo bloquea igual
+        // (MainScreenActivity: "else if (payMode.isEmpty()) { showPaymentOptions() }").
+        // Sin esto el viaje sale con trip_pay_mode vacio y ni el conductor sabe como le
+        // van a pagar ni la fila de metodo de pago tiene nada que enseñar.
+        if (paymentViewModel.paymentMode < 0 || paymentViewModel.tripPayMode.length == 0) {
+            [self fareOfferVCDidTapPayment:currentFareOfferVC];
+            return;
+        }
+
         NSDictionary *WalletAmtDict = [[NSUserDefaults standardUserDefaults]objectForKey:P_USER_DICT];
         float walletamount=[[WalletAmtDict objectForKey: P_USER_WAlLET_AMOUNT] floatValue];
         if(walletamount<0) {
@@ -5281,17 +5292,19 @@
 /**
  Como se llama el metodo de pago en la nota que lee el conductor.
 
- No vale tripPayMode: para Pago Movil vale "Card", y el conductor busca literalmente
- "Pago Movil" para pintar su distintivo (TripRequestActivity). Con "Card" se quedaria
- la palabra cruda, y el mismo viaje se leeria distinto segun con que app se pidio.
+ Ya vale tripPayMode tal cual: desde que el pago movil se manda como "Pago Movil" y no
+ como "Card", el nombre es el mismo aqui y en trip_pay_mode. Lo que se le añade es el
+ detalle del efectivo -- "Cash [Pago con $20, necesito vuelto]" -- que es como Android
+ se lo hace llegar y como el conductor lo lee (TripRequestActivity busca los corchetes).
  */
 -(NSString *)metodoDePagoParaElConductor {
-    switch (paymentViewModel.paymentMode) {
-        case 0:  return @"Cash";
-        case 1:  return @"Wallet";
-        case 2:  return @"Pago Movil";
-        default: return isEmpty(paymentViewModel.tripPayMode);
+    NSString *modo = isEmpty(paymentViewModel.tripPayMode);
+    NSString *detalle = [instruccionesDeEfectivo
+        stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    if ([modo isEqualToString:CASH_PAY] && detalle.length > 0) {
+        return [NSString stringWithFormat:@"%@ [%@]", modo, detalle];
     }
+    return modo;
 }
 
 -(void)fareOfferVCDidTapPayment:(UFareOfferViewController *)vc {
@@ -5322,6 +5335,11 @@
     web.customTitle = [LanguageHelper getStringWithKey:@"k_s10_recargar" defaultValue:@"Recargar"];
     web.customUrl   = [Utilities urlDeRecargas];
     [nav pushViewController:web animated:YES];
+}
+
+-(void)paymentSheet:(PaymentMethodViewController *)vc
+   instruccionesDeEfectivo:(NSString *)instrucciones {
+    instruccionesDeEfectivo = instrucciones;
 }
 
 // PaymentMethodViewControllerDelegate

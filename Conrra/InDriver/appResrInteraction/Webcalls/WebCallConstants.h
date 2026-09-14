@@ -227,6 +227,8 @@ static inline BOOL isOK(id  results) {
 #define  CASH_PAY            @"Cash"
 #define  HIRE_ME_WALLET_PAY     @"Wallet"
 #define  CARD            @"Card"
+/// El pago movil, escrito igual que en Android (setValuePayMode).
+#define  PAGO_MOVIL_PAY  @"Pago Movil"
 
 
 //side Menu

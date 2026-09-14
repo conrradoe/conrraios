@@ -296,6 +296,16 @@
         }
     }
 
+    // Efectivo: se piden el billete y el vuelto ANTES de dar por elegido el metodo.
+    // El conductor rara vez lleva cambio de un billete grande, y enterarse al llegar
+    // es justo cuando ya no tiene arreglo.
+    if (row.mode == 0) {
+        [self pedirDetallesDelEfectivoYLuego:^{
+            [self elegirFila:row enTabla:tableView];
+        }];
+        return;
+    }
+
     // Pago Movil: primero se cuenta como funciona, porque no se cobra dentro del app.
     if (row.mode == 2) {
         [self explicarPagoMovilYLuego:^{
@@ -307,7 +317,67 @@
     [self elegirFila:row enTabla:tableView];
 }
 
+/**
+ El billete con el que se paga y el vuelto que hace falta.
+
+ Android lo exige no vacio (showCashDetailsDialog: "Por favor ingrese los detalles del
+ billete y vuelto"). Aqui se deja seguir sin escribir nada -- el boton de omitir --
+ porque hay quien paga justo y no tiene nada que pedir; obligar a escribir algo solo
+ conseguiria que pusieran un punto.
+ */
+- (void)pedirDetallesDelEfectivoYLuego:(void (^)(void))despues {
+    UIAlertController *cuadro = [UIAlertController
+        alertControllerWithTitle:[LanguageHelper getStringWithKey:@"k_s10_detalle_efectivo"
+                                                     defaultValue:@"Monto del billete e instrucciones del vuelto"]
+        message:nil
+        preferredStyle:UIAlertControllerStyleAlert];
+
+    [cuadro addTextFieldWithConfigurationHandler:^(UITextField *campo) {
+        campo.placeholder = [LanguageHelper getStringWithKey:@"k_s10_detalle_efectivo_ejemplo"
+                                               defaultValue:@"Ej: Pago con $20, necesito vuelto en Bs."];
+        campo.autocapitalizationType = UITextAutocapitalizationTypeSentences;
+        campo.text = self.instruccionesDeEfectivo ?: @"";
+    }];
+
+    __weak typeof(self) debil = self;
+    [cuadro addAction:[UIAlertAction
+        actionWithTitle:[LanguageHelper getStringWithKey:@"k_18_s4_Ok" defaultValue:@"Aceptar"]
+        style:UIAlertActionStyleDefault
+        handler:^(UIAlertAction *accion) {
+            __strong typeof(debil) fuerte = debil;
+            if (fuerte == nil) {
+                return;
+            }
+            NSString *texto = [cuadro.textFields.firstObject.text
+                stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+            fuerte.instruccionesDeEfectivo = texto.length > 0 ? texto : nil;
+            if ([fuerte.delegate respondsToSelector:@selector(paymentSheet:instruccionesDeEfectivo:)]) {
+                [fuerte.delegate paymentSheet:fuerte instruccionesDeEfectivo:fuerte.instruccionesDeEfectivo];
+            }
+            if (despues) {
+                despues();
+            }
+        }]];
+
+    [cuadro addAction:[UIAlertAction
+        actionWithTitle:[LanguageHelper getStringWithKey:@"k_30_s6_cancel_j" defaultValue:@"Cancelar"]
+        style:UIAlertActionStyleCancel
+        handler:nil]];
+
+    [self presentViewController:cuadro animated:YES completion:nil];
+}
+
 - (void)elegirFila:(PMRow *)row enTabla:(UITableView *)tableView {
+    // Cambiar a otro metodo borra lo que se hubiera escrito del efectivo: si no, un
+    // pasajero que se pasa a billetera seguiria mandandole al conductor instrucciones
+    // de vuelto que ya no vienen a cuento.
+    if (row.mode != 0 && self.instruccionesDeEfectivo != nil) {
+        self.instruccionesDeEfectivo = nil;
+        if ([self.delegate respondsToSelector:@selector(paymentSheet:instruccionesDeEfectivo:)]) {
+            [self.delegate paymentSheet:self instruccionesDeEfectivo:nil];
+        }
+    }
+
     _selected = row.mode;
     [tableView reloadData];
 

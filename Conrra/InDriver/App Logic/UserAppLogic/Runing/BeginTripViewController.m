@@ -67,6 +67,11 @@
 /// De donde sale el viaje, bajo el destino (Android: detailpickup).
 @property (nonatomic, strong) UILabel        *lblDireccionRecogida;
 
+/// "Metodo de pago: Pago Movil". Encima del importe, como en Android.
+@property (nonatomic, strong) UIView         *filaMetodoDePago;
+@property (nonatomic, strong) UIImageView    *imgMetodoDePago;
+@property (nonatomic, strong) UILabel        *lblMetodoDePago;
+
 @property (nonatomic, strong) UIView         *paymentRow;
 @property (nonatomic, strong) UILabel        *paymentAmountLabel;
 
@@ -181,6 +186,7 @@
     [self setupDriverCard];
     [self setupTarjetaPagoMovil];
     [self setupDestinationCard];
+    [self setupFilaMetodoDePago];
     [self setupPaymentRow];
     [self setupCancelButton];
     [self setupCancelReasonOverlay];
@@ -578,6 +584,92 @@
     [self.destinationCard addSubview:pinBtn];
 }
 
+/**
+ Con que se paga el viaje.
+
+ Va ENCIMA del importe a proposito: el pasajero lee de arriba abajo "con que pago" y
+ luego "cuanto", que es el orden en el que se lo pregunta. Es el mismo criterio y el
+ mismo sitio que en Android (pay_mode_row).
+
+ Si el viaje no trae un metodo conocido, la fila entera se esconde: una linea que
+ dijera "Metodo de pago: --" justo encima de lo que hay que pagar no informa de nada.
+ */
+- (void)setupFilaMetodoDePago {
+    self.filaMetodoDePago = [[UIView alloc] init];
+    self.filaMetodoDePago.backgroundColor = [UIColor colorWithRed:245/255.0 green:245/255.0 blue:245/255.0 alpha:1];
+    self.filaMetodoDePago.layer.cornerRadius = 12;
+    self.filaMetodoDePago.clipsToBounds = YES;
+    self.filaMetodoDePago.hidden = YES;
+    [self.sheetPanel addSubview:self.filaMetodoDePago];
+
+    UILabel *rotulo = [[UILabel alloc] init];
+    rotulo.text = [LanguageHelper getStringWithKey:@"k_s10_metodo_de_pago" defaultValue:@"Método de pago:"];
+    rotulo.font = [UIFont fontWithName:@"NotoSans-Regular" size:13] ?: [UIFont systemFontOfSize:13];
+    rotulo.textColor = [UIColor colorWithRed:0x69/255.0 green:0x69/255.0 blue:0x69/255.0 alpha:1];
+    rotulo.tag = 904;
+    [self.filaMetodoDePago addSubview:rotulo];
+
+    self.imgMetodoDePago = [[UIImageView alloc] init];
+    self.imgMetodoDePago.contentMode = UIViewContentModeScaleAspectFit;
+    self.imgMetodoDePago.tintColor = [UIColor colorWithRed:0x21/255.0 green:0x21/255.0 blue:0x21/255.0 alpha:1];
+    [self.filaMetodoDePago addSubview:self.imgMetodoDePago];
+
+    self.lblMetodoDePago = [[UILabel alloc] init];
+    self.lblMetodoDePago.font = [UIFont fontWithName:@"NotoSans-Bold" size:14] ?: [UIFont boldSystemFontOfSize:14];
+    self.lblMetodoDePago.textColor = [UIColor colorWithRed:0x21/255.0 green:0x21/255.0 blue:0x21/255.0 alpha:1];
+    self.lblMetodoDePago.textAlignment = NSTextAlignmentRight;
+    [self.filaMetodoDePago addSubview:self.lblMetodoDePago];
+}
+
+/**
+ Traduce trip_pay_mode a algo legible, con el mismo reparto que Android.
+
+ Se acepta "Card" como pago movil ademas de "Pago Movil": los viajes que se pidieron
+ desde un iPhone antes de que esto se escribiera bien tienen "Card" guardado y no se
+ corrigen solos. Un "Card" con tarjeta de Stripe de verdad trae payment_card_id, que
+ es lo que los distingue.
+ */
+- (void)actualizarFilaMetodoDePago {
+    NSString *modo = [isEmpty(self.currentTrip.trip_pay_mode)
+        stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    // "Cash [Pago con $20...]" -- el detalle va aparte, aqui solo interesa el metodo.
+    NSRange corchete = [modo rangeOfString:@"["];
+    NSString *soloModo = (corchete.location != NSNotFound)
+        ? [[modo substringToIndex:corchete.location] stringByTrimmingCharactersInSet:
+           [NSCharacterSet whitespaceCharacterSet]]
+        : modo;
+
+    NSString *texto = nil;
+    NSString *icono = nil;
+    if ([soloModo caseInsensitiveCompare:CASH_PAY] == NSOrderedSame) {
+        texto = [LanguageHelper getStringWithKey:@"k_r39_s9_cash" defaultValue:@"Efectivo"];
+        icono = @"banknote.fill";
+    } else if ([soloModo caseInsensitiveCompare:HIRE_ME_WALLET_PAY] == NSOrderedSame) {
+        texto = [LanguageHelper getStringWithKey:@"k_r39_s9_wallet" defaultValue:@"Billetera"];
+        icono = @"wallet.pass.fill";
+    } else if ([soloModo caseInsensitiveCompare:PAGO_MOVIL_PAY] == NSOrderedSame
+               || [soloModo caseInsensitiveCompare:@"Pago Móvil"] == NSOrderedSame
+               || ([soloModo caseInsensitiveCompare:CARD] == NSOrderedSame
+                   && self.currentTrip.payment_card_id.length == 0)) {
+        texto = [LanguageHelper getStringWithKey:@"k_s10_mobile_payment" defaultValue:@"Pago Móvil"];
+        icono = @"iphone";
+    } else if ([soloModo caseInsensitiveCompare:CARD] == NSOrderedSame) {
+        texto = [LanguageHelper getStringWithKey:@"k_s10_tarjeta" defaultValue:@"Tarjeta"];
+        icono = @"creditcard.fill";
+    }
+
+    if (texto == nil) {
+        self.filaMetodoDePago.hidden = YES;
+        return;
+    }
+    self.lblMetodoDePago.text = texto;
+    if (@available(iOS 13.0, *)) {
+        self.imgMetodoDePago.image = [[UIImage systemImageNamed:icono]
+            imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+    }
+    self.filaMetodoDePago.hidden = NO;
+}
+
 - (void)setupPaymentRow {
     self.paymentRow = [[UIView alloc] init];
     self.paymentRow.backgroundColor = [UIColor colorWithRed:245/255.0 green:245/255.0 blue:245/255.0 alpha:1];
@@ -969,6 +1061,8 @@
     self.lblDireccionRecogida.text = isEmpty(self.currentTrip.trip_pick_loc);
     [self actualizarCategoriaDelConductor];
     [self actualizarTarjetaDePagoMovil];
+    [self actualizarFilaMetodoDePago];
+    [self actualizarFilaMetodoDePago];
 //    if (self.isFromrequest) {
 //        NSDictionary *dictEstimate = defaults_object(@"estimate");
 //        if (dictEstimate) {
@@ -1844,6 +1938,12 @@
     CGFloat altoDirecciones = 62;
     alto += 6 + altoDirecciones;
 
+    CGFloat altoMetodo = 46;
+    BOOL hayMetodo = !self.filaMetodoDePago.isHidden;
+    if (hayMetodo) {
+        alto += 6 + altoMetodo;
+    }
+
     CGFloat altoPrecio = 52;
     alto += 6 + altoPrecio;
 
@@ -1945,6 +2045,21 @@
     self.destinationLabel.frame      = CGRectMake(10, 8, anchoDir, 32);
     self.lblDireccionRecogida.frame  = CGRectMake(10, 42, anchoDir, 14);
     y += altoDirecciones;
+
+    // --- Metodo de pago ---
+    if (hayMetodo) {
+        y += 6;
+        self.filaMetodoDePago.frame = CGRectMake(pad, y, cardW, altoMetodo);
+        UIView *rotuloPago = [self.filaMetodoDePago viewWithTag:904];
+        rotuloPago.frame = CGRectMake(16, 0, 160, altoMetodo);
+        CGFloat anchoTexto = 140;
+        self.lblMetodoDePago.frame = CGRectMake(cardW - 16 - anchoTexto, 0, anchoTexto, altoMetodo);
+        self.imgMetodoDePago.frame = CGRectMake(self.lblMetodoDePago.frame.origin.x - 6 - 18,
+                                                (altoMetodo - 18) / 2.0, 18, 18);
+        y += altoMetodo;
+    } else {
+        self.filaMetodoDePago.frame = CGRectZero;
+    }
 
     // --- Precio ---
     y += 6;
@@ -2057,9 +2172,9 @@
 /**
  Los datos bancarios del conductor, solo si el viaje se paga por pago movil.
 
- El metodo se compara contra las dos formas de escribirlo a proposito: Android manda
- "Pago Movil" y iOS manda "Card" para el mismo metodo, asi que un viaje pedido desde
- un iPhone no encontraria su propia tarjeta si solo se mirara una de las dos.
+ Se sigue aceptando "card" ademas de "pago movil" por los viajes VIEJOS: los que se
+ pidieron desde un iPhone antes de que esto se escribiera bien ya tienen "Card"
+ guardado en la base y no se van a corregir solos.
  */
 - (void)actualizarTarjetaDePagoMovil {
     self.tarjetaPagoMovil.hidden = YES;
