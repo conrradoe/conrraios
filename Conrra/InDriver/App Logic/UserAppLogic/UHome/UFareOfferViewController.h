@@ -10,6 +10,7 @@
 #import <UIKit/UIKit.h>
 
 @class UFareOfferViewController;
+@class CategoryModel;
 
 @protocol UFareOfferDelegate <NSObject>
 
@@ -21,6 +22,10 @@
 
 /// Payment row tapped — push PaymentMethodListVC onto vc.navigationController
 - (void)fareOfferVCDidTapPayment:(UFareOfferViewController *)vc;
+
+@optional
+/// El pasajero cambio de categoria en la lista "Elige tu viaje".
+- (void)fareOfferVC:(UFareOfferViewController *)vc eligioCategoria:(CategoryModel *)categoria;
 
 @end
 
@@ -38,6 +43,19 @@
 @property (assign, nonatomic) float      maxFare;
 /// Currency string e.g. "USD" or "$"
 @property (strong, nonatomic) NSString  *currency;
+
+/// Todas las categorias de la ciudad, para la lista "Elige tu viaje".
+@property (strong, nonatomic) NSArray      *categorias;
+/// La que esta elegida ahora mismo.
+@property (strong, nonatomic) CategoryModel *categoriaElegida;
+/**
+ Estimacion por categoria, indexada por category_id.
+
+ Es el mismo diccionario que BookingModel ya construye: tripapi/estimatetripfare
+ devuelve una estimacion por CADA categoria en una sola llamada, no solo la elegida.
+ El dato ya estaba; lo que faltaba era enseñarlo.
+ */
+@property (strong, nonatomic) NSDictionary *estimacionesPorCategoria;
 /// Display text for current payment method
 @property (strong, nonatomic) NSString  *paymentLabel;
 /// Icon for current payment method

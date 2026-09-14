@@ -4940,6 +4940,14 @@
     vc.currency        = isEmpty(cityModel.city_cur);
     vc.paymentLabel    = paymentViewModel.paymentModeText;
     vc.paymentIcon     = paymentViewModel.paymentModeImage;
+
+    // Para la lista "Elige tu viaje". El diccionario de estimaciones ya lo tenia
+    // BookingModel: tripapi/estimatetripfare devuelve una por CADA categoria en una sola
+    // llamada, no solo la de la elegida.
+    vc.categorias               = arrayCagetgory;
+    vc.categoriaElegida         = [self getSelectectCategoryByRider];
+    vc.estimacionesPorCategoria = _bookingModel.fareEstimated;
+
     currentFareOfferVC = vc;
 
     homeBottomSheet.hidden = YES;
@@ -4954,6 +4962,34 @@
 -(void)restoreScreen1Overlays {
     homeBottomSheet.hidden = NO;
     self.btnGps.hidden     = NO;
+}
+
+/**
+ El pasajero cambio de categoria desde la lista "Elige tu viaje".
+
+ La pantalla de tarifa ya se ha repintado sola -- precio, topes del ajustador y marcado
+ de la fila. Aqui solo hay que dejar el resto de la app de acuerdo con ella: la eleccion
+ que se usara al pedir el viaje, la tarjeta marcada en el home detras, y los conductores
+ cercanos, que se filtran por categoria.
+
+ No se vuelve a pedir la estimacion: ya estaban todas.
+ */
+-(void)fareOfferVC:(UFareOfferViewController *)vc eligioCategoria:(CategoryModel *)categoria {
+    if (categoria == nil) {
+        return;
+    }
+    Selectedcategory = categoria;
+    _bookingModel.category = categoria;
+
+    NSInteger i = [arrayCagetgory indexOfObject:categoria];
+    if (i != NSNotFound) {
+        [self updateVehicleCardSelection:i];
+    }
+
+    if (cityModel) {
+        [nearByDriverHandler changeCategoryId:categoria.categoryId
+                                      city_id:[NSString stringWithFormat:@"%d", cityModel.city_id]];
+    }
 }
 
 -(void)fareOfferDidTapBack:(UFareOfferViewController *)vc {

@@ -8,6 +8,11 @@
 //
 
 #import "UFareOfferViewController.h"
+#import "CategoryModel.h"
+#import "EstimatedFare.h"
+#import "ConstantModel.h"
+#import "UIImageView+WebCache.h"
+#import "WebCallConstants.h"
 #import "LanguageHelper.h"
 
 static const CGFloat kRowH          = 76.0f; // height of each config toggle row
@@ -49,6 +54,9 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
 // Views below accordion that must shift on expand/collapse
 @property (strong, nonatomic) UIView       *payRow;
 @property (strong, nonatomic) UIButton     *pedirBtn;
+// Elige tu viaje
+@property (strong, nonatomic) UILabel *lblMontoLocal;
+@property (strong, nonatomic) NSMutableArray<UIView *> *filasCategoria;
 // Config toggle switches
 @property (strong, nonatomic) UISwitch     *switchPassengers;
 @property (strong, nonatomic) UISwitch     *switchPets;
@@ -212,12 +220,20 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
 
     y += 80 + 10;
 
-    CGFloat halfW = (sw - 32) / 2.0;
-    [self addHintIconName:@"dollarsign.circle" text:[LanguageHelper getStringWithKey:@"k_s10_recommended_price" defaultValue:@"Precio recomendado"]
-                   inView:cv x:16 y:y width:halfW];
-    [self addHintIconName:@"arrow.triangle.2.circlepath" text:[LanguageHelper getStringWithKey:@"k_s10_conversion_usd" defaultValue:@"Conversión a USD"]
-                   inView:cv x:16 + halfW y:y width:halfW];
-    y += 28 + 14;
+    // El importe en moneda local, debajo del precio.
+    //
+    // Aqui habia dos pistas fijas: "Precio recomendado" y "Conversión a USD". La segunda
+    // ademas mentia -- el precio YA esta en dolares, no hay nada que convertir a USD.
+    // Android enseña lo que de verdad hace falta: cuantos bolivares son.
+    self.lblMontoLocal = [[UILabel alloc] initWithFrame:CGRectMake(16, y, sw - 32, 22)];
+    self.lblMontoLocal.font = [UIFont fontWithName:@"NotoSans-Regular" size:14] ?: [UIFont systemFontOfSize:14];
+    self.lblMontoLocal.textColor = grayText;
+    self.lblMontoLocal.textAlignment = NSTextAlignmentCenter;
+    [cv addSubview:self.lblMontoLocal];
+    [self actualizarMontoLocal];
+    y += 22 + 14;
+
+    y += [self montarEligeTuViajeEnVista:cv y:y ancho:sw] ;
 
     UIView *configContainer = [[UIView alloc] initWithFrame:CGRectMake(16, y, sw - 32, 52)];
     configContainer.layer.borderWidth  = 1.0f;
@@ -229,7 +245,8 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
 
     // Header inside container
     UILabel *configLbl = [[UILabel alloc] initWithFrame:CGRectMake(16, 0, sw - 32 - 52, 52)];
-    configLbl.text      = [LanguageHelper getStringWithKey:@"k_s10_settings" defaultValue:@"Configuración"];
+    // Android lo llama "Detalles de viaje"; aqui ponia "Configuración".
+    configLbl.text      = [LanguageHelper getStringWithKey:@"k_s10_trip_details" defaultValue:@"Detalles de viaje"];
     configLbl.font      = [UIFont fontWithName:@"NotoSans-Regular" size:16] ?: [UIFont systemFontOfSize:16];
     configLbl.textColor = darkText;
     [configContainer addSubview:configLbl];
@@ -510,6 +527,182 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
 
 #pragma mark - Amount formatting
 
+#pragma mark - Elige tu viaje
+
+/**
+ La lista de categorias con su precio.
+
+ SE ENSEÑA SIEMPRE ABIERTA, a diferencia de Android, que la pliega con un resumen. Son
+ dos o tres filas y es la eleccion principal de esta pantalla: plegarla obliga a un toque
+ de mas para ver lo unico que el pasajero viene a comparar. Ademas, el acordeon de abajo
+ mueve las vistas por deltas y meter un segundo plegable encima complica ese calculo sin
+ ganar nada.
+
+ El precio de cada una sale de estimacionesPorCategoria, el diccionario que BookingModel
+ ya tenia: tripapi/estimatetripfare devuelve una estimacion por CADA categoria en una
+ sola llamada.
+
+ @return el alto que ha ocupado, para que quien monta la pantalla siga contando.
+ */
+- (CGFloat)montarEligeTuViajeEnVista:(UIView *)cv y:(CGFloat)y ancho:(CGFloat)sw {
+    if (self.categorias.count == 0) {
+        return 0;
+    }
+    self.filasCategoria = [[NSMutableArray alloc] init];
+
+    UIColor *darkText  = [UIColor colorWithRed:0.157f green:0.157f blue:0.157f alpha:1.0f];
+    UIColor *grayText  = [UIColor colorWithWhite:0.45f alpha:1.0f];
+    UIColor *borderClr = [UIColor colorWithWhite:0.878f alpha:1.0f];
+    UIColor *amarillo  = [UIColor colorNamed:@"app_theame"]
+        ?: [UIColor colorWithRed:235/255.0 green:181/255.0 blue:24/255.0 alpha:1];
+
+    CGFloat alto0 = y;
+    CGFloat filaH = 64.0;
+
+    UILabel *titulo = [[UILabel alloc] initWithFrame:CGRectMake(16, y, sw - 32, 22)];
+    titulo.text = [LanguageHelper getStringWithKey:@"k_s10_elige_tu_viaje" defaultValue:@"Elige tu viaje"];
+    titulo.font = [UIFont fontWithName:@"NotoSans-Bold" size:16] ?: [UIFont boldSystemFontOfSize:16];
+    titulo.textColor = darkText;
+    [cv addSubview:titulo];
+    y += 22 + 10;
+
+    for (NSInteger i = 0; i < (NSInteger)self.categorias.count; i++) {
+        CategoryModel *cat = [self.categorias objectAtIndex:(NSUInteger)i];
+        BOOL elegida = (self.categoriaElegida
+                        && cat.categoryId == self.categoriaElegida.categoryId);
+
+        UIView *fila = [[UIView alloc] initWithFrame:CGRectMake(16, y, sw - 32, filaH)];
+        fila.layer.cornerRadius = 12;
+        fila.layer.borderWidth = elegida ? 2.0f : 1.0f;
+        fila.layer.borderColor = (elegida ? amarillo : borderClr).CGColor;
+        fila.backgroundColor = elegida
+            ? [UIColor colorWithRed:1.0f green:0.984f blue:0.918f alpha:1.0f]
+            : [UIColor whiteColor];
+        fila.tag = i;
+        fila.userInteractionEnabled = YES;
+        [fila addGestureRecognizer:[[UITapGestureRecognizer alloc]
+            initWithTarget:self action:@selector(tocarFilaCategoria:)]];
+        [cv addSubview:fila];
+        [self.filasCategoria addObject:fila];
+
+        UIImageView *icono = [[UIImageView alloc] initWithFrame:CGRectMake(10, 10, 56, 44)];
+        icono.contentMode = UIViewContentModeScaleAspectFit;
+        UIImage *respaldo = [[cat.cat_name lowercaseString] containsString:@"moto"]
+            ? [UIImage imageNamed:@"ic_vehicle_moto"]
+            : ([UIImage imageNamed:@"ic_vehicle_car"] ?: [UIImage imageNamed:@"map_car_icon"]);
+        [icono sd_setImageWithURL:[NSURL URLWithString:isEmpty(cat.cat_image_path)]
+                 placeholderImage:respaldo];
+        [fila addSubview:icono];
+
+        UILabel *nombre = [[UILabel alloc] initWithFrame:CGRectMake(76, 12, 140, 22)];
+        nombre.text = isEmpty(cat.cat_name);
+        nombre.font = [UIFont fontWithName:@"NotoSans-Bold" size:17] ?: [UIFont boldSystemFontOfSize:17];
+        nombre.textColor = darkText;
+        [fila addSubview:nombre];
+
+        // Cuantas personas caben. Android lo enseña con el icono de personas al lado.
+        if (cat.cat_max_size > 0) {
+            UIImageView *personas = [[UIImageView alloc] initWithFrame:CGRectMake(76, 38, 18, 16)];
+            personas.image = [[UIImage systemImageNamed:@"person.2.fill"]
+                              imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+            personas.tintColor = grayText;
+            personas.contentMode = UIViewContentModeScaleAspectFit;
+            [fila addSubview:personas];
+
+            UILabel *cuantas = [[UILabel alloc] initWithFrame:CGRectMake(98, 36, 40, 20)];
+            cuantas.text = [NSString stringWithFormat:@"%d", cat.cat_max_size];
+            cuantas.font = [UIFont fontWithName:@"NotoSans-Regular" size:13] ?: [UIFont systemFontOfSize:13];
+            cuantas.textColor = grayText;
+            [fila addSubview:cuantas];
+        }
+
+        UILabel *precio = [[UILabel alloc] initWithFrame:CGRectMake(sw - 32 - 130, 20, 118, 24)];
+        precio.text = [self formattedAmount:[self precioDeCategoria:cat]];
+        precio.font = [UIFont fontWithName:@"NotoSans-Bold" size:18] ?: [UIFont boldSystemFontOfSize:18];
+        precio.textColor = darkText;
+        precio.textAlignment = NSTextAlignmentRight;
+        precio.adjustsFontSizeToFitWidth = YES;
+        precio.minimumScaleFactor = 0.7f;
+        [fila addSubview:precio];
+
+        y += filaH + 8;
+    }
+
+    return (y - alto0) + 6;
+}
+
+/** El precio estimado de una categoria, o 0 si el servidor no lo mando. */
+- (float)precioDeCategoria:(CategoryModel *)cat {
+    if (cat == nil) {
+        return 0;
+    }
+    NSString *clave = [NSString stringWithFormat:@"%d", cat.categoryId];
+    EstimatedFare *est = [self.estimacionesPorCategoria objectForKey:clave];
+    if (est == nil) {
+        return 0;
+    }
+    // El mismo campo que usa presentScreen3 para el precio recomendado.
+    return est.trip_pay_amount_without_share_discount_without_promo;
+}
+
+- (void)tocarFilaCategoria:(UITapGestureRecognizer *)gesto {
+    NSInteger i = gesto.view.tag;
+    if (i < 0 || i >= (NSInteger)self.categorias.count) {
+        return;
+    }
+    CategoryModel *cat = [self.categorias objectAtIndex:(NSUInteger)i];
+    if (self.categoriaElegida && cat.categoryId == self.categoriaElegida.categoryId) {
+        return;
+    }
+    self.categoriaElegida = cat;
+
+    // Repintar el marcado sin rehacer la pantalla entera.
+    UIColor *borderClr = [UIColor colorWithWhite:0.878f alpha:1.0f];
+    UIColor *amarillo  = [UIColor colorNamed:@"app_theame"]
+        ?: [UIColor colorWithRed:235/255.0 green:181/255.0 blue:24/255.0 alpha:1];
+    for (NSInteger j = 0; j < (NSInteger)self.filasCategoria.count; j++) {
+        UIView *fila = [self.filasCategoria objectAtIndex:(NSUInteger)j];
+        BOOL esta = (j == i);
+        fila.layer.borderWidth = esta ? 2.0f : 1.0f;
+        fila.layer.borderColor = (esta ? amarillo : borderClr).CGColor;
+        fila.backgroundColor = esta
+            ? [UIColor colorWithRed:1.0f green:0.984f blue:0.918f alpha:1.0f]
+            : [UIColor whiteColor];
+    }
+
+    // El precio de arriba pasa a ser el de la categoria elegida, y con el se recalculan
+    // los topes del ajustador: son un porcentaje de SU tarifa, no de la anterior.
+    float recomendado = [self precioDeCategoria:cat];
+    if (recomendado > 0) {
+        self.recommendedFare = recomendado;
+        self.minFare = (cat.min_offer_perc > 0) ? recomendado * (1.0f - cat.min_offer_perc / 100.0f) : 0.0f;
+        self.maxFare = (cat.max_offer_perc > 0) ? recomendado * (1.0f + cat.max_offer_perc / 100.0f) : 0.0f;
+        _currentAmount = recomendado;
+        self.amountLabel.text = [self formattedAmount:_currentAmount];
+        [self actualizarMontoLocal];
+    }
+
+    if ([self.delegate respondsToSelector:@selector(fareOfferVC:eligioCategoria:)]) {
+        [self.delegate fareOfferVC:self eligioCategoria:cat];
+    }
+}
+
+/** "Monto en bs: Bs 1.937,06". Se calla si no hay tasa configurada. */
+- (void)actualizarMontoLocal {
+    float tasa = [ConstantModel tasaDolarALocal];
+    if (tasa <= 0) {
+        self.lblMontoLocal.text = @"";
+        return;
+    }
+    NSNumberFormatter *formato = [[NSNumberFormatter alloc] init];
+    formato.numberStyle = NSNumberFormatterDecimalStyle;
+    formato.minimumFractionDigits = 2;
+    formato.maximumFractionDigits = 2;
+    self.lblMontoLocal.text = [NSString stringWithFormat:
+        [LanguageHelper getStringWithKey:@"k_s10_monto_en_bs" defaultValue:@"Monto en bs: Bs %@"],
+        [formato stringFromNumber:@(_currentAmount * tasa)]];
+}
+
 - (NSString *)formattedAmount:(float)amount {
     NSString *cur = self.currency.length > 0 ? self.currency : @"$";
     if (cur.length <= 1) return [NSString stringWithFormat:@"%.2f%@", amount, cur];
@@ -525,6 +718,7 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
     if (newAmount < 0) newAmount = 0;
     _currentAmount        = newAmount;
     self.amountLabel.text = [self formattedAmount:_currentAmount];
+    [self actualizarMontoLocal];
 }
 
 - (void)plusTapped {
@@ -533,6 +727,7 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
     if (self.maxFare > 0 && newAmount > self.maxFare) newAmount = self.maxFare;
     _currentAmount        = newAmount;
     self.amountLabel.text = [self formattedAmount:_currentAmount];
+    [self actualizarMontoLocal];
 }
 
 /// Step = 5% of recommended fare, rounded to nearest 0.25 (min 0.25)
