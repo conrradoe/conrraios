@@ -210,6 +210,10 @@ class TripOfferViewModel: NSObject {
                             self.tripDriver = TripModel.init(itemWithDict: response  )
                             if self.isAsDriver {
                             }else{
+                                // Se MUTA el viaje que ya hay, no se sustituye: la
+                                // pantalla guarda una referencia al mismo objeto y lee
+                                // trip_Status de ella. Cambiar el puntero de aqui la
+                                // dejaria mirando el estado viejo para siempre.
                                 self.trip?.trip_Status = self.tripDriver!.trip_Status
                             }
                         }

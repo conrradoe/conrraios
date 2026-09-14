@@ -137,6 +137,8 @@ private class TripOffersRootView: UIView {
 
     private var refreshTimer: Timer?
     private var refreshOffersTimer: Timer?
+    /// Sondeo del estado del viaje. Ver comprobarEstadoDelViaje.
+    private var temporizadorDeEstado: Timer?
     private var observerOfferNotification: NSObjectProtocol?
     private var autoHideDriverBusyAlert: AutoHideAlert?
     private var isShowingOffers = false
@@ -188,6 +190,7 @@ private class TripOffersRootView: UIView {
         if trip?.is_ride_later == false {
             startTimer()
             startRefreshOffersTimer()
+            arrancarSondeoDeEstado()
         }
     }
 
@@ -195,6 +198,7 @@ private class TripOffersRootView: UIView {
         super.viewDidDisappear(animated)
         stopTimer()
         stopRefreshOffersTimer()
+        pararSondeoDeEstado()
         // Sin esto el reloj del carrusel sigue vivo despues de cerrar la pantalla.
         carrusel?.parar()
     }
@@ -285,7 +289,10 @@ private class TripOffersRootView: UIView {
                     self.delegate?.onTripOfferAssignedByRider(trip: result)
                 }
             } else if status == TS_ACCEPTED {
-                let result = vm?.trip
+                // tripDriver es el viaje recien traido del servidor, con el conductor
+                // ya asignado. El de antes se pidio cuando no habia ninguno, asi que
+                // la pantalla de viaje en curso abriria sin nombre, sin coche y sin OTP.
+                let result = vm?.tripDriver ?? vm?.trip
                 vm?.removeAllObserver()
                 self.tripOfferViewModel = nil
                 self.dismiss(animated: true) {
@@ -1043,6 +1050,43 @@ private class TripOffersRootView: UIView {
 
     @objc private func refreshOffersTimerTick() {
         tripOfferViewModel?.getTripOffers(isShowLoader: false)
+    }
+
+    /// Android lo hace cada 5 s (setTimerForTripStatusApi). Se copia el intervalo.
+    private static let intervaloDeEstado: TimeInterval = 5
+
+    /**
+     Pregunta cada pocos segundos si el viaje ya tiene conductor.
+
+     Sin esto el pasajero solo se entera por el aviso push, y ese aviso es un unico
+     punto de fallo: si no llega -- token caducado, sin permiso, la app reinstalada,
+     un corte de red -- el conductor acepta y esta pantalla se queda diciendo
+     "Buscando Conductor..." para siempre.
+
+     El sondeo de ofertas que ya habia NO sirve para esto: getTripOffers solo lee la
+     lista de ofertas y nunca mira trip_status, asi que un conductor que acepta
+     directamente, sin pasar por una oferta, no aparece por ningun lado.
+     */
+    private func arrancarSondeoDeEstado() {
+        pararSondeoDeEstado()
+        temporizadorDeEstado = Timer.scheduledTimer(timeInterval: Self.intervaloDeEstado,
+                                                    target: self,
+                                                    selector: #selector(comprobarEstadoDelViaje),
+                                                    userInfo: nil,
+                                                    repeats: true)
+        RunLoop.current.add(temporizadorDeEstado!, forMode: .common)
+    }
+
+    private func pararSondeoDeEstado() {
+        temporizadorDeEstado?.invalidate()
+        temporizadorDeEstado = nil
+    }
+
+    @objc private func comprobarEstadoDelViaje() {
+        guard let tripId = trip?.trip_Id, !tripId.isEmpty else {
+            return
+        }
+        tripOfferViewModel?.getTripDetailsWithId(tripId: tripId as NSString, isShowLoader: false)
     }
 
     @objc private func timerTick() {
