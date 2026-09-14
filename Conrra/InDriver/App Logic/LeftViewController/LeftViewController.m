@@ -793,7 +793,7 @@
         AboutUsViewController *vc = [self.storyboard instantiateViewControllerWithIdentifier:@"AboutUsViewController"];
         vc.isCustomUrl  = YES;
         vc.customTitle  = @"Recargas";
-        vc.customUrl    = @"https://www.google.com"; // TODO: Replace with actual Recargas URL
+        vc.customUrl    = [Utilities urlDeRecargas];
         MainViewController *mainViewController = (MainViewController *)self.sideMenuController;
         UINavigationController *navVC = (UINavigationController *)mainViewController.rootViewController;
         [navVC pushViewController:vc animated:YES];

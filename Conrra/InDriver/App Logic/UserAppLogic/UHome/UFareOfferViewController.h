@@ -27,6 +27,17 @@
 /// El pasajero cambio de categoria en la lista "Elige tu viaje".
 - (void)fareOfferVC:(UFareOfferViewController *)vc eligioCategoria:(CategoryModel *)categoria;
 
+/**
+ Aplicar un codigo promocional.
+
+ Quien lo reciba debe volver a pedir la estimacion con el codigo y devolver el resultado
+ por refrescarConEstimaciones:. El descuento lo decide el servidor, no el telefono.
+ */
+- (void)fareOfferVC:(UFareOfferViewController *)vc aplicarCupon:(NSString *)codigo;
+
+/// Quitar el codigo aplicado y volver a estimar sin el.
+- (void)fareOfferVCQuitarCupon:(UFareOfferViewController *)vc;
+
 @end
 
 @interface UFareOfferViewController : UIViewController
@@ -63,6 +74,14 @@
 
 /// Called by UHomeViewController after the user selects a payment method
 - (void)updatePaymentLabel:(NSString *)label icon:(nullable UIImage *)icon;
+
+/**
+ Vuelve a pintar la pantalla con una estimacion recien traida.
+
+ Se usa despues de aplicar o quitar un cupon: cambian los precios de todas las
+ categorias a la vez, porque el servidor los devuelve todos juntos.
+ */
+- (void)refrescarConEstimaciones:(NSDictionary *)estimaciones;
 
 /// Read the configuration toggles when building the trip request
 @property (assign, nonatomic, readonly) BOOL configPetsAllowed;

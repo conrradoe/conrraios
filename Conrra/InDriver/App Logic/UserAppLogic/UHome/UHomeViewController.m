@@ -31,6 +31,7 @@
 #import "ConstantModel.h"
 #import "CategoryCell.h"
 #import "Utilities.h"
+#import "AboutUsViewController.h"
 #import "UIImageView+WebCache.h"
 #import <Firebase.h>
 #import "FireBaseModel.h"
@@ -2087,6 +2088,16 @@
         if(walletamount<0) {
             [self showAddMoneyAlert];
             return;
+        }
+        // Con la billetera elegida hay que volver a mirar el saldo: se comprobo al
+        // elegirla, pero la tarifa puede haber subido despues -- el recargo por
+        // pasajeros, sin ir mas lejos. Android tiene esta misma comprobacion aqui.
+        if (paymentViewModel.paymentMode == 1) {
+            float tarifa = [self.txtExtmatedFareAmt.text floatValue];
+            if (tarifa > 0 && walletamount < tarifa) {
+                [self showAddMoneyAlert];
+                return;
+            }
         }
         if(isRideLaterButtonTap)   {
             if(selectedRideLaterDate==nil)  {
@@ -5085,6 +5096,56 @@
     }
 }
 
+/**
+ El pasajero aplico un cupon.
+
+ No se valida aqui: se manda a la estimacion, que es quien sabe si el codigo existe,
+ si sigue vivo y cuanto descuenta. Igual que Android.
+ */
+-(void)fareOfferVC:(UFareOfferViewController *)vc aplicarCupon:(NSString *)codigo {
+    if (cityModel == nil) {
+        [Utilities showAlertwithTilte:@""
+                              message:[LanguageHelper getStringWithKey:@"k_r30_s5_select_city"]
+                 navigatationController:self.navigationController];
+        return;
+    }
+    promoCode = [[PromoCodeModel alloc] initWithPromode:codigo city_id:cityModel.city_id];
+    [self reestimarParaLaHojaDeTarifa];
+}
+
+-(void)fareOfferVCQuitarCupon:(UFareOfferViewController *)vc {
+    promoCode = nil;
+    [self reestimarParaLaHojaDeTarifa];
+}
+
+/**
+ Vuelve a estimar y devuelve el resultado a la hoja que ya esta abierta.
+
+ No vale calCalculateFare: ese camino termina en showFareInfoForCategory, que con la
+ hoja pendiente PRESENTA otra, y con ella abierta toca las vistas del diseño viejo del
+ guion grafico. Aqui solo hace falta la llamada y el repintado de la hoja viva.
+ */
+-(void)reestimarParaLaHojaDeTarifa {
+    __weak typeof(self) debil = self;
+    [_bookingModel callFareEstimateApiWithCompletionBlock:^(id results, NSError *error) {
+        __strong typeof(debil) fuerte = debil;
+        if (fuerte == nil) {
+            return;
+        }
+        if (isStatusError(results)) {
+            [fuerte showAlertWithMessgae:[LanguageHelper getStringWithKey:[results objectForKey:P_MESSAGE]]];
+            return;
+        }
+        if (error != nil) {
+            if (![fuerte isHandledError:error]) {
+                [fuerte showAlertWhenEstimateApiFailed];
+            }
+            return;
+        }
+        [fuerte->currentFareOfferVC refrescarConEstimaciones:fuerte->_bookingModel.fareEstimated];
+    } promoCode:promoCode];
+}
+
 -(void)fareOfferDidTapBack:(UFareOfferViewController *)vc {
     currentFareOfferVC = nil;
     isReturningFromFareOffer = YES; // prevents viewWillAppear from resetting direction/pickup
@@ -5129,9 +5190,25 @@
     }
 
     return [NSString stringWithFormat:@"%@|%@|%ld Pasajero(s)",
-            isEmpty(paymentViewModel.tripPayMode),
+            [self metodoDePagoParaElConductor],
             [opciones componentsJoinedByString:@","],
             (long)vc.numeroDePasajeros];
+}
+
+/**
+ Como se llama el metodo de pago en la nota que lee el conductor.
+
+ No vale tripPayMode: para Pago Movil vale "Card", y el conductor busca literalmente
+ "Pago Movil" para pintar su distintivo (TripRequestActivity). Con "Card" se quedaria
+ la palabra cruda, y el mismo viaje se leeria distinto segun con que app se pidio.
+ */
+-(NSString *)metodoDePagoParaElConductor {
+    switch (paymentViewModel.paymentMode) {
+        case 0:  return @"Cash";
+        case 1:  return @"Wallet";
+        case 2:  return @"Pago Movil";
+        default: return isEmpty(paymentViewModel.tripPayMode);
+    }
 }
 
 -(void)fareOfferVCDidTapPayment:(UFareOfferViewController *)vc {
@@ -5143,6 +5220,25 @@
     payVC.tripFare      = vc.currentAmount;
     payVC.modalPresentationStyle = UIModalPresentationFullScreen;
     [vc.navigationController presentViewController:payVC animated:YES completion:nil];
+}
+
+/**
+ Lleva a la pagina de recargas.
+
+ Se empuja en la navegacion de la pantalla de tarifa, no se presenta en modal: el boton
+ de volver de AboutUsViewController hace pop, y en un modal sin pila no haria nada.
+ */
+-(void)paymentSheetDidRequestWalletTopUp:(PaymentMethodViewController *)vc {
+    UINavigationController *nav = currentFareOfferVC.navigationController ?: self.navigationController;
+    if (nav == nil) {
+        return;
+    }
+    AboutUsViewController *web = [[UIStoryboard storyboardWithName:@"User" bundle:nil]
+                                  instantiateViewControllerWithIdentifier:@"AboutUsViewController"];
+    web.isCustomUrl = YES;
+    web.customTitle = [LanguageHelper getStringWithKey:@"k_s10_recargar" defaultValue:@"Recargar"];
+    web.customUrl   = [Utilities urlDeRecargas];
+    [nav pushViewController:web animated:YES];
 }
 
 // PaymentMethodViewControllerDelegate

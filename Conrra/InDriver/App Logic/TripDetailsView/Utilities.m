@@ -842,4 +842,24 @@
         }
     });
 }
+/**
+ La pagina de recarga, con el id del usuario.
+
+ El id va en la direccion porque la pagina es externa al app y no comparte su sesion:
+ es como sabe a que billetera abonar. Sin el se abre un formulario que no sabe de quien
+ es. Si todavia no hay usuario se devuelve la pagina pelada, que al menos explica que
+ hay que entrar.
+ */
++(NSString *) urlDeRecargas {
+    NSDictionary *dict = [[NSUserDefaults standardUserDefaults] objectForKey:P_USER_DICT_LOGGED];
+    if (dict == nil) {
+        dict = [[NSUserDefaults standardUserDefaults] objectForKey:P_USER_DICT];
+    }
+    NSString *idUsuario = [NSString stringWithFormat:@"%@", [dict objectForKey:P_USER_ID] ?: @""];
+    if (idUsuario.length == 0) {
+        return URL_RECARGAS;
+    }
+    return [NSString stringWithFormat:@"%@?id=%@", URL_RECARGAS, idUsuario];
+}
+
 @end

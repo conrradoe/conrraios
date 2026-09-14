@@ -59,6 +59,14 @@
 #define URL_PLANES          PUBLICIDAD_HOST @"/api/planes.php"
 #define URL_PLAN_EVENTO     PUBLICIDAD_HOST @"/api/plan_evento.php"
 
+/**
+ La recarga de la billetera. Se le pega el id del usuario: ?id=1234.
+
+ Es la misma pagina que abre Android (WebPageActivity con este enlace) y la misma que
+ debe abrir "Recargas" del menu lateral -- que apuntaba a google.com con un TODO.
+ */
+#define URL_RECARGAS        @"https://www.conrraservices.com/recargas/index.php"
+
 #define BASE_URL_OTP        @"https://apps.conrra.com/webservices/tw_sms/index2.php"
 #define BASE_URL_OTP_NO        @"https://apps.conrra.com/webservices/tw_sms/index.php"
 #define url_base_app_images             @"https://apps.conrra.com/webservices/images/app_images/"    // Image Base URL

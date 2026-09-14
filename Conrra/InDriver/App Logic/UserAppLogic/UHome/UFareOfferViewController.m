@@ -48,6 +48,15 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
     NSInteger _numPasajeros;
     /// Lo que los pasajeros de mas han añadido a _currentAmount.
     float _recargoPasajeros;
+    /**
+     El codigo que se acaba de mandar, para poder avisar si el servidor lo rechaza.
+
+     Hace falta porque la estimacion no contesta "codigo invalido": responde sin
+     promo_code, igual que cuando no se pidio ninguno. Sin recordar que hubo un
+     intento, un codigo equivocado se quedaria callado y el pasajero creeria que se
+     aplico. Es la misma razon por la que Android guarda cuponIntentado.
+     */
+    NSString *_cuponIntentado;
 }
 
 // Fare stepper
@@ -68,12 +77,21 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
 // Views below accordion that must shift on expand/collapse
 @property (strong, nonatomic) UIView       *payRow;
 @property (strong, nonatomic) UIButton     *pedirBtn;
+// Cupon: una sola fila con tres caras, y solo una visible a la vez
+@property (strong, nonatomic) UIView       *filaCupon;
+@property (strong, nonatomic) UIView       *caraPedirCupon;
+@property (strong, nonatomic) UIView       *caraEscribirCupon;
+@property (strong, nonatomic) UITextField  *txtCupon;
+@property (strong, nonatomic) UIView       *caraCuponAplicado;
+@property (strong, nonatomic) UILabel      *lblCuponAplicado;
 // Elige tu viaje
 @property (strong, nonatomic) UILabel *lblMontoLocal;
 // Chip de la categoria elegida, arriba a la derecha
 @property (strong, nonatomic) UILabel *lblChipCategoria;
 @property (strong, nonatomic) UIImageView *imgChipCategoria;
 @property (strong, nonatomic) NSMutableArray<UIView *> *filasCategoria;
+/// Las etiquetas de precio, en el mismo orden que filasCategoria.
+@property (strong, nonatomic) NSMutableArray<UILabel *> *preciosCategoria;
 // Config toggle switches
 @property (strong, nonatomic) UISwitch     *switchPets;
 @property (strong, nonatomic) UISwitch     *switchDelivery;
@@ -302,6 +320,8 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
                     darkText:darkText grayText:grayText borderColor:borderClr];
 
     y += 52 + 12;
+
+    y += [self montarFilaDeCuponEnVista:cv y:y ancho:sw];
 
     UIView *payRow = [[UIView alloc] initWithFrame:CGRectMake(16, y, sw - 32, 60)];
     payRow.layer.borderWidth  = 1.0f;
@@ -680,6 +700,10 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
             : CGAffineTransformIdentity;
 
         // Shift payRow and pedirBtn down/up by delta
+        CGRect cuf = self.filaCupon.frame;
+        cuf.origin.y += delta;
+        self.filaCupon.frame = cuf;
+
         CGRect pf = self.payRow.frame;
         pf.origin.y += delta;
         self.payRow.frame = pf;
@@ -758,6 +782,284 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
                              placeholderImage:respaldo];
 }
 
+#pragma mark - Cupon
+
+/**
+ La fila del codigo promocional, con sus tres caras.
+
+ Una sola fila que cambia de cara -- pedirlo, escribirlo, o enseñar el que se aplico --
+ en vez de tres filas apiladas. Asi el alto no cambia nunca, que importa porque esta
+ pantalla coloca todo por marcos y el acordeon de arriba mueve lo de abajo por deltas:
+ una fila que creciera obligaria a recalcular ese delta.
+
+ @return el alto que ocupa, para que quien monta la pantalla siga contando.
+ */
+- (CGFloat)montarFilaDeCuponEnVista:(UIView *)cv y:(CGFloat)y ancho:(CGFloat)sw {
+    CGFloat ancho = sw - 32;
+    CGFloat alto  = 52.0;
+
+    UIColor *darkText  = [UIColor colorWithRed:0.157f green:0.157f blue:0.157f alpha:1.0f];
+    UIColor *grayText  = [UIColor colorWithWhite:0.5f alpha:1.0f];
+    UIColor *borderClr = [UIColor colorWithWhite:0.878f alpha:1.0f];
+    UIColor *verde     = [UIColor colorWithRed:0.18f green:0.65f blue:0.32f alpha:1.0f];
+
+    self.filaCupon = [[UIView alloc] initWithFrame:CGRectMake(16, y, ancho, alto)];
+    self.filaCupon.layer.borderWidth  = 1.0f;
+    self.filaCupon.layer.borderColor  = borderClr.CGColor;
+    self.filaCupon.layer.cornerRadius = 12;
+    self.filaCupon.clipsToBounds      = YES;
+    [cv addSubview:self.filaCupon];
+
+    // --- Cara 1: "Añadir código promocional" ---
+    self.caraPedirCupon = [[UIView alloc] initWithFrame:CGRectMake(0, 0, ancho, alto)];
+    [self.filaCupon addSubview:self.caraPedirCupon];
+
+    UIImageView *etiqueta = [[UIImageView alloc] initWithFrame:CGRectMake(16, 15, 22, 22)];
+    etiqueta.image = [[UIImage systemImageNamed:@"tag.fill"]
+                      imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+    etiqueta.tintColor = grayText;
+    etiqueta.contentMode = UIViewContentModeScaleAspectFit;
+    [self.caraPedirCupon addSubview:etiqueta];
+
+    UILabel *pedir = [[UILabel alloc] initWithFrame:CGRectMake(48, 0, ancho - 80, alto)];
+    pedir.text = [LanguageHelper getStringWithKey:@"k_s10_anadir_cupon"
+                                     defaultValue:@"Añadir código promocional"];
+    pedir.font = [UIFont fontWithName:@"NotoSans-Regular" size:15] ?: [UIFont systemFontOfSize:15];
+    pedir.textColor = darkText;
+    [self.caraPedirCupon addSubview:pedir];
+
+    UIImageView *flecha = [[UIImageView alloc] initWithFrame:CGRectMake(ancho - 30, 15, 12, 22)];
+    flecha.image = [[UIImage systemImageNamed:@"chevron.right"]
+                    imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+    flecha.tintColor = grayText;
+    flecha.contentMode = UIViewContentModeScaleAspectFit;
+    [self.caraPedirCupon addSubview:flecha];
+
+    UIButton *tocar = [UIButton buttonWithType:UIButtonTypeCustom];
+    tocar.frame = CGRectMake(0, 0, ancho, alto);
+    [tocar addTarget:self action:@selector(abrirCupon) forControlEvents:UIControlEventTouchUpInside];
+    [self.caraPedirCupon addSubview:tocar];
+
+    // --- Cara 2: escribirlo ---
+    self.caraEscribirCupon = [[UIView alloc] initWithFrame:CGRectMake(0, 0, ancho, alto)];
+    self.caraEscribirCupon.hidden = YES;
+    [self.filaCupon addSubview:self.caraEscribirCupon];
+
+    CGFloat anchoBoton = 92.0;
+    self.txtCupon = [[UITextField alloc] initWithFrame:
+        CGRectMake(16, 0, ancho - anchoBoton - 28, alto)];
+    self.txtCupon.placeholder = [LanguageHelper getStringWithKey:@"k_r49_s3_enter_valid_promo_code"
+                                                    defaultValue:@"Escribe tu código"];
+    self.txtCupon.font = [UIFont fontWithName:@"NotoSans-Regular" size:15] ?: [UIFont systemFontOfSize:15];
+    self.txtCupon.textColor = darkText;
+    self.txtCupon.autocapitalizationType = UITextAutocapitalizationTypeAllCharacters;
+    self.txtCupon.autocorrectionType = UITextAutocorrectionTypeNo;
+    self.txtCupon.returnKeyType = UIReturnKeyDone;
+    [self.txtCupon addTarget:self action:@selector(aplicarCupon)
+            forControlEvents:UIControlEventEditingDidEndOnExit];
+    [self.caraEscribirCupon addSubview:self.txtCupon];
+
+    UIButton *aplicar = [UIButton buttonWithType:UIButtonTypeCustom];
+    aplicar.frame = CGRectMake(ancho - anchoBoton - 8, 8, anchoBoton, alto - 16);
+    aplicar.backgroundColor = [UIColor colorNamed:@"app_theame"]
+        ?: [UIColor colorWithRed:0.922f green:0.710f blue:0.094f alpha:1.0f];
+    aplicar.layer.cornerRadius = 8;
+    aplicar.titleLabel.font = [UIFont fontWithName:@"NotoSans-Bold" size:15] ?: [UIFont boldSystemFontOfSize:15];
+    [aplicar setTitle:[LanguageHelper getStringWithKey:@"k_r45_s3_apply" defaultValue:@"Aplicar"]
+             forState:UIControlStateNormal];
+    [aplicar setTitleColor:[UIColor blackColor] forState:UIControlStateNormal];
+    [aplicar addTarget:self action:@selector(aplicarCupon) forControlEvents:UIControlEventTouchUpInside];
+    [self.caraEscribirCupon addSubview:aplicar];
+
+    // --- Cara 3: el que se aplico ---
+    self.caraCuponAplicado = [[UIView alloc] initWithFrame:CGRectMake(0, 0, ancho, alto)];
+    self.caraCuponAplicado.hidden = YES;
+    [self.filaCupon addSubview:self.caraCuponAplicado];
+
+    UIImageView *visto = [[UIImageView alloc] initWithFrame:CGRectMake(16, 15, 22, 22)];
+    visto.image = [[UIImage systemImageNamed:@"checkmark.seal.fill"]
+                   imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+    visto.tintColor = verde;
+    visto.contentMode = UIViewContentModeScaleAspectFit;
+    [self.caraCuponAplicado addSubview:visto];
+
+    self.lblCuponAplicado = [[UILabel alloc] initWithFrame:CGRectMake(48, 0, ancho - 90, alto)];
+    self.lblCuponAplicado.font = [UIFont fontWithName:@"NotoSans-Bold" size:15] ?: [UIFont boldSystemFontOfSize:15];
+    self.lblCuponAplicado.textColor = verde;
+    self.lblCuponAplicado.adjustsFontSizeToFitWidth = YES;
+    self.lblCuponAplicado.minimumScaleFactor = 0.7f;
+    [self.caraCuponAplicado addSubview:self.lblCuponAplicado];
+
+    UIButton *quitar = [UIButton buttonWithType:UIButtonTypeSystem];
+    quitar.frame = CGRectMake(ancho - 44, 14, 24, 24);
+    [quitar setImage:[[UIImage systemImageNamed:@"xmark.circle.fill"]
+                      imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate]
+            forState:UIControlStateNormal];
+    quitar.tintColor = grayText;
+    [quitar addTarget:self action:@selector(quitarCupon) forControlEvents:UIControlEventTouchUpInside];
+    [self.caraCuponAplicado addSubview:quitar];
+
+    [self pintarEstadoDelCupon];
+
+    return alto + 12;
+}
+
+- (void)abrirCupon {
+    self.caraPedirCupon.hidden    = YES;
+    self.caraEscribirCupon.hidden = NO;
+    [self.txtCupon becomeFirstResponder];
+}
+
+/**
+ Manda el codigo a estimar. El descuento lo calcula el servidor, no el telefono.
+ */
+- (void)aplicarCupon {
+    NSString *codigo = [[self.txtCupon.text
+        stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]]
+        uppercaseString];
+
+    if (codigo.length == 0) {
+        [self avisar:[LanguageHelper getStringWithKey:@"k_s10_falta_el_cupon"
+                                         defaultValue:@"Falta el código"]
+             mensaje:[LanguageHelper getStringWithKey:@"k_r49_s3_plz_enter_valid_promo_code"
+                                         defaultValue:@"Escribe tu código promocional antes de aplicarlo."]];
+        return;
+    }
+
+    [self.txtCupon resignFirstResponder];
+    _cuponIntentado = codigo;
+
+    if ([self.delegate respondsToSelector:@selector(fareOfferVC:aplicarCupon:)]) {
+        [self.delegate fareOfferVC:self aplicarCupon:codigo];
+    }
+}
+
+- (void)quitarCupon {
+    _cuponIntentado = nil;
+    self.txtCupon.text = @"";
+
+    if ([self.delegate respondsToSelector:@selector(fareOfferVCQuitarCupon:)]) {
+        [self.delegate fareOfferVCQuitarCupon:self];
+    }
+}
+
+/** El codigo que el servidor dio por bueno para la categoria elegida, si lo hay. */
+- (NSString *)cuponDelServidor {
+    EstimatedFare *est = [self estimacionDeLaCategoriaElegida];
+    NSString *codigo = est.promo_code;
+    return (codigo.length > 0 && ![codigo isEqualToString:@"0"]) ? codigo : nil;
+}
+
+- (EstimatedFare *)estimacionDeLaCategoriaElegida {
+    if (self.categoriaElegida == nil) {
+        return nil;
+    }
+    NSString *clave = [NSString stringWithFormat:@"%d", self.categoriaElegida.categoryId];
+    return [self.estimacionesPorCategoria objectForKey:clave];
+}
+
+/**
+ Pinta la cara que toca segun lo que contesto el servidor.
+
+ Se llama SIEMPRE despues de una estimacion, con cupon o sin el: es la respuesta la que
+ decide si el codigo valia, no lo que escribio el pasajero.
+ */
+- (void)pintarEstadoDelCupon {
+    if (self.filaCupon == nil) {
+        return;
+    }
+    NSString *aplicado = [self cuponDelServidor];
+
+    if (aplicado.length > 0) {
+        float descuento = [self estimacionDeLaCategoriaElegida].trip_promo_amt;
+        self.lblCuponAplicado.text = (descuento > 0)
+            ? [NSString stringWithFormat:@"%@  ·  -%@", aplicado, [self formattedAmount:descuento]]
+            : [NSString stringWithFormat:
+               [LanguageHelper getStringWithKey:@"k_s10_cupon_aplicado" defaultValue:@"%@ aplicado"],
+               aplicado];
+
+        self.caraPedirCupon.hidden     = YES;
+        self.caraEscribirCupon.hidden  = YES;
+        self.caraCuponAplicado.hidden  = NO;
+        _cuponIntentado = nil;
+        return;
+    }
+
+    // Sin cupon aplicado. Si veniamos de intentar uno, es que no valia.
+    if (_cuponIntentado.length > 0) {
+        NSString *intentado = _cuponIntentado;
+        _cuponIntentado = nil;
+        [self avisar:[LanguageHelper getStringWithKey:@"k_s10_cupon_no_valido"
+                                         defaultValue:@"Código no válido"]
+             mensaje:[NSString stringWithFormat:
+                      [LanguageHelper getStringWithKey:@"k_s10_cupon_no_valido_texto"
+                                          defaultValue:@"No pudimos aplicar el código %@."],
+                      intentado]];
+    }
+
+    self.caraPedirCupon.hidden    = NO;
+    self.caraEscribirCupon.hidden = YES;
+    self.caraCuponAplicado.hidden = YES;
+}
+
+- (void)avisar:(NSString *)titulo mensaje:(NSString *)mensaje {
+    UIAlertController *alerta = [UIAlertController alertControllerWithTitle:titulo
+                                                                   message:mensaje
+                                                            preferredStyle:UIAlertControllerStyleAlert];
+    [alerta addAction:[UIAlertAction
+        actionWithTitle:[LanguageHelper getStringWithKey:@"k_18_s4_Ok" defaultValue:@"OK"]
+        style:UIAlertActionStyleDefault
+        handler:nil]];
+    [self presentViewController:alerta animated:YES completion:nil];
+}
+
+#pragma mark - Refresco
+
+/**
+ Vuelve a pintar con una estimacion recien traida.
+
+ Los precios de TODAS las categorias cambian a la vez, porque el servidor las devuelve
+ todas en la misma llamada: por eso se repintan las filas enteras y no solo la elegida.
+
+ El recargo por pasajeros se conserva: no depende del cupon ni de la estimacion, lo
+ puso el pasajero y sigue puesto.
+ */
+- (void)refrescarConEstimaciones:(NSDictionary *)estimaciones {
+    if (estimaciones != nil) {
+        self.estimacionesPorCategoria = estimaciones;
+    }
+
+    float recomendado = [self precioDeCategoria:self.categoriaElegida];
+    if (recomendado > 0) {
+        CategoryModel *cat = self.categoriaElegida;
+        self.recommendedFare = recomendado;
+        self.minFare = (cat.min_offer_perc > 0) ? recomendado * (1.0f - cat.min_offer_perc / 100.0f) : 0.0f;
+        self.maxFare = (cat.max_offer_perc > 0) ? recomendado * (1.0f + cat.max_offer_perc / 100.0f) : 0.0f;
+        _currentAmount = recomendado + _recargoPasajeros;
+        [self ajustarMontoALosTopes];
+        self.amountLabel.text = [self formattedAmount:_currentAmount];
+        [self actualizarMontoLocal];
+    }
+
+    [self repintarPreciosDeLasCategorias];
+    [self pintarEstadoDelCupon];
+}
+
+- (void)repintarPreciosDeLasCategorias {
+    for (NSInteger i = 0; i < (NSInteger)self.filasCategoria.count; i++) {
+        if (i >= (NSInteger)self.categorias.count) {
+            break;
+        }
+        UIView  *fila   = [self.filasCategoria objectAtIndex:(NSUInteger)i];
+        UILabel *precio = [self.preciosCategoria objectAtIndex:(NSUInteger)i];
+        if (precio == nil || fila == nil) {
+            continue;
+        }
+        CategoryModel *cat = [self.categorias objectAtIndex:(NSUInteger)i];
+        precio.text = [self formattedAmount:[self precioDeCategoria:cat]];
+    }
+}
+
 #pragma mark - Elige tu viaje
 
 /**
@@ -779,7 +1081,8 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
     if (self.categorias.count == 0) {
         return 0;
     }
-    self.filasCategoria = [[NSMutableArray alloc] init];
+    self.filasCategoria   = [[NSMutableArray alloc] init];
+    self.preciosCategoria = [[NSMutableArray alloc] init];
 
     UIColor *darkText  = [UIColor colorWithRed:0.157f green:0.157f blue:0.157f alpha:1.0f];
     UIColor *grayText  = [UIColor colorWithWhite:0.45f alpha:1.0f];
@@ -855,6 +1158,7 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
         precio.adjustsFontSizeToFitWidth = YES;
         precio.minimumScaleFactor = 0.7f;
         [fila addSubview:precio];
+        [self.preciosCategoria addObject:precio];
 
         y += filaH + 8;
     }
@@ -922,6 +1226,9 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
     [self actualizarMontoLocal];
     [self actualizarChipDeCategoria];
     [self refrescarFilaDePasajeros];
+    // El cupon se aplica por categoria: el servidor pudo darlo por bueno en una y no
+    // en otra, asi que la cara del cupon se vuelve a mirar con la que ahora esta.
+    [self pintarEstadoDelCupon];
 
     if ([self.delegate respondsToSelector:@selector(fareOfferVC:eligioCategoria:)]) {
         [self.delegate fareOfferVC:self eligioCategoria:cat];

@@ -12,6 +12,10 @@
 /// Called immediately when the user selects a payment mode.
 /// mode: 0=Cash, 1=Wallet, 2=PagoMóvil
 - (void)paymentSheet:(PaymentMethodViewController *)vc didSelectMode:(int)mode;
+
+@optional
+/// El pasajero quiere recargar la billetera: la hoja ya se cerro al llamar.
+- (void)paymentSheetDidRequestWalletTopUp:(PaymentMethodViewController *)vc;
 @end
 
 @interface PaymentMethodViewController : UIViewController

@@ -93,4 +93,7 @@
 +(void)applyGrayTintOnImageView:(UIImageView*)imageview color:(UIColor*)color;
 +(void)applyTintOnButton:(UIButton*)button color:(UIColor*)color name:(NSString *)name;
 +(void) getAddressStrinByLat: (float) latitude longitude: (float) longitude withcompletionHandler : (void(^)(NSString * locAddress,NSString * country))completionHandler;
+
+/// La pagina de recarga de la billetera, con el id del usuario ya puesto.
++(NSString *) urlDeRecargas;
 @end

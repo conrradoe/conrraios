@@ -13,6 +13,7 @@
 #import "PaymentMethodViewController.h"
 #import "WebCallConstants.h"
 #import "LanguageHelper.h"
+#import "Utilities.h"
 
 @interface PMRow : NSObject
 @property (strong) NSString *title;
@@ -286,31 +287,27 @@
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
     PMRow *row = _rows[indexPath.row];
 
-    // Wallet selected (mode == 1): validate that the user has enough balance
+    // Billetera sin saldo bastante: no se elige, y se ofrece salida.
     if (row.mode == 1) {
-        float balance = self.walletBalance;
-        if (balance == 0) {
-            NSDictionary *d = [[NSUserDefaults standardUserDefaults] objectForKey:P_USER_DICT];
-            balance = [[d objectForKey:P_USER_WAlLET_AMOUNT] floatValue];
-        }
         float fare = self.tripFare;
-        if (fare > 0 && balance < fare) {
-            // Not enough balance — show alert and do NOT proceed
-            NSString *msg = [LanguageHelper getStringWithKey:@"k_r16_s7_nt_engh_wallet"
-                                                defaultValue:@"Saldo insuficiente en tu billetera para cubrir esta tarifa."];
-            UIAlertController *alert = [UIAlertController
-                alertControllerWithTitle:@""
-                message:msg
-                preferredStyle:UIAlertControllerStyleAlert];
-            [alert addAction:[UIAlertAction
-                actionWithTitle:[LanguageHelper getStringWithKey:@"k_18_s4_Ok" defaultValue:@"OK"]
-                style:UIAlertActionStyleCancel
-                handler:nil]];
-            [self presentViewController:alert animated:YES completion:nil];
-            return;  // Stop here — do not select wallet or dismiss
+        if (fare > 0 && [self saldoDeLaBilletera] < fare) {
+            [self avisarSaldoInsuficienteParaTarifa:fare];
+            return;
         }
     }
 
+    // Pago Movil: primero se cuenta como funciona, porque no se cobra dentro del app.
+    if (row.mode == 2) {
+        [self explicarPagoMovilYLuego:^{
+            [self elegirFila:row enTabla:tableView];
+        }];
+        return;
+    }
+
+    [self elegirFila:row enTabla:tableView];
+}
+
+- (void)elegirFila:(PMRow *)row enTabla:(UITableView *)tableView {
     _selected = row.mode;
     [tableView reloadData];
 
@@ -318,6 +315,91 @@
         [self.delegate paymentSheet:self didSelectMode:_selected];
     }
     [self dismissViewControllerAnimated:YES completion:nil];
+}
+
+- (float)saldoDeLaBilletera {
+    float balance = self.walletBalance;
+    if (balance == 0) {
+        NSDictionary *d = [[NSUserDefaults standardUserDefaults] objectForKey:P_USER_DICT];
+        balance = [[d objectForKey:P_USER_WAlLET_AMOUNT] floatValue];
+    }
+    return balance;
+}
+
+/**
+ Que hacer cuando la billetera no llega.
+
+ Aqui habia un aviso con un solo boton de OK: el pasajero se enteraba de que no puede
+ pagar y se quedaba igual, sin manera de arreglarlo desde el app. Android ofrece las
+ dos salidas que de verdad existen -- recargar o pagar de otra forma -- y son las que
+ se ponen.
+
+ Recargar sale del app hacia la pagina de recargas, asi que la hoja se cierra antes:
+ quien la abrio es el que tiene navegacion para empujar la pagina.
+ */
+- (void)avisarSaldoInsuficienteParaTarifa:(float)tarifa {
+    NSString *msg = [NSString stringWithFormat:
+        [LanguageHelper getStringWithKey:@"k_s10_saldo_insuficiente"
+                            defaultValue:@"Tu saldo es insuficiente para pagar esta carrera ($%.2f). ¿Deseas recargar?"],
+        tarifa];
+
+    UIAlertController *alert = [UIAlertController
+        alertControllerWithTitle:[LanguageHelper getStringWithKey:@"k_33_s7_alert" defaultValue:@"Alerta"]
+        message:msg
+        preferredStyle:UIAlertControllerStyleAlert];
+
+    __weak typeof(self) debil = self;
+    [alert addAction:[UIAlertAction
+        actionWithTitle:[LanguageHelper getStringWithKey:@"k_s10_recargar" defaultValue:@"Recargar"]
+        style:UIAlertActionStyleDefault
+        handler:^(UIAlertAction *accion) {
+            __strong typeof(debil) fuerte = debil;
+            if (fuerte == nil) {
+                return;
+            }
+            id<PaymentMethodViewControllerDelegate> delegado = fuerte.delegate;
+            [fuerte dismissViewControllerAnimated:YES completion:^{
+                if ([delegado respondsToSelector:@selector(paymentSheetDidRequestWalletTopUp:)]) {
+                    [delegado paymentSheetDidRequestWalletTopUp:fuerte];
+                }
+            }];
+        }]];
+
+    // Cambiar de metodo es justamente quedarse aqui: esta pantalla ES la lista.
+    [alert addAction:[UIAlertAction
+        actionWithTitle:[LanguageHelper getStringWithKey:@"k_s10_cambiar_metodo_pago"
+                                            defaultValue:@"Cambiar método de pago"]
+        style:UIAlertActionStyleCancel
+        handler:nil]];
+
+    [self presentViewController:alert animated:YES completion:nil];
+}
+
+/**
+ El aviso de Pago Movil, con el texto de Android (dialog_pago_movil_info).
+
+ Hace falta porque Pago Movil no cobra nada dentro del app: el pasajero transfiere por
+ su cuenta cuando el conductor acepte, y despues reporta. Sin decirlo, elegir este
+ metodo parece dejar el viaje pagado.
+ */
+- (void)explicarPagoMovilYLuego:(void (^)(void))despues {
+    UIAlertController *hoja = [UIAlertController
+        alertControllerWithTitle:[LanguageHelper getStringWithKey:@"k_s10_info_pago_movil"
+                                                     defaultValue:@"Información de Pago Móvil"]
+        message:[LanguageHelper getStringWithKey:@"k_s10_info_pago_movil_texto"
+                                    defaultValue:@"Al ser aceptado tu viaje, verás aquí los datos bancarios del conductor para realizar la transferencia.\n\nRecuerda que debes reportar tu pago al finalizar el recorrido."]
+        preferredStyle:UIAlertControllerStyleAlert];
+
+    [hoja addAction:[UIAlertAction
+        actionWithTitle:[LanguageHelper getStringWithKey:@"k_s10_entendido" defaultValue:@"Entendido"]
+        style:UIAlertActionStyleDefault
+        handler:^(UIAlertAction *accion) {
+            if (despues) {
+                despues();
+            }
+        }]];
+
+    [self presentViewController:hoja animated:YES completion:nil];
 }
 
 
