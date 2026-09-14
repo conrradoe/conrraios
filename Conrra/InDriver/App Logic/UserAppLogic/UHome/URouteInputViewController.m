@@ -13,6 +13,7 @@
 #import "AppDelegate.h"
 #import "Utilities.h"
 #import "LanguageHelper.h"
+#import "UIImageView+WebCache.h"
 
 @interface URouteInputViewController () <SuggestedLocationDataSourceDelegate>
 {
@@ -232,15 +233,31 @@
     [self.destinationTableView registerNib:cellNib forCellReuseIdentifier:@"SuggestedLocationCell"];
 }
 
+/**
+ Las categorias, las que mande el servidor.
+
+ Dos cosas estaban mal. Cortaba en DOS (MIN(count, 2)), asi que en Panama, donde el
+ backend devuelve Taxi, Envio y Luxor, la tercera no se veia. Y el icono se elegia por
+ posicion -- i == 0 ? moto : car --, de modo que la primera categoria salia siempre con
+ una moto aunque fuera un taxi.
+
+ Lo que YA estaba bien y se conserva: la comparacion por categoryId con selectedCategory,
+ que es lo que marca la que el pasajero eligio en la pantalla anterior.
+
+ Las tarjetas siguen siendo indicativas, sin toque: cambiar aqui la categoria obligaria a
+ propagar la eleccion de vuelta al home, y eso es otro asunto.
+ */
 - (CGFloat)buildVehicleCardsAtY:(CGFloat)y width:(CGFloat)sw {
-    NSInteger count = MIN((NSInteger)self.categories.count, 2);
+    NSInteger count = (NSInteger)self.categories.count;
     if (count == 0) return 0;
 
     CGFloat cardH   = 80.0;
     CGFloat cardW   = 80.0;
     CGFloat spacing = 12.0;
     CGFloat totalW  = count * cardW + (count - 1) * spacing;
-    CGFloat startX  = (sw - totalW) / 2.0;
+    // Con muchas categorias la fila se saldria por los lados: a partir de ahi se pega al
+    // margen izquierdo en vez de centrarse fuera de la pantalla.
+    CGFloat startX  = (totalW < sw - 32.0) ? (sw - totalW) / 2.0 : 16.0;
 
     UIColor *selectedBorder = [UIColor colorNamed:@"app_theame"]
                               ?: [UIColor colorWithRed:0.922f green:0.710f blue:0.094f alpha:1.0f];
@@ -261,13 +278,17 @@
         card.clipsToBounds      = YES;
         [self.view addSubview:card];
 
-        NSString *iconName  = (i == 0) ? @"ic_vehicle_moto" : @"ic_vehicle_car";
-        UIImage  *icon      = [UIImage imageNamed:iconName] ?: [UIImage imageNamed:@"map_car_icon"];
+        // Si la imagen del servidor no carga, queda el icono del paquete que mas se
+        // parezca por el nombre: mejor una silueta generica que un hueco en blanco.
+        UIImage *respaldo = [[cat.cat_name lowercaseString] containsString:@"moto"]
+            ? [UIImage imageNamed:@"ic_vehicle_moto"]
+            : ([UIImage imageNamed:@"ic_vehicle_car"] ?: [UIImage imageNamed:@"map_car_icon"]);
         CGFloat   iconSize  = 48.0;
         UIImageView *iconIV = [[UIImageView alloc] initWithFrame:
             CGRectMake((cardW - iconSize) / 2.0, (cardH - iconSize) / 2.0, iconSize, iconSize)];
-        iconIV.image       = icon;
         iconIV.contentMode = UIViewContentModeScaleAspectFit;
+        [iconIV sd_setImageWithURL:[NSURL URLWithString:isEmpty(cat.cat_image_path)]
+                  placeholderImage:respaldo];
         [card addSubview:iconIV];
     }
 
