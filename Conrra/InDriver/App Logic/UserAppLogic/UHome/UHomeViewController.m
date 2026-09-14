@@ -460,8 +460,25 @@
         return;
     }
     NSLog(@"[Planes] destino desde Sitios: %@ (%f,%f)", sitio, lat, lng);
+    [self fijarDestinoEn:CLLocationCoordinate2DMake(lat, lng) nombre:sitio];
+}
 
-    CLLocation *destino = [[CLLocation alloc] initWithLatitude:lat longitude:lng];
+/**
+ Fija un destino del que ya se sabe la coordenada.
+
+ El camino normal -- las sugerencias de Google -- llega con un place_id y hay que
+ resolverlo antes. Hay dos sitios que no pasan por ahi y ya traen el punto hecho: el
+ boton IR de Sitios y el selector de mapa. Los dos acaban aqui.
+
+ Sin pais: ninguno de los dos trae terminos de Google. Android hace lo mismo (setDropData
+ no pasa pais) y este fichero ya deja dropCountry en "" en otros caminos de reinicio.
+ */
+-(void)fijarDestinoEn:(CLLocationCoordinate2D)coordenada nombre:(NSString *)nombre {
+    if (nombre.length == 0) {
+        return;
+    }
+    CLLocation *destino = [[CLLocation alloc] initWithLatitude:coordenada.latitude
+                                                     longitude:coordenada.longitude];
     if ([direction.source distanceFromLocation:destino] < 100) {
         [self showAlertWithOk:@""
                       message:[LanguageHelper getStringWithKey:@"k_76_s4_cnt_slct_sm_lctn"]
@@ -473,12 +490,9 @@
     btnDropState = @"cross";
     [self.btnSearchDrop setImage:[UIImage imageNamed:@"remove"] forState:UIControlStateNormal];
 
-    self.txtDestinationAddres.text = sitio;
+    self.txtDestinationAddres.text = nombre;
     direction.destination = destino;
-    direction.dropAddress = sitio;
-    // Sin pais: el plan trae coordenadas y nombre, no terminos de Google. Android hace lo
-    // mismo (setDropData no pasa pais) y este fichero ya deja dropCountry en "" en otros
-    // caminos de reinicio.
+    direction.dropAddress = nombre;
     direction.dropCountry = @"";
 
     [self zoomToDestination];
@@ -4843,6 +4857,45 @@
         [self->nearByDriverHandler changePickUpLocation:self->direction.source];
         [self addMapAnnotationsWith:self->direction type:@"source"];
     }];
+}
+
+#pragma mark - Punto elegido en el mapa
+
+/**
+ Recogida elegida arrastrando el mapa.
+
+ Mismo trabajo que didSelectPickup:, sin el paso de resolver el place_id: del mapa sale
+ la coordenada directamente. Ver la nota del protocolo en URouteInputViewController.h.
+ */
+-(void)routeInputVC:(URouteInputViewController *)vc
+   eligioRecogidaEn:(CLLocationCoordinate2D)coordenada
+          direccion:(NSString *)direccion {
+
+    self.txtPickupAddress.text = direccion;
+    direction.source      = [[CLLocation alloc] initWithLatitude:coordenada.latitude
+                                                       longitude:coordenada.longitude];
+    direction.pickAddress = direccion;
+    direction.pickCountry = @"";
+    isPickupSelected = YES;
+
+    [nearByDriverHandler changePickUpLocation:direction.source];
+    [self addMapAnnotationsWith:direction type:@"source"];
+
+    // Si ya habia destino, la ruta cambia: hay que volver a trazarla.
+    if (direction.destination && direction.destination.coordinate.latitude != emptyLoc.latitude) {
+        [self drawRoute];
+    }
+}
+
+/** Destino elegido arrastrando el mapa. */
+-(void)routeInputVC:(URouteInputViewController *)vc
+    eligioDestinoEn:(CLLocationCoordinate2D)coordenada
+          direccion:(NSString *)direccion {
+
+    // Igual que en didSelectDestination:, hay que marcarlo ANTES de que la pantalla de
+    // ruta se cierre: al reaparecer, viewWillAppear reiniciaria direction si no.
+    isReturningFromRouteInput = YES;
+    [self fijarDestinoEn:coordenada nombre:direccion];
 }
 
 -(void)handleSheetPan:(UIPanGestureRecognizer *)pan {

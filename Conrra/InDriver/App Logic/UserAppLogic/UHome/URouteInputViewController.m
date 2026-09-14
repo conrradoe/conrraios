@@ -14,8 +14,9 @@
 #import "Utilities.h"
 #import "LanguageHelper.h"
 #import "UIImageView+WebCache.h"
+#import "ConrraMapaSelectorViewController.h"
 
-@interface URouteInputViewController () <SuggestedLocationDataSourceDelegate>
+@interface URouteInputViewController () <SuggestedLocationDataSourceDelegate, ConrraMapaSelectorDelegate>
 {
     SuggestedLocationDataSource *locationDataSourcePickup;
     SuggestedLocationDataSource *locationDataSourceDrop;
@@ -133,6 +134,8 @@
 
     CGFloat currentY = statusH + topBarH + 16.0;
 
+    currentY += [self buildSelectorDeMapaAtY:currentY width:sw] + 16.0;
+
     CGFloat vehicleRowH = [self buildVehicleCardsAtY:currentY width:sw];
     currentY += vehicleRowH + 16.0;
 
@@ -247,6 +250,93 @@
  Las tarjetas siguen siendo indicativas, sin toque: cambiar aqui la categoria obligaria a
  propagar la eleccion de vuelta al home, y eso es otro asunto.
  */
+/**
+ El boton de "Seleccionar en el mapa".
+
+ Hay direcciones que no se pueden escribir: un portal sin numero, una entrada de
+ servicio, el sitio exacto de un descampado. Android lo resuelve con este mismo boton
+ (btnSelectOnMapSearch) y un mapa con el pin fijo en el centro.
+ */
+- (CGFloat)buildSelectorDeMapaAtY:(CGFloat)y width:(CGFloat)sw {
+    CGFloat alto = 56.0;
+    UIColor *verde = [UIColor colorWithRed:0.18f green:0.65f blue:0.27f alpha:1.0f];
+
+    UIButton *boton = [UIButton buttonWithType:UIButtonTypeCustom];
+    boton.frame = CGRectMake(16, y, sw - 32, alto);
+    boton.backgroundColor = [verde colorWithAlphaComponent:0.10f];
+    boton.layer.cornerRadius = 14;
+    boton.clipsToBounds = YES;
+    [boton addTarget:self action:@selector(abrirSelectorDeMapa) forControlEvents:UIControlEventTouchUpInside];
+    [self.view addSubview:boton];
+
+    UIImageView *icono = [[UIImageView alloc] initWithFrame:CGRectMake(16, (alto - 24) / 2.0, 24, 24)];
+    icono.image = [[UIImage systemImageNamed:@"mappin.and.ellipse"]
+                   imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+    icono.tintColor = verde;
+    icono.contentMode = UIViewContentModeScaleAspectFit;
+    [boton addSubview:icono];
+
+    UILabel *texto = [[UILabel alloc] initWithFrame:CGRectMake(52, 0, sw - 32 - 68, alto)];
+    texto.text = [LanguageHelper getStringWithKey:@"k_s10_seleccionar_en_el_mapa"
+                                     defaultValue:@"Seleccionar en el mapa"];
+    texto.font = [UIFont fontWithName:@"NotoSans-Bold" size:16] ?: [UIFont boldSystemFontOfSize:16];
+    texto.textColor = verde;
+    [boton addSubview:texto];
+
+    return alto;
+}
+
+/**
+ Abre el mapa para elegir el punto.
+
+ El modo sale de que campo se estaba usando: si el pasajero estaba tocando el de
+ recogida, el punto es la recogida; si no, el destino. Es la misma regla que Android
+ (isPickUpSearching).
+ */
+- (void)abrirSelectorDeMapa {
+    [self.view endEditing:YES];
+
+    ConrraMapaSelectorViewController *vc = [[ConrraMapaSelectorViewController alloc] init];
+    vc.delegado = self;
+    vc.modo = [self.pickupField isFirstResponder]
+        ? ConrraModoSeleccionRecogida
+        : ConrraModoSeleccionDestino;
+    // Se abre donde ya esta el pasajero, no en mitad del oceano.
+    if (self.direction && self.direction.source) {
+        vc.centroInicial = self.direction.source.coordinate;
+    }
+    [self.navigationController pushViewController:vc animated:YES];
+}
+
+#pragma mark - ConrraMapaSelectorDelegate
+
+- (void)selectorDeMapa:(ConrraMapaSelectorViewController *)selector
+      eligioCoordenada:(CLLocationCoordinate2D)coordenada
+             direccion:(NSString *)direccion
+                  modo:(ConrraModoSeleccionMapa)modo {
+
+    if (modo == ConrraModoSeleccionRecogida) {
+        self.pickupField.text = direccion;
+        if (self.direction) {
+            self.direction.pickAddress = direccion;
+        }
+        if ([self.delegate respondsToSelector:@selector(routeInputVC:eligioRecogidaEn:direccion:)]) {
+            [self.delegate routeInputVC:self eligioRecogidaEn:coordenada direccion:direccion];
+        }
+        // La recogida no cierra la pantalla: todavia falta el destino.
+        return;
+    }
+
+    self.destinationField.text = direccion;
+    if ([self.delegate respondsToSelector:@selector(routeInputVC:eligioDestinoEn:direccion:)]) {
+        // Igual que con las sugerencias: avisar ANTES de cerrar, para que el home pueda
+        // ponerse en modo "vuelvo de la ruta" y no se reinicie al reaparecer.
+        [self.delegate routeInputVC:self eligioDestinoEn:coordenada direccion:direccion];
+    }
+    [self.navigationController popViewControllerAnimated:YES];
+}
+
+
 - (CGFloat)buildVehicleCardsAtY:(CGFloat)y width:(CGFloat)sw {
     NSInteger count = (NSInteger)self.categories.count;
     if (count == 0) return 0;

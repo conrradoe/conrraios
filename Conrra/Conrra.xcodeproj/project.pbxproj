@@ -78,6 +78,7 @@
 		D357A9A027F2F66C0086E2D4 /* CategoryCell.xib in Resources */ = {isa = PBXBuildFile; fileRef = D357A84027F2F66C0086E2D4 /* CategoryCell.xib */; };
 		D357A9A127F2F66C0086E2D4 /* UHomeViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = D357A84127F2F66C0086E2D4 /* UHomeViewController.m */; };
 		D357A9A327F2F66C0086E2D4 /* SettingViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = D357A84727F2F66C0086E2D4 /* SettingViewController.m */; };
+		1200733C659D4087871896F4 /* ConrraMapaSelectorViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = E27A00F7C3BF4E9582563DAC /* ConrraMapaSelectorViewController.m */; };
 		A5038AAF7F1240C19B8A9CBF /* ConrraAvisoLocal.m in Sources */ = {isa = PBXBuildFile; fileRef = 9081982A068C47CBA3DEE80B /* ConrraAvisoLocal.m */; };
 		577B36D90960470B9954A54B /* ConrraDestinoDePlan.m in Sources */ = {isa = PBXBuildFile; fileRef = DB5BD24B804B4571B40CED22 /* ConrraDestinoDePlan.m */; };
 		F22D7B3C64574564B7F8F42C /* ConrraCatalogoDePlanes.m in Sources */ = {isa = PBXBuildFile; fileRef = 5F4F073533DA4B3FBEFC8DFF /* ConrraCatalogoDePlanes.m */; };
@@ -615,6 +616,8 @@
 		D357A84127F2F66C0086E2D4 /* UHomeViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = UHomeViewController.m; sourceTree = "<group>"; };
 		D357A84627F2F66C0086E2D4 /* SettingViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SettingViewController.h; sourceTree = "<group>"; };
 		D357A84727F2F66C0086E2D4 /* SettingViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SettingViewController.m; sourceTree = "<group>"; };
+		92EF1D55C55542EC95B9AEF2 /* ConrraMapaSelectorViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraMapaSelectorViewController.h; sourceTree = "<group>"; };
+		E27A00F7C3BF4E9582563DAC /* ConrraMapaSelectorViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraMapaSelectorViewController.m; sourceTree = "<group>"; };
 		07A75B65E6F74203B8CD8A51 /* ConrraAvisoLocal.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraAvisoLocal.h; sourceTree = "<group>"; };
 		9081982A068C47CBA3DEE80B /* ConrraAvisoLocal.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraAvisoLocal.m; sourceTree = "<group>"; };
 		9E84AA52DFF1472C8768CA0A /* ConrraDestinoDePlan.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraDestinoDePlan.h; sourceTree = "<group>"; };
@@ -1564,6 +1567,8 @@
 		D357A81827F2F66C0086E2D4 /* UHome */ = {
 			isa = PBXGroup;
 			children = (
+				92EF1D55C55542EC95B9AEF2 /* ConrraMapaSelectorViewController.h */,
+				E27A00F7C3BF4E9582563DAC /* ConrraMapaSelectorViewController.m */,
 				D350F6EA2A270A7F00283AFD /* FareInfo */,
 				D357A81E27F2F66C0086E2D4 /* TripOffers */,
 				D357A82C27F2F66C0086E2D4 /* Suggested */,
@@ -3696,6 +3701,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1200733C659D4087871896F4 /* ConrraMapaSelectorViewController.m in Sources */,
 				A5038AAF7F1240C19B8A9CBF /* ConrraAvisoLocal.m in Sources */,
 				577B36D90960470B9954A54B /* ConrraDestinoDePlan.m in Sources */,
 				F22D7B3C64574564B7F8F42C /* ConrraCatalogoDePlanes.m in Sources */,

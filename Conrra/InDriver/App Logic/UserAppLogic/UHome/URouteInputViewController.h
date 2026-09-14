@@ -10,6 +10,7 @@
 #import <UIKit/UIKit.h>
 #import "GoogleDirectionSource.h"
 #import "CategoryModel.h"
+#import <CoreLocation/CoreLocation.h>
 
 @class URouteInputViewController;
 
@@ -23,6 +24,21 @@
 /// Called when the user selects a new pickup location from suggestions.
 /// The VC stays open after this.
 - (void)routeInputVC:(URouteInputViewController *)vc didSelectPickup:(NSDictionary *)dictLocation;
+
+/**
+ El punto llega YA RESUELTO, con coordenada y direccion.
+
+ Hacia falta una via aparte porque los dos metodos de arriba entregan el diccionario de
+ Google y UHomeViewController resuelve el punto con el place_id. De arrastrar el mapa no
+ sale ningun place_id: sale la coordenada directamente.
+ */
+- (void)routeInputVC:(URouteInputViewController *)vc
+   eligioRecogidaEn:(CLLocationCoordinate2D)coordenada
+          direccion:(NSString *)direccion;
+
+- (void)routeInputVC:(URouteInputViewController *)vc
+    eligioDestinoEn:(CLLocationCoordinate2D)coordenada
+          direccion:(NSString *)direccion;
 
 @end
 
