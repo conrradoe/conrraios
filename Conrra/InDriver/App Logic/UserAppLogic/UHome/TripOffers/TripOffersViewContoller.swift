@@ -806,9 +806,12 @@ private class TripOffersRootView: UIView {
      el techo con ella y no habria tope ninguno. Es lo que hace Android.
      */
     private func prepararOferta() {
-        // city_cur llega de Objective-C sin anotar, asi que puede ser nil aunque Swift
-        // lo trate como si no: se compara sobre una copia ya desenvuelta.
-        let simbolo = CityModel.getCityByCityId(Int(trip?.city_id ?? 0))?.city_cur ?? ""
+        // CityModel.h esta dentro de NS_ASSUME_NONNULL, asi que Swift ve esto como no
+        // opcional -- pero getCityByCityId devuelve nil cuando la ciudad no esta en la
+        // lista cargada. La cabecera miente, vamos. Se recoge en una variable declarada
+        // opcional para poder comprobarlo sin que el compilador lo tome por imposible.
+        let ciudad: CityModel? = CityModel.getCityByCityId(Int(trip?.city_id ?? 0))
+        let simbolo = ciudad?.city_cur ?? ""
         if !simbolo.isEmpty {
             moneda = simbolo
         }
