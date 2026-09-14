@@ -1627,11 +1627,15 @@
     ty += 28;
 
     _ndTripIdLbl = [self ndMakeValueLabelAt:CGRectMake(0, ty, tickW, 20) dark:dark];
-    UILabel *tripIdKey = [self ndMakeKeyLabelAt:CGRectMake(tpad, ty, tickW*0.5, 20) gray:gray text:@"ID del Traslado:"];
+    UILabel *tripIdKey = [self ndMakeKeyLabelAt:CGRectMake(tpad, ty, tickW*0.5, 20) gray:gray
+                                           text:[LanguageHelper getStringWithKey:@"k_8_s11_trip_id"
+                                                                    defaultValue:@"ID de viaje"]];
     ty += 28;
 
     _ndDriverIdLbl = [self ndMakeValueLabelAt:CGRectMake(0, ty, tickW, 20) dark:dark];
-    UILabel *driverIdKey = [self ndMakeKeyLabelAt:CGRectMake(tpad, ty, tickW*0.5, 20) gray:gray text:@"ID del Conductor:"];
+    UILabel *driverIdKey = [self ndMakeKeyLabelAt:CGRectMake(tpad, ty, tickW*0.5, 20) gray:gray
+                                             text:[LanguageHelper getStringWithKey:@"k_9_s11_driver_id"
+                                                                      defaultValue:@"Identificación del conductor"]];
     ty += 28;
 
     // Fare separator
@@ -1640,24 +1644,36 @@
     fareSep.backgroundColor = [UIColor colorWithWhite:0.85 alpha:1];
     ty += 1 + 14;
 
-    _ndTaxLbl = [self ndMakeValueLabelAt:CGRectMake(0, ty, tickW, 20) dark:dark];
-    UILabel *taxKey = [self ndMakeKeyLabelAt:CGRectMake(tpad, ty, tickW*0.5, 20) gray:gray text:@"Impuestos:"];
-    ty += 28;
+    CGFloat altoDinero = 36;
+    _ndTaxLbl = [self ndMakeValueLabelAt:CGRectMake(0, ty, tickW, altoDinero) dark:dark];
+    _ndTaxLbl.numberOfLines = 2;
+    UILabel *taxKey = [self ndMakeKeyLabelAt:CGRectMake(tpad, ty, tickW*0.5, altoDinero) gray:gray
+                                        text:[LanguageHelper getStringWithKey:@"k_6_s11_taxes"
+                                                                 defaultValue:@"Impuestos"]];
+    ty += altoDinero + 8;
 
-    _ndRideCostLbl = [self ndMakeValueLabelAt:CGRectMake(0, ty, tickW, 20) dark:dark];
-    UILabel *fareKey = [self ndMakeKeyLabelAt:CGRectMake(tpad, ty, tickW*0.5, 20) gray:gray text:@"Traslado:"];
-    ty += 28;
+    _ndRideCostLbl = [self ndMakeValueLabelAt:CGRectMake(0, ty, tickW, altoDinero) dark:dark];
+    _ndRideCostLbl.numberOfLines = 2;
+    UILabel *fareKey = [self ndMakeKeyLabelAt:CGRectMake(tpad, ty, tickW*0.5, altoDinero) gray:gray
+                                         text:[LanguageHelper getStringWithKey:@"k_7_s11_ride_cost"
+                                                                  defaultValue:@"Costo del viaje"]];
+    ty += altoDinero + 8;
 
-    UILabel *totalKey = [[UILabel alloc] initWithFrame:CGRectMake(tpad, ty, tickW*0.5, 22)];
-    totalKey.text = @"Total:";
+    // El total, en grande. Android le da el tamaño 6xl al importe y el xl al equivalente
+    // en bolivares: es la cifra que el pasajero busca al abrir el recibo.
+    CGFloat altoTotal = 58;
+    UILabel *totalKey = [[UILabel alloc] initWithFrame:CGRectMake(tpad, ty, tickW*0.4, altoTotal)];
+    totalKey.text = [LanguageHelper getStringWithKey:@"k_10_s11_total" defaultValue:@"Total:"];
     totalKey.font = [UIFont fontWithName:@"NotoSans-Bold" size:15] ?: [UIFont boldSystemFontOfSize:15];
     totalKey.textColor = dark;
 
-    _ndTotalLbl = [[UILabel alloc] initWithFrame:CGRectMake(0, ty, tickW - tpad, 22)];
-    _ndTotalLbl.font = [UIFont fontWithName:@"NotoSans-Bold" size:15] ?: [UIFont boldSystemFontOfSize:15];
+    _ndTotalLbl = [[UILabel alloc] initWithFrame:CGRectMake(tickW*0.4, ty, tickW - tpad - tickW*0.4, altoTotal)];
     _ndTotalLbl.textColor = dark;
     _ndTotalLbl.textAlignment = NSTextAlignmentRight;
-    ty += 22 + 14;
+    _ndTotalLbl.numberOfLines = 2;
+    _ndTotalLbl.adjustsFontSizeToFitWidth = YES;
+    _ndTotalLbl.minimumScaleFactor = 0.6f;
+    ty += altoTotal + 14;
 
     // Pago movil del conductor.
     //
@@ -1982,23 +1998,14 @@
     }
 
     // Addresses — split into name (before first comma) + secondary (rest)
-    NSString *fullPickup = self.curr_trip.pickupLocationApp ?: @"";
-    NSArray *pickParts = [fullPickup componentsSeparatedByString:@","];
-    _ndPickupNameLbl.text = pickParts.count > 0
-        ? [pickParts[0] stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceCharacterSet] : fullPickup;
-    _ndPickupAddrLbl.text = pickParts.count > 1
-        ? [[[pickParts subarrayWithRange:NSMakeRange(1, pickParts.count - 1)]
-            componentsJoinedByString:@","]
-           stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceCharacterSet] : @"";
+    _ndPickupNameLbl.text = [LanguageHelper getStringWithKey:@"k_1_s11_pickup_n_loc"
+                                                defaultValue:@"Ubicación de recogida"];
+    _ndPickupAddrLbl.text = self.curr_trip.pickupLocationApp ?: @"";
 
     NSString *fullDrop = self.curr_trip.dropLocationApp ?: @"";
-    NSArray *dropParts = [fullDrop componentsSeparatedByString:@","];
-    _ndDropNameLbl.text = dropParts.count > 0
-        ? [dropParts[0] stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceCharacterSet] : fullDrop;
-    _ndDropAddrLbl.text = dropParts.count > 1
-        ? [[[dropParts subarrayWithRange:NSMakeRange(1, dropParts.count - 1)]
-            componentsJoinedByString:@","]
-           stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceCharacterSet] : @"";
+    _ndDropNameLbl.text = [LanguageHelper getStringWithKey:@"k_11_s8_search_drop_location"
+                                              defaultValue:@"Ubicación de Destino"];
+    _ndDropAddrLbl.text = fullDrop;
 
     // Date/Time
     NSDateFormatter *parser = [[NSDateFormatter alloc] init];
@@ -2021,12 +2028,64 @@
     float tax   = [self.curr_trip.tax_amount_r floatValue];
     float total = [self.curr_trip.trip_fare floatValue];
     float ride  = total - tax;
-    _ndTaxLbl.text      = [Utilities formatAmountAndCurrency:tax   currency:cur];
-    _ndRideCostLbl.text = [Utilities formatAmountAndCurrency:ride  currency:cur];
-    // Show total in local currency AND USD equivalent
-    _ndTotalLbl.text    = [self formatAmountDual:total currency:cur];
+    _ndTaxLbl.text      = [self ndImporteEnDosLineas:tax  moneda:cur];
+    _ndRideCostLbl.text = [self ndImporteEnDosLineas:ride moneda:cur];
+    _ndTotalLbl.attributedText = [self ndTotalEnDosTamanos:total moneda:cur];
 
     _ndPagoMovilLbl.text = [self ndTextoPagoMovil];
+}
+
+/**
+ Un importe con su equivalente en bolivares debajo.
+
+ Si no hay tasa configurada se devuelve solo el importe: una segunda linea vacia dejaria
+ un hueco que se lee como un dato que falta.
+ */
+-(NSString *)ndImporteEnDosLineas:(float)importe moneda:(NSString *)moneda {
+    NSString *enDolares = [Utilities formatAmountAndCurrency:importe currency:moneda];
+    NSString *enLocal = [self ndEnMonedaLocal:importe];
+    if (enLocal.length == 0) {
+        return enDolares;
+    }
+    return [NSString stringWithFormat:@"%@\n%@", enDolares, enLocal];
+}
+
+/** El total: el importe grande y debajo, mas pequeño, el equivalente en bolivares. */
+-(NSAttributedString *)ndTotalEnDosTamanos:(float)importe moneda:(NSString *)moneda {
+    UIColor *dark = [UIColor colorNamed:@"color_app_label"] ?: [UIColor blackColor];
+    NSMutableParagraphStyle *parrafo = [[NSMutableParagraphStyle alloc] init];
+    parrafo.alignment = NSTextAlignmentRight;
+
+    NSMutableAttributedString *texto = [[NSMutableAttributedString alloc] initWithString:
+        [Utilities formatAmountAndCurrency:importe currency:moneda]
+        attributes:@{ NSFontAttributeName: ([UIFont fontWithName:@"NotoSans-Bold" size:30]
+                                            ?: [UIFont boldSystemFontOfSize:30]),
+                      NSForegroundColorAttributeName: dark,
+                      NSParagraphStyleAttributeName: parrafo }];
+
+    NSString *enLocal = [self ndEnMonedaLocal:importe];
+    if (enLocal.length > 0) {
+        [texto appendAttributedString:[[NSAttributedString alloc] initWithString:
+            [NSString stringWithFormat:@"\n%@", enLocal]
+            attributes:@{ NSFontAttributeName: ([UIFont fontWithName:@"NotoSans-Bold" size:20]
+                                                ?: [UIFont boldSystemFontOfSize:20]),
+                          NSForegroundColorAttributeName: dark,
+                          NSParagraphStyleAttributeName: parrafo }]];
+    }
+    return texto;
+}
+
+/** "Bs 6.737,60", o vacio si el operador no ha configurado la tasa. */
+-(NSString *)ndEnMonedaLocal:(float)importe {
+    float tasa = [ConstantModel tasaDolarALocal];
+    if (tasa <= 0) {
+        return @"";
+    }
+    NSNumberFormatter *formato = [[NSNumberFormatter alloc] init];
+    formato.numberStyle = NSNumberFormatterDecimalStyle;
+    formato.minimumFractionDigits = 2;
+    formato.maximumFractionDigits = 2;
+    return [NSString stringWithFormat:@"Bs %@", [formato stringFromNumber:@(importe * tasa)] ?: @""];
 }
 
 // Screen 1 → close
