@@ -4,8 +4,15 @@
 //
 //  Programmatic rewrite — OverFullScreen modal.
 //  Transparent background lets UHomeViewController's live map + radar show through.
-//  State 1 (searching): spinner + label + cancel button.
-//  State 2 (offers):    scrollable TripOfferCardView cards, no cancel button.
+//
+//  Copia la pantalla de Android (activity_offers.xml + OffersActivity):
+//  cabecera FLOTANTE sobre el mapa y hoja ABAJO. Antes estaba todo en una tarjeta
+//  blanca pegada arriba, que tapaba la mitad del mapa justo donde late el radar.
+//
+//  Estado 1 (esperando): hoja con publicidad, direcciones, ajustador de oferta y
+//                        boton de enviar. La cabecera flota sobre el mapa.
+//  Estado 2 (ofertas):   la hoja se vuelve transparente y solo quedan las tarjetas;
+//                        la cabecera desaparece, igual que en Android.
 //
 
 import UIKit
@@ -16,14 +23,33 @@ import UIKit
     func onTripOfferAcceptedByRider(trip: TripModel?)
     func onTripOfferAssignedByRider(trip: TripModel?)
     func onTripOfferHandleAll(trip: TripModel?)
+
+    /**
+     Cuanto mapa tapa la hoja.
+
+     El mapa vive en la pantalla de abajo, que no sabe nada de esta: sin este aviso
+     encuadra la recogida contra la pantalla entera y la deja justo detras de la hoja.
+     Android hace lo mismo midiendo el solape real (ajustarEncuadre).
+     */
+    @objc optional func tripOffersDidLayoutSheet(withHeight height: CGFloat)
 }
 
 
+/**
+ Deja pasar los toques al mapa de detras.
+
+ Antes se comparaba contra una altura -- todo lo que cayera por debajo de la hoja
+ pasaba. Ya no vale: ahora hay cosas arriba (la cabecera) y abajo (la hoja) con mapa
+ en medio. Se mira QUE vista respondio: si es la raiz o el hueco de la cabecera, ahi
+ no hay nada que tocar y el toque sigue su camino. Es lo que hace Android sin pedirlo,
+ porque un ViewGroup sin nada encima no consume el evento.
+ */
 private class TripOffersRootView: UIView {
-    var sheetBottom: CGFloat = 0
+    weak var contenedorTransparente: UIView?
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
-        if point.y > sheetBottom { return nil }
-        return super.hitTest(point, with: event)
+        let vista = super.hitTest(point, with: event)
+        if vista === self || vista === contenedorTransparente { return nil }
+        return vista
     }
 }
 
@@ -40,11 +66,42 @@ private class TripOffersRootView: UIView {
 
 
     private let sheetPanel       = UIView()
-    private let spinner          = UIActivityIndicatorView(style: .gray)
-    private let searchingLabel   = UILabel()
-    private let cancelButton     = UIButton(type: .system)
     private let offersScrollView = UIScrollView()
     private var cardViews: [TripOfferCardView] = []
+
+    /// Cabecera flotante sobre el mapa: volver, titulo y cancelar.
+    private let cabecera       = UIView()
+    private let btnAtras       = UIButton(type: .system)
+    private let searchingLabel = UILabel()
+    private let cancelButton   = UIButton(type: .system)
+
+    /// Contenido de la hoja de abajo.
+    private let asa             = UIView()
+    private let tarjetaViaje    = UIView()
+    private let puntoRecogida   = UIView()
+    private let lineaUnion      = UIView()
+    private let puntoDestino    = UIView()
+    private let lblRecogida     = UILabel()
+    private let lblNotas        = UILabel()
+    private let lblDestino      = UILabel()
+    private let lblTuOferta     = UILabel()
+    private let btnMenos        = UIButton(type: .custom)
+    private let lblMonto        = UILabel()
+    private let btnMas          = UIButton(type: .custom)
+    private let lblConversion   = UILabel()
+    private let btnEnviarOferta = UIButton(type: .custom)
+
+    /// Lo que el viaje tiene ofrecido AHORA, ya confirmado por el servidor.
+    private var montoOfrecido: Float = 0
+    /// Lo que marca el ajustador, que puede ir por delante de lo confirmado.
+    private var montoDelAjustador: Float = 0
+    private var pasoDeOferta: Float = 0.5
+    private var ofertaMinima: Float = 0
+    private var ofertaMaxima: Float = 0
+    private var hayTopes = false
+    private var moneda = "$"
+    /// El ultimo alto de hoja que se le conto al mapa, para no repetir el aviso.
+    private var altoAvisadoAlMapa: CGFloat = -1
 
 
     /// Publicidad rotativa de la espera. Ver ConrraCarruselBanners.
@@ -75,10 +132,12 @@ private class TripOffersRootView: UIView {
         modalPresentationStyle = .overFullScreen
 
         setupPanel()
-        setupSearchingUI()
+        setupCabecera()
+        setupContenidoDeLaHoja()
         setupScrollView()
         setupBannerUI()
         prepararCarruselDeBanners()
+        prepararOferta()
         applySearchingState(animated: false)
 
         tripOfferViewModel = TripOfferViewModel(tripOfferManager: tripOfferManager)
@@ -225,33 +284,136 @@ private class TripOffersRootView: UIView {
 
     private func setupPanel() {
         sheetPanel.backgroundColor = .white
-        sheetPanel.layer.maskedCorners = [.layerMinXMaxYCorner, .layerMaxXMaxYCorner]
+        // Redondeada por ARRIBA: la hoja sube desde el borde de abajo.
+        sheetPanel.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
         sheetPanel.layer.cornerRadius = 20
         sheetPanel.layer.shadowColor   = UIColor.black.cgColor
         sheetPanel.layer.shadowOpacity = 0.10
         sheetPanel.layer.shadowRadius  = 8
-        sheetPanel.layer.shadowOffset  = CGSize(width: 0, height: 4)
+        sheetPanel.layer.shadowOffset  = CGSize(width: 0, height: -4)
         view.addSubview(sheetPanel)
     }
 
-    private func setupSearchingUI() {
-        spinner.color = UIColor(white: 0.3, alpha: 1)
-        spinner.hidesWhenStopped = false
-        sheetPanel.addSubview(spinner)
+    /**
+     La cabecera va DIRECTA sobre el mapa, sin caja blanca detras.
+
+     El titulo lleva un halo blanco en vez de fondo: sobre un mapa claro un texto
+     oscuro sin nada se pierde en las calles, y una barra opaca robaria el trozo de
+     mapa donde justo late el radar. Es lo mismo que hace Android con shadowColor.
+     */
+    private func setupCabecera() {
+        cabecera.backgroundColor = .clear
+        view.addSubview(cabecera)
+        (view as? TripOffersRootView)?.contenedorTransparente = cabecera
+
+        btnAtras.backgroundColor = UIColor(white: 0.13, alpha: 1)
+        btnAtras.tintColor = .white
+        btnAtras.layer.cornerRadius = 23
+        btnAtras.clipsToBounds = true
+        btnAtras.setImage(UIImage(systemName: "chevron.left"), for: .normal)
+        btnAtras.addTarget(self, action: #selector(didTapCancel), for: .touchUpInside)
+        cabecera.addSubview(btnAtras)
 
         searchingLabel.text = "Buscando Conductor..."
-        searchingLabel.font = UIFont(name: "NotoSans-Regular", size: 16) ?? UIFont.systemFont(ofSize: 16)
-        searchingLabel.textColor = UIColor(white: 0.3, alpha: 1)
-        sheetPanel.addSubview(searchingLabel)
+        searchingLabel.font = UIFont(name: "NotoSans-Bold", size: 17) ?? UIFont.boldSystemFont(ofSize: 17)
+        searchingLabel.textColor = UIColor(white: 0.10, alpha: 1)
+        searchingLabel.textAlignment = .center
+        searchingLabel.adjustsFontSizeToFitWidth = true
+        searchingLabel.minimumScaleFactor = 0.72
+        searchingLabel.layer.shadowColor = UIColor.white.cgColor
+        searchingLabel.layer.shadowOpacity = 1
+        searchingLabel.layer.shadowRadius = 6
+        searchingLabel.layer.shadowOffset = .zero
+        cabecera.addSubview(searchingLabel)
 
+        // Pastilla blanca propia: en rojo sobre el mapa no se leeria.
         cancelButton.setTitle("Cancelar Pedido", for: .normal)
-        cancelButton.titleLabel?.font = UIFont(name: "NotoSans-Bold", size: 17) ?? UIFont.boldSystemFont(ofSize: 17)
-        cancelButton.setTitleColor(.black, for: .normal)
-        cancelButton.backgroundColor = UIColor(red: 232/255, green: 232/255, blue: 232/255, alpha: 1)
-        cancelButton.layer.cornerRadius = 14
+        cancelButton.titleLabel?.font = UIFont(name: "NotoSans-Bold", size: 15) ?? UIFont.boldSystemFont(ofSize: 15)
+        cancelButton.setTitleColor(UIColor(red: 0.922, green: 0.341, blue: 0.341, alpha: 1), for: .normal)
+        cancelButton.backgroundColor = UIColor(white: 1, alpha: 0.92)
+        cancelButton.layer.cornerRadius = 23
         cancelButton.clipsToBounds = true
         cancelButton.addTarget(self, action: #selector(didTapCancel), for: .touchUpInside)
-        sheetPanel.addSubview(cancelButton)
+        cabecera.addSubview(cancelButton)
+    }
+
+    private func setupContenidoDeLaHoja() {
+        let oscuro = UIColor(white: 0.157, alpha: 1)
+        let gris   = UIColor(white: 0.45, alpha: 1)
+        let borde  = UIColor(white: 0.878, alpha: 1)
+
+        asa.backgroundColor = UIColor(white: 0.85, alpha: 1)
+        asa.layer.cornerRadius = 2
+        sheetPanel.addSubview(asa)
+
+        // --- Tarjeta de las direcciones ---
+        tarjetaViaje.layer.borderWidth = 1
+        tarjetaViaje.layer.borderColor = borde.cgColor
+        tarjetaViaje.layer.cornerRadius = 12
+        sheetPanel.addSubview(tarjetaViaje)
+
+        puntoRecogida.backgroundColor = UIColor(red: 0.18, green: 0.72, blue: 0.35, alpha: 1)
+        puntoRecogida.layer.cornerRadius = 6
+        tarjetaViaje.addSubview(puntoRecogida)
+
+        lineaUnion.backgroundColor = borde
+        tarjetaViaje.addSubview(lineaUnion)
+
+        puntoDestino.backgroundColor = UIColor(red: 0.90, green: 0.25, blue: 0.25, alpha: 1)
+        puntoDestino.layer.cornerRadius = 6
+        tarjetaViaje.addSubview(puntoDestino)
+
+        lblRecogida.font = UIFont(name: "NotoSans-Regular", size: 14) ?? UIFont.systemFont(ofSize: 14)
+        lblRecogida.textColor = oscuro
+        lblRecogida.numberOfLines = 2
+        tarjetaViaje.addSubview(lblRecogida)
+
+        lblNotas.font = UIFont(name: "NotoSans-Regular", size: 12) ?? UIFont.systemFont(ofSize: 12)
+        lblNotas.textColor = gris
+        lblNotas.numberOfLines = 2
+        tarjetaViaje.addSubview(lblNotas)
+
+        lblDestino.font = UIFont(name: "NotoSans-Regular", size: 14) ?? UIFont.systemFont(ofSize: 14)
+        lblDestino.textColor = gris
+        lblDestino.numberOfLines = 2
+        tarjetaViaje.addSubview(lblDestino)
+
+        // --- Ajustador ---
+        lblTuOferta.font = UIFont(name: "NotoSans-Bold", size: 14) ?? UIFont.boldSystemFont(ofSize: 14)
+        lblTuOferta.textColor = oscuro
+        sheetPanel.addSubview(lblTuOferta)
+
+        prepararBotonDeAjuste(btnMenos, accion: #selector(bajarOferta))
+        prepararBotonDeAjuste(btnMas,   accion: #selector(subirOferta))
+        sheetPanel.addSubview(btnMenos)
+        sheetPanel.addSubview(btnMas)
+
+        lblMonto.font = UIFont(name: "NotoSans-Bold", size: 28) ?? UIFont.boldSystemFont(ofSize: 28)
+        lblMonto.textColor = oscuro
+        lblMonto.textAlignment = .center
+        lblMonto.adjustsFontSizeToFitWidth = true
+        lblMonto.minimumScaleFactor = 0.6
+        sheetPanel.addSubview(lblMonto)
+
+        lblConversion.font = UIFont(name: "NotoSans-Regular", size: 12) ?? UIFont.systemFont(ofSize: 12)
+        lblConversion.textColor = gris
+        lblConversion.textAlignment = .center
+        sheetPanel.addSubview(lblConversion)
+
+        btnEnviarOferta.titleLabel?.font = UIFont(name: "NotoSans-Bold", size: 17) ?? UIFont.boldSystemFont(ofSize: 17)
+        btnEnviarOferta.layer.cornerRadius = 14
+        btnEnviarOferta.clipsToBounds = true
+        btnEnviarOferta.addTarget(self, action: #selector(enviarOferta), for: .touchUpInside)
+        sheetPanel.addSubview(btnEnviarOferta)
+    }
+
+    private func prepararBotonDeAjuste(_ boton: UIButton, accion: Selector) {
+        boton.backgroundColor = UIColor(white: 0.93, alpha: 1)
+        boton.layer.cornerRadius = 24
+        boton.clipsToBounds = true
+        boton.titleLabel?.font = UIFont(name: "NotoSans-Regular", size: 16) ?? UIFont.systemFont(ofSize: 16)
+        boton.setTitleColor(UIColor(white: 0.35, alpha: 1), for: .normal)
+        boton.addTarget(self, action: accion, for: .touchUpInside)
     }
 
     private func setupScrollView() {
@@ -349,88 +511,82 @@ private class TripOffersRootView: UIView {
 
     private func applySearchingState(animated: Bool) {
         isShowingOffers = false
-        spinner.startAnimating()
         let duration = animated ? 0.25 : 0.0
         UIView.animate(withDuration: duration) {
-            self.spinner.alpha       = 1
-            self.searchingLabel.alpha = 1
-            self.cancelButton.alpha  = 1
+            self.cabecera.alpha = 1
+            self.contenidoDeLaHoja.forEach { $0.alpha = 1 }
             self.offersScrollView.alpha = 0
+            self.sheetPanel.backgroundColor = .white
         }
         layoutPanel(animated: animated)
     }
 
+    /**
+     Llego al menos una oferta.
+
+     La hoja se queda sin fondo y solo viajan las tarjetas, y la cabecera desaparece:
+     es lo que hace Android (noResultText), y tiene sentido -- ya no se esta buscando
+     nada, hay algo que elegir, y las tarjetas traen su propio boton de cancelar.
+     */
     private func applyOffersState(animated: Bool) {
         isShowingOffers = true
         let duration = animated ? 0.25 : 0.0
         UIView.animate(withDuration: duration) {
-            self.spinner.alpha       = 0
-            self.searchingLabel.alpha = 0
-            self.cancelButton.alpha  = 0
+            self.cabecera.alpha = 0
+            self.contenidoDeLaHoja.forEach { $0.alpha = 0 }
             self.offersScrollView.alpha = 1
+            self.sheetPanel.backgroundColor = .clear
         }
-        spinner.stopAnimating()
         layoutPanel(animated: animated)
     }
 
+    /// Todo lo que vive dentro de la hoja mientras se espera.
+    private var contenidoDeLaHoja: [UIView] {
+        return [asa, bannerCard, tarjetaViaje, lblTuOferta,
+                btnMenos, lblMonto, btnMas, lblConversion, btnEnviarOferta]
+    }
+
+
+    // MARK: - Encuadre
+
+    private static let padLateral: CGFloat = 24
+    private static let altoCabecera: CGFloat = 46
 
     private func layoutPanel(animated: Bool = false) {
-        let w        = view.bounds.width
+        let w = view.bounds.width
+        let h = view.bounds.height
         guard w > 0 else { return }
-        let safeTop  = view.safeAreaInsets.top
-        let screenH  = UIScreen.main.bounds.height
+        let safeTop    = view.safeAreaInsets.top
+        let safeBottom = view.safeAreaInsets.bottom
 
         let panelH: CGFloat
         if isShowingOffers {
-            let count   = CGFloat(max(cardViews.count, 1))
-            let cardsH  = count * TripOfferCardView.cardHeight + (count - 1) * 12
-            panelH = min(safeTop + 16 + cardsH + 16, screenH * 0.72)
+            let count  = CGFloat(max(cardViews.count, 1))
+            let cardsH = count * TripOfferCardView.cardHeight + (count - 1) * 12
+            panelH = min(cardsH + 16 + safeBottom, h * 0.72)
         } else {
-            // safeTop + spinner/label row + gap + button + bottom pad
-            //
-            // Se acumula en una variable aparte porque panelH es un 'let' con
-            // inicializacion diferida: admite UNA asignacion, no un +=.
-            var alto = safeTop + 40 + 20 + 56 + 24
-            if hayBannerQueMostrar {
-                alto += alturaDelBanner(ancho: w - 32) + 12
-            }
-            panelH = alto
+            panelH = min(altoDelContenido(ancho: w) + safeBottom, h * 0.78)
         }
 
-        let rootView = view as! TripOffersRootView
-
         let apply = {
-            self.sheetPanel.frame = CGRect(x: 0, y: 0, width: w, height: panelH)
-            rootView.sheetBottom  = panelH
+            // --- Cabecera flotante ---
+            let alto = Self.altoCabecera
+            self.cabecera.frame = CGRect(x: 0, y: safeTop + 16, width: w, height: alto)
+            self.btnAtras.frame = CGRect(x: 16, y: 0, width: alto, height: alto)
 
-            // Searching UI
-            let rowCenterY = safeTop + 20 + 10   // 10 = half of 20pt spinner
-            let spinnerSize: CGFloat = 20
-            let labelW: CGFloat      = 210
-            let rowW = spinnerSize + 8 + labelW
-            let rowX = (w - rowW) / 2
-            self.spinner.frame       = CGRect(x: rowX, y: rowCenterY, width: spinnerSize, height: spinnerSize)
-            self.searchingLabel.frame = CGRect(x: rowX + spinnerSize + 8, y: rowCenterY, width: labelW, height: 20)
-            let btnY = self.spinner.frame.maxY + 20
-            self.cancelButton.frame  = CGRect(x: 16, y: btnY, width: w - 32, height: 56)
+            let anchoCancelar = min(max(self.cancelButton.intrinsicContentSize.width + 32, 100), w * 0.45)
+            self.cancelButton.frame = CGRect(x: w - 16 - anchoCancelar, y: 0,
+                                             width: anchoCancelar, height: alto)
+            let xTitulo = self.btnAtras.frame.maxX + 8
+            self.searchingLabel.frame = CGRect(x: xTitulo, y: 0,
+                                               width: max(0, self.cancelButton.frame.minX - 8 - xTitulo),
+                                               height: alto)
 
-            // Publicidad, debajo del boton de cancelar.
-            if self.hayBannerQueMostrar {
-                let anchoBanner = w - 32
-                let altoBanner  = self.alturaDelBanner(ancho: anchoBanner)
-                self.bannerCard.frame = CGRect(x: 16,
-                                               y: self.cancelButton.frame.maxY + 12,
-                                               width: anchoBanner,
-                                               height: altoBanner)
-                self.bannerImageView.frame = self.bannerCard.bounds
-                self.bannerCard.alpha = 1
-            } else {
-                self.bannerCard.alpha = 0
-            }
+            // --- La hoja, pegada abajo ---
+            self.sheetPanel.frame = CGRect(x: 0, y: h - panelH, width: w, height: panelH)
+            self.colocarContenido(ancho: w)
 
-            // Scroll view
-            let scrollY: CGFloat = safeTop + 8
-            self.offersScrollView.frame = CGRect(x: 0, y: scrollY, width: w, height: panelH - scrollY)
+            self.offersScrollView.frame = CGRect(x: 0, y: 0, width: w, height: panelH - safeBottom)
             self.layoutCards(cardWidth: w - 32)
         }
 
@@ -439,7 +595,282 @@ private class TripOffersRootView: UIView {
         } else {
             apply()
         }
+
+        avisarAlMapaDelAlto(panelH)
     }
+
+    /**
+     Le cuenta al mapa cuanto le tapa la hoja.
+
+     Solo cuando cambia: el aviso mueve la camara, y repetirlo en cada pasada de
+     encuadre dejaria el mapa dando tirones.
+
+     Se manda el alto tambien con las ofertas puestas, aunque entonces la hoja no
+     tenga fondo: lo que tapa la recogida son las tarjetas, y ser transparente no la
+     descubre. Android mide igual, por posicion en pantalla y no por color.
+     */
+    private func avisarAlMapaDelAlto(_ alto: CGFloat) {
+        guard abs(alto - altoAvisadoAlMapa) > 1 else { return }
+        altoAvisadoAlMapa = alto
+        delegate?.tripOffersDidLayoutSheet?(withHeight: alto)
+    }
+
+    /// Lo que mide el contenido de la hoja. Se calcula antes de colocar nada.
+    private func altoDelContenido(ancho w: CGFloat) -> CGFloat {
+        let cw = w - Self.padLateral * 2
+        var y: CGFloat = 10
+        y += 4 + 12                                   // asa
+        if hayBannerQueMostrar {
+            y += alturaDelBanner(ancho: cw) + 12
+        }
+        y += altoDeLaTarjetaDeViaje(ancho: cw) + 12
+        y += 20 + 10                                  // "tu ofreciste (...)"
+        y += 48 + 6                                   // ajustador
+        // Sin tasa configurada la conversion no se enseña y tampoco deja su hueco,
+        // igual que el GONE de Android: un blanco a media hoja se lee como que falta algo.
+        y += lblConversion.isHidden ? 10 : (16 + 16)
+        y += 56 + 20                                  // enviar oferta
+        return y
+    }
+
+    private func altoDeLaTarjetaDeViaje(ancho cw: CGFloat) -> CGFloat {
+        let anchoTexto = cw - 24 - 24
+        var alto: CGFloat = 12
+        alto += altoDeTexto(lblRecogida, ancho: anchoTexto)
+        if !(lblNotas.text ?? "").isEmpty {
+            alto += 6 + altoDeTexto(lblNotas, ancho: anchoTexto)
+        }
+        alto += 8 + altoDeTexto(lblDestino, ancho: anchoTexto)
+        alto += 12
+        return max(alto, 64)
+    }
+
+    private func altoDeTexto(_ etiqueta: UILabel, ancho: CGFloat) -> CGFloat {
+        guard let texto = etiqueta.text, !texto.isEmpty, ancho > 0 else { return 0 }
+        let fuente = etiqueta.font ?? UIFont.systemFont(ofSize: 14)
+        let tope = fuente.lineHeight * CGFloat(max(etiqueta.numberOfLines, 1))
+        let medida = (texto as NSString).boundingRect(
+            with: CGSize(width: ancho, height: tope + 2),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: [.font: fuente],
+            context: nil)
+        return ceil(min(medida.height, tope))
+    }
+
+    private func colocarContenido(ancho w: CGFloat) {
+        let pad = Self.padLateral
+        let cw  = w - pad * 2
+        var y: CGFloat = 10
+
+        asa.frame = CGRect(x: (w - 40) / 2, y: y, width: 40, height: 4)
+        y += 4 + 12
+
+        if hayBannerQueMostrar {
+            let altoBanner = alturaDelBanner(ancho: cw)
+            bannerCard.frame = CGRect(x: pad, y: y, width: cw, height: altoBanner)
+            bannerImageView.frame = bannerCard.bounds
+            y += altoBanner + 12
+        }
+
+        let altoTarjeta = altoDeLaTarjetaDeViaje(ancho: cw)
+        tarjetaViaje.frame = CGRect(x: pad, y: y, width: cw, height: altoTarjeta)
+        colocarTarjetaDeViaje(ancho: cw)
+        y += altoTarjeta + 12
+
+        lblTuOferta.frame = CGRect(x: pad, y: y, width: cw, height: 20)
+        y += 20 + 10
+
+        let ladoBoton: CGFloat = 48
+        let anchoBoton: CGFloat = 96
+        btnMenos.frame = CGRect(x: pad, y: y, width: anchoBoton, height: ladoBoton)
+        btnMas.frame   = CGRect(x: w - pad - anchoBoton, y: y, width: anchoBoton, height: ladoBoton)
+        lblMonto.frame = CGRect(x: btnMenos.frame.maxX + 8, y: y,
+                                width: max(0, btnMas.frame.minX - btnMenos.frame.maxX - 16),
+                                height: ladoBoton)
+        y += ladoBoton + 6
+
+        if lblConversion.isHidden {
+            lblConversion.frame = CGRect(x: pad, y: y, width: cw, height: 0)
+            y += 10
+        } else {
+            lblConversion.frame = CGRect(x: pad, y: y, width: cw, height: 16)
+            y += 16 + 16
+        }
+
+        btnEnviarOferta.frame = CGRect(x: pad, y: y, width: cw, height: 56)
+    }
+
+    private func colocarTarjetaDeViaje(ancho cw: CGFloat) {
+        let anchoTexto = cw - 24 - 24
+        var y: CGFloat = 12
+
+        let altoRecogida = altoDeTexto(lblRecogida, ancho: anchoTexto)
+        lblRecogida.frame = CGRect(x: 48, y: y, width: anchoTexto, height: altoRecogida)
+        puntoRecogida.frame = CGRect(x: 18, y: y + 4, width: 12, height: 12)
+        y += altoRecogida
+
+        if !(lblNotas.text ?? "").isEmpty {
+            let altoNotas = altoDeTexto(lblNotas, ancho: anchoTexto)
+            lblNotas.frame = CGRect(x: 48, y: y + 6, width: anchoTexto, height: altoNotas)
+            y += 6 + altoNotas
+        } else {
+            lblNotas.frame = .zero
+        }
+
+        let altoDestino = altoDeTexto(lblDestino, ancho: anchoTexto)
+        lblDestino.frame = CGRect(x: 48, y: y + 8, width: anchoTexto, height: altoDestino)
+        puntoDestino.frame = CGRect(x: 18, y: y + 8 + 4, width: 12, height: 12)
+
+        lineaUnion.frame = CGRect(x: 23.5,
+                                  y: puntoRecogida.frame.maxY + 2,
+                                  width: 1,
+                                  height: max(0, puntoDestino.frame.minY - puntoRecogida.frame.maxY - 4))
+    }
+
+
+    // MARK: - La oferta
+
+    /**
+     Prepara el ajustador con lo que el viaje ya tiene pedido.
+
+     Los topes se miden contra base_est_amt, la estimacion original, NO contra lo que
+     se lleva ofrecido: si se midieran contra el importe vivo, cada subida arrastraria
+     el techo con ella y no habria tope ninguno. Es lo que hace Android.
+     */
+    private func prepararOferta() {
+        // city_cur llega de Objective-C sin anotar, asi que puede ser nil aunque Swift
+        // lo trate como si no: se compara sobre una copia ya desenvuelta.
+        let simbolo = CityModel.getCityByCityId(Int(trip?.city_id ?? 0))?.city_cur ?? ""
+        if !simbolo.isEmpty {
+            moneda = simbolo
+        }
+
+        montoOfrecido     = Float(trip?.trip_fare ?? "0") ?? 0
+        montoDelAjustador = montoOfrecido
+
+        // El paso viene del servidor partido entre diez, igual que Android.
+        let paso = ConstantModel.getConstantsObject()?.offer_step_amount ?? 0
+        pasoDeOferta = paso > 0 ? paso / 10.0 : 0.5
+
+        let base = Float(trip?.base_est_amt ?? "0") ?? 0
+        if base > 0, let cat = CategoryModel.getCategoryByid(Int32(trip?.category_id ?? "") ?? 0),
+           cat.min_offer_perc > -1, cat.max_offer_perc > -1 {
+            ofertaMinima = base - base * cat.min_offer_perc / 100.0
+            ofertaMaxima = base + base * cat.max_offer_perc / 100.0
+            hayTopes = true
+        }
+
+        lblRecogida.text = trip?.trip_pick_loc ?? ""
+        lblDestino.text  = trip?.trip_drop_loc ?? ""
+        lblNotas.text    = notasDeRecogida()
+
+        btnMenos.setTitle(String(format: "- %.2f", pasoDeOferta), for: .normal)
+        btnMas.setTitle(String(format: "+ %.2f", pasoDeOferta), for: .normal)
+        refrescarTextosDeLaOferta()
+    }
+
+    /**
+     Lo que se configuro al pedir, para que el pasajero lo tenga delante.
+
+     Llega en pickup_notes con el formato "Cash|Mascotas|3 Pasajero(s)". Se enseña con
+     las barras cambiadas por comas: son campos de una sola cadena, no una lista que
+     el pasajero deba leer separada.
+     */
+    private func notasDeRecogida() -> String {
+        let notas = (trip?.pickup_notes ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !notas.isEmpty else { return "" }
+        let partes = notas.split(separator: "|").map {
+            $0.trimmingCharacters(in: .whitespaces)
+        }.filter { !$0.isEmpty }
+        guard !partes.isEmpty else { return "" }
+        return String(format: "%@ %@",
+                      LanguageHelper.getStringWithKey("k_1_s8_special_notes", defaultValue: "Notas:"),
+                      partes.joined(separator: ", "))
+    }
+
+    @objc private func bajarOferta() { moverOferta(-pasoDeOferta) }
+    @objc private func subirOferta()  { moverOferta(pasoDeOferta) }
+
+    private func moverOferta(_ delta: Float) {
+        let tentativo = montoDelAjustador + delta
+        if hayTopes && tentativo < ofertaMinima {
+            montoDelAjustador = ofertaMinima
+            avisar(LanguageHelper.getStringWithKey("k_r1_s6_pls_ntr_amnt_grtr_thn_min_fare"))
+        } else if hayTopes && tentativo > ofertaMaxima {
+            montoDelAjustador = ofertaMaxima
+            avisar(LanguageHelper.getStringWithKey("k_r1_s6_pls_ntr_amnt_less_thn_max_fare"))
+        } else {
+            montoDelAjustador = max(tentativo, 0)
+        }
+        refrescarTextosDeLaOferta()
+    }
+
+    /**
+     Pinta el importe en los tres sitios donde sale y decide si se puede enviar.
+
+     El boton se apaga cuando el ajustador marca lo mismo que ya esta ofrecido: no hay
+     nada que mandar, y un boton vivo que no hace nada se lee como que el envio fallo.
+     */
+    private func refrescarTextosDeLaOferta() {
+        let importe = Utilities.formatAmountAndCurrency(montoDelAjustador, currency: moneda) ?? ""
+
+        lblMonto.text = importe
+        lblTuOferta.text = String(format: "%@ (%@)",
+                                  LanguageHelper.getStringWithKey("k_1_s9_ur_ofr", defaultValue: "tu ofreciste"),
+                                  importe)
+        btnEnviarOferta.setTitle(String(format: "%@ (%@)",
+                                        LanguageHelper.getStringWithKey("k_63_s4_vw_snd_ofr", defaultValue: "Enviar oferta"),
+                                        importe), for: .normal)
+
+        let sePuedeEnviar = abs(montoDelAjustador - montoOfrecido) > 0.001
+        btnEnviarOferta.isEnabled = sePuedeEnviar
+        btnEnviarOferta.backgroundColor = sePuedeEnviar
+            ? (UIColor(named: "app_theame") ?? UIColor(red: 0.922, green: 0.710, blue: 0.094, alpha: 1))
+            : UIColor(white: 0.72, alpha: 1)
+        btnEnviarOferta.setTitleColor(sePuedeEnviar ? .black : UIColor(white: 0.35, alpha: 1), for: .normal)
+
+        let tasa = ConstantModel.tasaDolarALocal()
+        if tasa > 0 {
+            let formato = NumberFormatter()
+            formato.numberStyle = .decimal
+            formato.minimumFractionDigits = 2
+            formato.maximumFractionDigits = 2
+            let local = formato.string(from: NSNumber(value: montoDelAjustador * tasa)) ?? ""
+            lblConversion.text = String(format: "%@ Bs %@",
+                                        LanguageHelper.getStringWithKey("k_s10_conversion", defaultValue: "Conversión:"),
+                                        local)
+            lblConversion.isHidden = false
+        } else {
+            lblConversion.text = ""
+            lblConversion.isHidden = true
+        }
+    }
+
+    @objc private func enviarOferta() {
+        guard let trip = trip, montoDelAjustador > 0 else { return }
+        tripOfferManager.updateTripPayAmount(trip: trip, amount: montoDelAjustador) { [weak self] results, error in
+            guard let self = self else { return }
+            if error != nil || results == nil {
+                self.avisar(LanguageHelper.getStringWithKey("k_r29_s3_smthing_wnt_wrng",
+                                                            defaultValue: "Algo salió mal, inténtalo de nuevo"))
+                return
+            }
+            // El viaje pasa a valer lo ofrecido: es contra esto contra lo que el boton
+            // decide si queda algo por mandar.
+            self.montoOfrecido = self.montoDelAjustador
+            self.trip?.trip_fare = String(format: "%.2f", self.montoDelAjustador)
+            self.refrescarTextosDeLaOferta()
+        }
+    }
+
+    private func avisar(_ mensaje: String) {
+        guard !mensaje.isEmpty, presentedViewController == nil else { return }
+        let alerta = UIAlertController(title: "", message: mensaje, preferredStyle: .alert)
+        alerta.addAction(UIAlertAction(title: LanguageHelper.getStringWithKey("k_18_s4_Ok", defaultValue: "OK"),
+                                       style: .default))
+        present(alerta, animated: true)
+    }
+
 
     private func layoutCards(cardWidth: CGFloat) {
         var yOffset: CGFloat = 8

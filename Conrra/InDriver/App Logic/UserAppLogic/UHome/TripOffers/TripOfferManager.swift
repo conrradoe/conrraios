@@ -53,6 +53,33 @@ public class TripOfferManager: NSObject {
         }
     }
     
+    /**
+     Sube o baja lo que el pasajero ofrece por el viaje que ya pidio.
+
+     No lleva trip_status: no se esta cambiando el estado del viaje, solo el importe.
+     Mandarlo seria decirle al backend que pasa a "request" otra vez, y el viaje YA
+     esta en request -- es la misma llamada que hace Android (updateOfferAmount).
+     */
+    public func updateTripPayAmount(trip:TripModel, amount:Float, completion: @escaping (_ results:Any?,_ error:NSError?) -> Void){
+        let data:NSMutableDictionary = NSMutableDictionary.init()
+        data.setObject(String(format: "%@", trip.trip_Id), forKey: TRIP_ID as NSCopying)
+        data.setObject(String(format: "%.2f", amount), forKey: "trip_pay_amount" as NSCopying)
+        if let dictUser = UserDefaults.standard.object(forKey: P_USER_DICT) as? NSDictionary,
+           let userId = dictUser.object(forKey: "user_id") as? String {
+            data.setObject(userId, forKey: "user_id" as NSCopying)
+        }
+        UtilityClass.setLH(false, wt: LanguageHelper.getStringWithKey("k_r30_s3_loading", defaultValue: "Loading"))
+        apiUpdateTrip = ApiHelperObj.init()
+        apiUpdateTrip!.mkwerwus(TRIP_UPDATE, d: data as! [AnyHashable : Any]) { (results, error) in
+            UtilityClass.setLH(true, wt: LanguageHelper.getStringWithKey("k_r30_s3_loading", defaultValue: "Loading"))
+            if(results==nil){
+                completion(results,error as NSError? )
+            }else{
+                completion(results,nil as NSError? )
+            }
+        }
+    }
+
     public func updateTrip(trip:TripModel ,status:String,isShowLoader:Bool, completion: @escaping (_ results:Any?,_ error:NSError?) -> Void){
         let data:NSMutableDictionary = NSMutableDictionary.init()
         data.setObject(status, forKey: TRIP_STATUS as NSCopying)

@@ -1468,10 +1468,81 @@
 }
 
 -(void)updateRadarPosition {
-    if (!userLocationAnnotation || radarView.hidden) return;
-    CGPoint pt = [self.mapView convertCoordinate:userLocationAnnotation.coordinate
-                                    toPointToView:self.mapView];
+    if (radarView.hidden) {
+        return;
+    }
+    CLLocationCoordinate2D centro = [self coordenadaDeRecogida];
+    if (!CLLocationCoordinate2DIsValid(centro)) {
+        return;
+    }
+    CGPoint pt = [self.mapView convertCoordinate:centro toPointToView:self.mapView];
     radarView.center = pt;
+}
+
+/**
+ Donde late el radar: el punto de recogida DEL VIAJE.
+
+ Antes seguia a userLocationAnnotation, que es el GPS del telefono. Casi siempre son
+ lo mismo, pero no cuando el pasajero movio la recogida a otro sitio -- y justo ahi
+ el radar latia donde no va a pasar nada. Android usa trip_scheduled_pick_lat, que es
+ este mismo punto.
+ */
+-(CLLocationCoordinate2D)coordenadaDeRecogida {
+    CLLocationCoordinate2D origen = direction.source.coordinate;
+    if (CLLocationCoordinate2DIsValid(origen) && !(origen.latitude == 0 && origen.longitude == 0)) {
+        return origen;
+    }
+    if (userLocationAnnotation) {
+        return userLocationAnnotation.coordinate;
+    }
+    return kCLLocationCoordinate2DInvalid;
+}
+
+/**
+ Centra la recogida en el trozo de mapa que SE VE.
+
+ La hoja de la espera se superpone al mapa, asi que centrar contra la vista entera
+ dejaba la recogida detras de ella -- y con ella el radar. El alto lo manda la propia
+ hoja (tripOffersDidLayoutSheet:), porque cambia con la publicidad y con el largo de
+ las direcciones: darlo por supuesto aqui seria acertar un dia y fallar al siguiente.
+ */
+-(void)centrarEnRecogidaDejandoHuecoAbajo:(CGFloat)hueco {
+    CLLocationCoordinate2D centro = [self coordenadaDeRecogida];
+    if (!CLLocationCoordinate2DIsValid(centro)) {
+        return;
+    }
+
+    // Un cuadro de 1,2 km de lado alrededor del punto: lo bastante cerca para
+    // reconocer la calle y lo bastante ancho para ver por donde vendria el conductor.
+    MKCoordinateRegion region = MKCoordinateRegionMakeWithDistance(centro, 1200, 1200);
+    CLLocationCoordinate2D esquinaA = CLLocationCoordinate2DMake(
+        centro.latitude + region.span.latitudeDelta / 2.0,
+        centro.longitude - region.span.longitudeDelta / 2.0);
+    CLLocationCoordinate2D esquinaB = CLLocationCoordinate2DMake(
+        centro.latitude - region.span.latitudeDelta / 2.0,
+        centro.longitude + region.span.longitudeDelta / 2.0);
+    MKMapPoint a = MKMapPointForCoordinate(esquinaA);
+    MKMapPoint b = MKMapPointForCoordinate(esquinaB);
+    MKMapRect rect = MKMapRectMake(MIN(a.x, b.x), MIN(a.y, b.y),
+                                   fabs(a.x - b.x), fabs(a.y - b.y));
+    if (MKMapRectIsNull(rect) || rect.size.width == 0) {
+        return;
+    }
+
+    // Tope de seguridad: dejar siempre un tercio de mapa util, como Android.
+    CGFloat alto = self.view.bounds.size.height;
+    if (hueco > alto * 0.66f) {
+        hueco = alto * 0.66f;
+    }
+    // Arriba se deja sitio para la cabecera flotante de la espera.
+    UIEdgeInsets margenes = UIEdgeInsetsMake(120, 40, hueco + 24, 40);
+    [self.mapView setVisibleMapRect:rect edgePadding:margenes animated:YES];
+}
+
+// TripOffersViewContollerDelegate
+-(void)tripOffersDidLayoutSheetWithHeight:(CGFloat)height {
+    [self centrarEnRecogidaDejandoHuecoAbajo:height];
+    [self updateRadarPosition];
 }
 
 -(MKAnnotationView *)mapView:(MKMapView *)mV viewForAnnotation:(id <MKAnnotation>)annotation
@@ -3672,6 +3743,13 @@
         vc.modalPresentationStyle = UIModalPresentationOverFullScreen;
         homeBottomSheet.hidden = YES;
         self.btnGps.hidden = YES;
+        [self ocultarPildoraDeRuta];
+
+        // La hoja avisara de su alto de verdad en cuanto se mida; hasta entonces se
+        // usa una mitad larga, que es lo que suele ocupar. Sin esto el primer
+        // fotograma de la espera sale con el encuadre de la pantalla anterior.
+        [self centrarEnRecogidaDejandoHuecoAbajo:self.view.bounds.size.height * 0.55f];
+
         [self presentViewController:vc animated:YES completion:nil];
     }
 }
@@ -3699,6 +3777,9 @@
 -(void)handleAfterTripRequestExpiredOrCancelWithIsShowAlert:(BOOL)isShowAlert{
     homeBottomSheet.hidden = NO;
     self.btnGps.hidden = NO;
+    // Solo se apagaba al salir de la pantalla, asi que tras cancelar un viaje el
+    // pulso seguia latiendo sobre el home como si aun se buscara a alguien.
+    [self hideRadarAnimation];
     [self handleAfterTripRequestExpired:NO];
     [self reset:nil];
     self.showButtonOnView.hidden = YES;
@@ -3709,11 +3790,13 @@
 }
 
 -(void)onTripOfferAcceptedByRiderWithTrip:(TripModel *)trip{
+    [self hideRadarAnimation];
     [self loadBeginViewContoller:trip];
 }
 -(void)onTripOfferAssignedByRiderWithTrip:(TripModel *)trip{
     homeBottomSheet.hidden = NO;
     self.btnGps.hidden = NO;
+    [self hideRadarAnimation];
     [self showAlertWithMessgae:[LanguageHelper getStringWithKey:@"k_con_driver_assigned"]];
     
 }
