@@ -301,9 +301,12 @@
     vc.modo = [self.pickupField isFirstResponder]
         ? ConrraModoSeleccionRecogida
         : ConrraModoSeleccionDestino;
-    // Se abre donde ya esta el pasajero, no en mitad del oceano.
-    if (self.direction && self.direction.source) {
-        vc.centroInicial = self.direction.source.coordinate;
+    // Se abre donde ya esta el pasajero. Ojo: direction.source existe como objeto
+    // desde el principio, pero vale (0,0) hasta que el GPS responde -- pasarlo asi
+    // mandaria el mapa al golfo de Guinea. Si no sirve, el selector se apaña solo.
+    CLLocationCoordinate2D origen = self.direction.source.coordinate;
+    if (!(origen.latitude == 0 && origen.longitude == 0)) {
+        vc.centroInicial = origen;
     }
     [self.navigationController pushViewController:vc animated:YES];
 }

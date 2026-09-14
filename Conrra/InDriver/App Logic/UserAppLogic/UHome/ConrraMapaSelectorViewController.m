@@ -7,6 +7,7 @@
 #import "Utilities.h"
 #import "LanguageHelper.h"
 #import "WebCallConstants.h"
+#import "AppDelegate.h"
 
 @interface ConrraMapaSelectorViewController () <MKMapViewDelegate>
 
@@ -20,6 +21,8 @@
 /// Lo ultimo que se resolvio. Sin esto no se deja confirmar.
 @property (nonatomic, copy) NSString *direccionActual;
 @property (nonatomic, assign) BOOL primeraRegion;
+/// Para no volver a centrar cada vez que el GPS se afina.
+@property (nonatomic, assign) BOOL yaCentrado;
 
 @end
 
@@ -123,19 +126,63 @@
     [self.view addSubview:self.btnConfirmar];
 }
 
+/**
+ Donde se abre el mapa.
+
+ Tres niveles, y hacen falta los tres. El punto que venga de la pantalla anterior es el
+ mejor, pero puede no haberlo: direction.source vale (0,0) hasta que el GPS responde.
+ La ubicacion que el AppDelegate ya tiene guardada suele estar lista antes que la del
+ propio MKMapView, que tarda un momento en arrancar la suya. Y si tampoco hay, se espera
+ a que llegue -- ver mapView:didUpdateUserLocation:.
+
+ Sin esto el mapa abria en la vista del mundo o en la ultima region que le quedara, y
+ habia que arrastrar medio planeta para llegar a donde esta el pasajero.
+ */
 - (void)centrar {
     CLLocationCoordinate2D centro = self.centroInicial;
-    if (centro.latitude == 0 && centro.longitude == 0) {
+
+    if (![self esValida:centro]) {
+        CLLocation *delDelegado = [APP_DELEGATE currLoc];
+        if (delDelegado) {
+            centro = delDelegado.coordinate;
+        }
+    }
+    if (![self esValida:centro]) {
         centro = self.mapa.userLocation.coordinate;
     }
-    if (centro.latitude == 0 && centro.longitude == 0) {
-        // Sin punto de partida no se centra en ningun sitio concreto: se deja que el
-        // mapa siga a la ubicacion del usuario cuando llegue.
-        self.mapa.userTrackingMode = MKUserTrackingModeFollow;
+    if (![self esValida:centro]) {
+        // Todavia no se sabe donde esta: se centrara solo cuando el mapa lo averigue.
         return;
     }
+
+    [self centrarEn:centro];
+}
+
+- (void)centrarEn:(CLLocationCoordinate2D)centro {
+    self.yaCentrado = YES;
     MKCoordinateRegion region = MKCoordinateRegionMakeWithDistance(centro, 800, 800);
     [self.mapa setRegion:region animated:NO];
+}
+
+/** (0,0) es lo que la app usa como "sin ubicacion", no un punto del golfo de Guinea. */
+- (BOOL)esValida:(CLLocationCoordinate2D)c {
+    return !(c.latitude == 0 && c.longitude == 0) && CLLocationCoordinate2DIsValid(c);
+}
+
+/**
+ La ubicacion llego tarde: se centra una sola vez.
+
+ Si se centrara en cada aviso, el mapa daria un salto cada vez que el GPS se afina y le
+ arrancaria de las manos el punto que el pasajero estaba eligiendo.
+ */
+- (void)mapView:(MKMapView *)mapView didUpdateUserLocation:(MKUserLocation *)userLocation {
+    if (self.yaCentrado) {
+        return;
+    }
+    if ([self esValida:userLocation.coordinate]) {
+        [self centrarEn:userLocation.coordinate];
+        [self resolverDireccion];
+    }
 }
 
 #pragma mark - Mapa
