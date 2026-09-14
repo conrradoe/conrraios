@@ -45,6 +45,8 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
     float _currentAmount;
     BOOL  _configExpanded;
     BOOL  _didBuildLayout;
+    /// La fila de la cabecera: boton de volver, titulo y chip de categoria.
+    CGRect _filaDeCabecera;
     NSInteger _numPasajeros;
     /// Lo que los pasajeros de mas han añadido a _currentAmount.
     float _recargoPasajeros;
@@ -86,9 +88,12 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
 @property (strong, nonatomic) UILabel      *lblCuponAplicado;
 // Elige tu viaje
 @property (strong, nonatomic) UILabel *lblMontoLocal;
-// Chip de la categoria elegida, arriba a la derecha
+// Chip de la categoria elegida, arriba a la derecha de la tarjeta
 @property (strong, nonatomic) UILabel *lblChipCategoria;
 @property (strong, nonatomic) UIImageView *imgChipCategoria;
+/// El titulo de la tarjeta. Se guarda porque comparte fila con el chip y hay que
+/// recolocar los dos juntos cuando el chip cambia de ancho.
+@property (strong, nonatomic) UILabel *lblTituloTarifa;
 @property (strong, nonatomic) NSMutableArray<UIView *> *filasCategoria;
 /// Las etiquetas de precio, en el mismo orden que filasCategoria.
 @property (strong, nonatomic) NSMutableArray<UILabel *> *preciosCategoria;
@@ -215,13 +220,18 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
     titleLbl.text      = @"Tarifa recomendada";
     titleLbl.font      = [UIFont fontWithName:@"NotoSans-Bold" size:18] ?: [UIFont boldSystemFontOfSize:18];
     titleLbl.textColor = darkText;
-    [titleLbl sizeToFit];
-    [self montarChipDeCategoriaConAlto:52.0 ancho:sw];
-    titleLbl.frame = CGRectMake((sw - titleLbl.frame.size.width) / 2.0,
-                                 y + (44 - titleLbl.frame.size.height) / 2.0,
-                                 titleLbl.frame.size.width,
-                                 titleLbl.frame.size.height);
+    titleLbl.textAlignment = NSTextAlignmentCenter;
+    titleLbl.adjustsFontSizeToFitWidth = YES;
+    titleLbl.minimumScaleFactor = 0.72f;
     [cv addSubview:titleLbl];
+    self.lblTituloTarifa = titleLbl;
+
+    // La cabecera entera se coloca de una vez: el titulo va centrado en lo que dejan
+    // el boton de volver y el chip, y el chip cambia de ancho con el nombre de la
+    // categoria. Repartirlo aqui a ojo se rompia en cuanto el nombre era largo.
+    _filaDeCabecera = CGRectMake(0, y, sw, 44);
+    [self montarChipDeCategoriaEnVista:cv];
+    [self reacomodarCabecera];
     y += 44 + 20;
 
     CGFloat cardW = sw - 32;
@@ -741,32 +751,72 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
 #pragma mark - Amount formatting
 
 /**
- El icono y el nombre de la categoria elegida, arriba a la derecha.
+ El icono y el nombre de la categoria elegida, arriba a la derecha de la tarjeta.
 
  Con la lista abierta puede parecer redundante, pero no lo es: en cuanto se desplaza la
  hoja, la lista se va de la vista y el rotulo de arriba es lo unico que sigue diciendo
  que se esta pidiendo. Android lo tiene por eso mismo.
+
+ Va dentro de la tarjeta, en la misma fila que el titulo. Estaba colgado de self.view,
+ que aqui es la vista transparente a pantalla completa: eso lo dejaba flotando sobre el
+ mapa, muy por encima de la tarjeta y sin relacion con el titulo al que acompaña.
  */
-- (void)montarChipDeCategoriaConAlto:(CGFloat)altoCabecera ancho:(CGFloat)sw {
+- (void)montarChipDeCategoriaEnVista:(UIView *)cv {
     if (self.categoriaElegida == nil) {
         return;
     }
-    CGFloat ancho = 96.0;
-    CGFloat x = sw - 16 - ancho;
-
-    self.imgChipCategoria = [[UIImageView alloc] initWithFrame:CGRectMake(x, (altoCabecera - 28) / 2.0, 40, 28)];
+    self.imgChipCategoria = [[UIImageView alloc] init];
     self.imgChipCategoria.contentMode = UIViewContentModeScaleAspectFit;
-    [self.view addSubview:self.imgChipCategoria];
+    [cv addSubview:self.imgChipCategoria];
 
-    self.lblChipCategoria = [[UILabel alloc] initWithFrame:
-        CGRectMake(x + 44, (altoCabecera - 22) / 2.0, ancho - 44, 22)];
+    self.lblChipCategoria = [[UILabel alloc] init];
     self.lblChipCategoria.font = [UIFont fontWithName:@"NotoSans-Bold" size:15] ?: [UIFont boldSystemFontOfSize:15];
     self.lblChipCategoria.textColor = [UIColor colorWithRed:0.157f green:0.157f blue:0.157f alpha:1.0f];
     self.lblChipCategoria.adjustsFontSizeToFitWidth = YES;
     self.lblChipCategoria.minimumScaleFactor = 0.7f;
-    [self.view addSubview:self.lblChipCategoria];
+    [cv addSubview:self.lblChipCategoria];
 
     [self actualizarChipDeCategoria];
+}
+
+/** Lo que ocupa el chip: el icono, un hueco y el nombre, sin pasar de un tercio. */
+- (CGFloat)anchoDelChip {
+    if (self.categoriaElegida == nil || self.lblChipCategoria == nil) {
+        return 0;
+    }
+    NSString *nombre = isEmpty(self.categoriaElegida.cat_name);
+    CGFloat anchoTexto = ceilf([nombre sizeWithAttributes:
+        @{NSFontAttributeName: self.lblChipCategoria.font}].width) + 2;
+    anchoTexto = MIN(anchoTexto, _filaDeCabecera.size.width * 0.30f);
+    return 34.0 + 6.0 + anchoTexto;
+}
+
+/**
+ Reparte la fila: volver a la izquierda, chip a la derecha, titulo en lo que queda.
+
+ El titulo iba centrado en el ancho ENTERO, asi que con el chip puesto se le montaba
+ encima -- "Tarifa recomendada" a 18 ya ocupa casi todo lo que hay entre los dos.
+ */
+- (void)reacomodarCabecera {
+    CGFloat sw    = _filaDeCabecera.size.width;
+    CGFloat y     = _filaDeCabecera.origin.y;
+    CGFloat alto  = _filaDeCabecera.size.height;
+    if (sw <= 0) {
+        return;
+    }
+
+    CGFloat anchoChip = [self anchoDelChip];
+    if (anchoChip > 0) {
+        CGFloat x = sw - 16 - anchoChip;
+        CGFloat anchoTexto = anchoChip - 34.0 - 6.0;
+        self.imgChipCategoria.frame = CGRectMake(x, y + (alto - 26) / 2.0, 34, 26);
+        self.lblChipCategoria.frame = CGRectMake(x + 34 + 6, y + (alto - 20) / 2.0, anchoTexto, 20);
+    }
+
+    // 16 de margen + 44 del boton de volver + 8 de aire.
+    CGFloat xTitulo  = 68.0;
+    CGFloat finTitulo = sw - 16 - (anchoChip > 0 ? anchoChip + 8 : 0);
+    self.lblTituloTarifa.frame = CGRectMake(xTitulo, y, MAX(0, finTitulo - xTitulo), alto);
 }
 
 - (void)actualizarChipDeCategoria {
@@ -780,6 +830,8 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
         : ([UIImage imageNamed:@"ic_vehicle_car"] ?: [UIImage imageNamed:@"map_car_icon"]);
     [self.imgChipCategoria sd_setImageWithURL:[NSURL URLWithString:isEmpty(cat.cat_image_path)]
                              placeholderImage:respaldo];
+    // El nombre nuevo puede medir otra cosa, asi que la fila se reparte otra vez.
+    [self reacomodarCabecera];
 }
 
 #pragma mark - Cupon
