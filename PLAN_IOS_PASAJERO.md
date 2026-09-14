@@ -410,3 +410,43 @@ TOCADOS: `ConstantModel.h/.m`, `DriverModel.h/.m`, `UFareSummeryViewController.m
 En el menu del CONDUCTOR (`LeftViewController.m:150`) la tasa de cambio esta fija en
 `"Bs. 0.00"` y nadie la rellena nunca. Ahora que existe `+[ConstantModel tasaDolarALocal]`
 es una linea, pero es pantalla de conductor y este trabajo va por el pasajero.
+
+---
+
+# COMPILA — 2026-09-13, Mac con Xcode 27
+
+`xcodebuild ... build` devuelve **codigo 0**. Los cinco lotes se escribieron en
+Windows sin compilador; el coste total de esa ceguera fueron DOS errores:
+
+1. `Reachability.m:50` — `Use of private header from outside its module:
+   'netinet6/in6.h'`. **No era mio**: fichero de terceros del template. El header es
+   privado y los SDK nuevos lo rechazan; ademas sobra, porque lo incluye
+   `netinet/in.h`, que ya estaba importado encima. Afectaba tambien a
+   `AFHTTPSessionManager.m` y `AFNetworkReachabilityManager.m`, que aun no se habian
+   compilado: arreglados los tres de una vez.
+
+2. `TripOffersViewContoller.swift:392` — `left side of mutating operator isn't
+   mutable: 'panelH' is a 'let' constant`. **Mio**, del lote 2: `panelH` es un `let`
+   con inicializacion diferida, admite UNA asignacion por rama y yo le hice `+=`.
+
+## Avisos
+
+- **0 avisos** en los diez ficheros nuevos.
+- **0 avisos** en las ~580 lineas añadidas a los seis ficheros existentes.
+- Los 684 avisos de `Conrra/InDriver` son todos del template original (APIs
+  obsoletas desde iOS 11-15, variables sin usar, protocolos sin cumplir).
+
+Comprobado comparando cada fichero con su copia de `.backup-conrra/20260913/` y
+cruzando los numeros de linea de cada aviso con los rangos que yo escribi. La
+primera version de esa comprobacion daba falsos positivos porque no normalizaba
+bien los finales de linea (mis scripts pasaron algunos ficheros de CRLF a LF).
+
+## Lo que compila NO es lo que funciona
+
+Queda por probar en un iPhone real, no en el simulador:
+
+- que llegue un push (lote 1, el que estaba caido al 100%);
+- que salte el aviso de llegada con el codigo OTP y la pantalla bloqueada (lote 4);
+- que "Reenviar codigo" valide (lote 4);
+- que aparezca Sitios en el menu — necesita `enable_sitios = 1` en el backend (lote 3);
+- que el recibo enseñe el pago movil del conductor y los bolivares bien (lote 5).
