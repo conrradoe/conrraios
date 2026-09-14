@@ -387,10 +387,14 @@ private class TripOffersRootView: UIView {
             panelH = min(safeTop + 16 + cardsH + 16, screenH * 0.72)
         } else {
             // safeTop + spinner/label row + gap + button + bottom pad
-            panelH = safeTop + 40 + 20 + 56 + 24
+            //
+            // Se acumula en una variable aparte porque panelH es un 'let' con
+            // inicializacion diferida: admite UNA asignacion, no un +=.
+            var alto = safeTop + 40 + 20 + 56 + 24
             if hayBannerQueMostrar {
-                panelH += alturaDelBanner(ancho: w - 32) + 12
+                alto += alturaDelBanner(ancho: w - 32) + 12
             }
+            panelH = alto
         }
 
         let rootView = view as! TripOffersRootView
