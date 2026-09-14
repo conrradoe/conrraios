@@ -1766,23 +1766,35 @@
     sheet.tag = 9900;
     [_ndRatingView addSubview:sheet];
 
+    // El asa de la hoja, que Android tiene y aqui faltaba: es lo que la identifica
+    // como algo que se puede cerrar arrastrando.
+    UIView *asaValoracion = [[UIView alloc] initWithFrame:CGRectMake((w - 40)/2, 10, 40, 4)];
+    asaValoracion.backgroundColor = [UIColor colorWithRed:0xC8/255.0 green:0xC8/255.0 blue:0xC8/255.0 alpha:1];
+    asaValoracion.layer.cornerRadius = 2;
+    [sheet addSubview:asaValoracion];
+
     CGFloat headerH2 = 56;
-    UILabel *sheetTitle = [[UILabel alloc] initWithFrame:CGRectMake(pad, 0, w - pad*2 - 48, headerH2)];
-    sheetTitle.text = [LanguageHelper getStringWithKey:@"k_s10_rate_driver" defaultValue:@"Califica al conductor"];
+    UILabel *sheetTitle = [[UILabel alloc] initWithFrame:CGRectMake(pad, 14, w - pad*2 - 48, headerH2)];
+    // La misma clave que Android (FareActivity.getLoc), no una inventada: si el
+    // operador cambia el texto en el servidor, las dos apps lo recogen.
+    sheetTitle.text = [LanguageHelper getStringWithKey:@"k_r32_s9_rate_driver"
+                                          defaultValue:@"Califica al conductor"];
     sheetTitle.font = [UIFont fontWithName:@"NotoSans-Bold" size:18] ?: [UIFont boldSystemFontOfSize:18];
     sheetTitle.textColor = dark;
     sheetTitle.textAlignment = NSTextAlignmentCenter;
     [sheet addSubview:sheetTitle];
 
     UIButton *ratingCloseBtn = [UIButton buttonWithType:UIButtonTypeSystem];
-    ratingCloseBtn.frame = CGRectMake(w - 48, 0, 48, headerH2);
+    ratingCloseBtn.frame = CGRectMake(w - 48, 14, 48, headerH2);
     [ratingCloseBtn setTitle:@"✕" forState:UIControlStateNormal];
     ratingCloseBtn.titleLabel.font = [UIFont systemFontOfSize:18];
     [ratingCloseBtn setTitleColor:[UIColor colorWithWhite:0.4 alpha:1] forState:UIControlStateNormal];
-    [ratingCloseBtn addTarget:self action:@selector(ndSkipRatingTapped) forControlEvents:UIControlEventTouchUpInside];
+    // Cerrar la hoja devuelve al recibo, no se va al inicio. Cerrar un modal no
+    // deberia navegar a otro sitio, y Android hace justo esto (ratingBottomSheet.dismiss).
+    [ratingCloseBtn addTarget:self action:@selector(ndCerrarValoracion) forControlEvents:UIControlEventTouchUpInside];
     [sheet addSubview:ratingCloseBtn];
 
-    CGFloat sy = headerH2 + 12;
+    CGFloat sy = headerH2 + 14 + 12;
 
     CGFloat avatarSz2 = 80;
     UIImageView *rDriverImg = [[UIImageView alloc] initWithFrame:CGRectMake((w - avatarSz2)/2, sy, avatarSz2, avatarSz2)];
@@ -1841,7 +1853,8 @@
     [sheet addSubview:_ndFeedbackView];
 
     UILabel *phLbl = [[UILabel alloc] initWithFrame:CGRectMake(pad + 18, sy + 16, cardW - 36, 22)];
-    phLbl.text = @"Deja un comentario...";
+    phLbl.text = [LanguageHelper getStringWithKey:@"k_21_s8_feedback"
+                                     defaultValue:@"Deja un comentario…"];
     phLbl.font = [UIFont fontWithName:@"NotoSans-Regular" size:15] ?: [UIFont systemFontOfSize:15];
     phLbl.textColor = [UIColor colorWithWhite:0.68 alpha:1];
     phLbl.tag = 9903;
@@ -1850,14 +1863,15 @@
 
     CGFloat btnGap  = 12;
     CGFloat btnW    = (cardW - btnGap) / 2;
-    UIColor *lightYellow = [UIColor colorWithRed:0.99 green:0.95 blue:0.76 alpha:1];
-
     UIButton *propinaBtn = [UIButton buttonWithType:UIButtonTypeCustom];
     propinaBtn.frame = CGRectMake(pad, sy, btnW, 56);
-    propinaBtn.backgroundColor = lightYellow;
+    // Android tiñe los dos botones con color_primary: el mismo amarillo. En amarillo
+    // palido este parecia desactivado al lado del de aceptar.
+    propinaBtn.backgroundColor = yellow;
     propinaBtn.layer.cornerRadius = 16;
     propinaBtn.titleLabel.font = [UIFont fontWithName:@"NotoSans-Bold" size:16] ?: [UIFont boldSystemFontOfSize:16];
-    [propinaBtn setTitle:@"Dar propina" forState:UIControlStateNormal];
+    [propinaBtn setTitle:[LanguageHelper getStringWithKey:@"rate_tip" defaultValue:@"Dar propina"]
+                forState:UIControlStateNormal];
     [propinaBtn setTitleColor:UIColor.blackColor forState:UIControlStateNormal];
     // Decia "Dar propina" y llamaba a ndSkipRatingTapped, que cierra la valoracion y se va
     // al inicio: el boton hacia justo lo contrario de lo que anunciaba, y la propina no
@@ -1870,10 +1884,16 @@
     submitBtn.backgroundColor = yellow;
     submitBtn.layer.cornerRadius = 16;
     submitBtn.titleLabel.font = [UIFont fontWithName:@"NotoSans-Bold" size:16] ?: [UIFont boldSystemFontOfSize:16];
-    [submitBtn setTitle:@"Aceptar" forState:UIControlStateNormal];
+    [submitBtn setTitle:[LanguageHelper getStringWithKey:@"k_r8_s8_ok" defaultValue:@"Aceptar"]
+               forState:UIControlStateNormal];
     [submitBtn setTitleColor:UIColor.blackColor forState:UIControlStateNormal];
     [submitBtn addTarget:self action:@selector(ndSubmitRatingTapped) forControlEvents:UIControlEventTouchUpInside];
     [sheet addSubview:submitBtn];
+
+    // La hoja se ajusta a lo que lleva dentro, como el wrap_content de Android. Con el
+    // 70% fijo quedaban mas de 150 puntos de blanco bajo los botones.
+    CGFloat altoUtil = sy + 56 + 24 + self.view.safeAreaInsets.bottom;
+    sheet.frame = CGRectMake(0, h, w, MIN(altoUtil, sheetH));
 }
 
 -(void)ndApplyTicketMask {
@@ -2108,6 +2128,16 @@
 // Screen 2 → Calificar
 -(void)ndSubmitRatingTapped {
     float rating = _ndStarRating.value;
+    // Sin estrellas no se manda nada. Antes se enviaba un 0, que en el promedio del
+    // conductor cuenta como la peor nota posible sin que el pasajero haya dicho eso.
+    // Android lo bloquea igual (FareActivity: "Por favor seleccione una calificación").
+    if (rating <= 0) {
+        [Utilities showAlertwithTilte:@""
+                              message:[LanguageHelper getStringWithKey:@"k_s10_elige_calificacion"
+                                                          defaultValue:@"Por favor seleccione una calificación"]
+               navigatationController:self.navigationController];
+        return;
+    }
     ratingGiven = (int)rating;
     self.txtviewFeedback.text = _ndFeedbackView.text;
     [self.curr_trip.driver updateDriverRating:ratingGiven completionBlock:^(id results, NSError *error) {
@@ -2281,6 +2311,21 @@
 
 -(void)ndSkipRatingTapped {
     [self navigateHome];
+}
+
+/** Baja la hoja y deja el recibo a la vista, como el dismiss de Android. */
+-(void)ndCerrarValoracion {
+    UIView *hoja = [_ndRatingView viewWithTag:9900];
+    if (hoja == nil) {
+        _ndRatingView.hidden = YES;
+        return;
+    }
+    CGFloat h = self.view.bounds.size.height;
+    [UIView animateWithDuration:0.25 animations:^{
+        hoja.frame = CGRectMake(0, h, hoja.frame.size.width, hoja.frame.size.height);
+    } completion:^(BOOL terminado) {
+        self->_ndRatingView.hidden = YES;
+    }];
 }
 
 @end
