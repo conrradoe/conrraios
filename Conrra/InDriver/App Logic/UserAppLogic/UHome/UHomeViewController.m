@@ -4463,18 +4463,25 @@
     self.ContainerView.hidden = YES;
 }
 
+/**
+ El menu y el titulo, flotando sobre el mapa.
+
+ ANTES HABIA UNA BARRA BLANCA de alto statusH+52 que tapaba la parte de arriba del
+ mapa. En Android el mapa llega hasta el borde y solo flotan encima el boton redondo
+ y el rotulo (MainScreenActivity / activity_home_user.xml).
+
+ NO SE USA UN CONTENEDOR TRANSPARENTE, que seria lo obvio: una vista de ese tamaño
+ seguiria tragandose los toques sobre el mapa en toda esa franja aunque no se viera.
+ Los dos elementos van sueltos sobre self.view, asi que solo el boton intercepta.
+
+ homeTopBar se queda a nil a proposito: no lo usa nadie mas, y dejar el ivar evita
+ tocar las declaraciones.
+ */
 -(void)buildTopBar {
     CGFloat sw = self.view.bounds.size.width;
     CGFloat statusH = self.view.safeAreaInsets.top;
-    CGFloat topBarH = statusH + 52.0;
 
-    homeTopBar = [[UIView alloc] initWithFrame:CGRectMake(0, 0, sw, topBarH)];
-    homeTopBar.backgroundColor = [UIColor colorWithRed:1 green:1 blue:1 alpha:0.97f];
-    homeTopBar.layer.shadowColor = [UIColor blackColor].CGColor;
-    homeTopBar.layer.shadowOpacity = 0.08f;
-    homeTopBar.layer.shadowRadius = 6.0f;
-    homeTopBar.layer.shadowOffset = CGSizeMake(0, 2);
-    [self.view addSubview:homeTopBar];
+    homeTopBar = nil;
 
     MIBadgeButton *menuBtn = self.btnMenu;
     [menuBtn removeFromSuperview];
@@ -4489,16 +4496,22 @@
         menuBtn.tintColor = [UIColor whiteColor];
         [menuBtn setTitle:@"" forState:UIControlStateNormal];
     }
-    [homeTopBar addSubview:menuBtn];
+    [self.view addSubview:menuBtn];
 
-    // Title label — horizontally centered in title area
+    // Titulo, centrado a la altura del boton. "Pide un Viaje" es el rotulo de Android;
+    // aqui ponia "Pide un Taxi", que ademas se queda corto: hay categorias de envio.
     CGFloat titleY = statusH + (52.0 - 22.0) / 2.0;
     UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(74, titleY, sw - 148, 22)];
-    titleLabel.text = @"Pide un Taxi";
+    titleLabel.text = [LanguageHelper getStringWithKey:@"k_s10_pide_un_viaje" defaultValue:@"Pide un Viaje"];
     titleLabel.font = [UIFont fontWithName:@"NotoSans-Bold" size:18] ?: [UIFont boldSystemFontOfSize:18];
     titleLabel.textColor = [UIColor colorWithRed:0.157f green:0.157f blue:0.157f alpha:1.0f];
     titleLabel.textAlignment = NSTextAlignmentCenter;
-    [homeTopBar addSubview:titleLabel];
+    // Sin barra detras, el titulo cae sobre el mapa: un halo claro lo mantiene legible
+    // si debajo pasa una carretera oscura o una zona verde.
+    titleLabel.shadowColor = [UIColor colorWithWhite:1.0 alpha:0.9];
+    titleLabel.shadowOffset = CGSizeMake(0, 1);
+    titleLabel.userInteractionEnabled = NO;
+    [self.view addSubview:titleLabel];
 
     self.viewHeader.hidden = YES;
     self.scrollViewCategory.hidden = YES;
