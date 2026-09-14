@@ -33,23 +33,39 @@
 @property (nonatomic, strong) UIView         *sheetPanel;
 @property (nonatomic, strong) UIView         *dragHandle;
 
+/// El estado del viaje, en negrita y arriba del todo (Android: tripStatus).
+@property (nonatomic, strong) UILabel        *lblEstadoViaje;
+/// "Dale este numero a tu conductor", debajo del estado (Android: tvOtpLabel).
 @property (nonatomic, strong) UILabel        *statusLabel;
 @property (nonatomic, strong) UIButton       *actionButton;
 @property (nonatomic, strong) UIButton       *shareButton;
+/// El chat como boton propio, no escondido en un menu (Android: btnChatDriver).
+@property (nonatomic, strong) MIBadgeButton  *btnChatConductor;
+@property (nonatomic, strong) UIView         *separadorCabecera;
 @property (nonatomic, strong) UILabel        *lbTripOtp;
 
 @property (nonatomic, strong) UIButton       *btnGps;
 
 @property (nonatomic, strong) UIView         *driverCard;
 @property (nonatomic, strong) UIImageView    *imgDriver;
+@property (nonatomic, strong) UIImageView    *imgEstrella;
 @property (nonatomic, strong) UILabel        *starRatingLbl;
+/// El icono y el nombre de la categoria, a la derecha de la tarjeta del conductor.
+@property (nonatomic, strong) UIImageView    *imgCategoria;
+@property (nonatomic, strong) UILabel        *lblCategoria;
 @property (nonatomic, strong) UILabel        *lblDriverName;
 @property (nonatomic, strong) UILabel        *lbCarName;
 @property (nonatomic, strong) UIImageView    *imageVehicle;
 @property (nonatomic, strong) UILabel        *lblCarNumber;
 
+/// Los datos de pago movil del conductor. Solo si se paga asi.
+@property (nonatomic, strong) UIView         *tarjetaPagoMovil;
+@property (nonatomic, strong) UILabel        *lblPagoMovilDatos;
+
 @property (nonatomic, strong) UIView         *destinationCard;
 @property (nonatomic, strong) UILabel        *destinationLabel;
+/// De donde sale el viaje, bajo el destino (Android: detailpickup).
+@property (nonatomic, strong) UILabel        *lblDireccionRecogida;
 
 @property (nonatomic, strong) UIView         *paymentRow;
 @property (nonatomic, strong) UILabel        *paymentAmountLabel;
@@ -163,6 +179,7 @@
     [self setupSheet];
     [self setupGpsButton];
     [self setupDriverCard];
+    [self setupTarjetaPagoMovil];
     [self setupDestinationCard];
     [self setupPaymentRow];
     [self setupCancelButton];
@@ -339,6 +356,17 @@
 }
 
 - (void)setupHeaderRow {
+    // El estado del viaje. Android lo tiene SIEMPRE arriba y en negrita, y debajo --
+    // solo cuando toca -- el rotulo del OTP. Aqui los dos compartian una sola
+    // etiqueta, asi que en cuanto habia OTP el estado desaparecia: el pasajero no
+    // llegaba a leer nunca "El conductor esta en camino".
+    self.lblEstadoViaje = [[UILabel alloc] init];
+    self.lblEstadoViaje.font = [UIFont fontWithName:@"NotoSans-Bold" size:16]
+                               ?: [UIFont boldSystemFontOfSize:16];
+    self.lblEstadoViaje.textColor = [UIColor colorWithRed:0x21/255.0 green:0x21/255.0 blue:0x21/255.0 alpha:1];
+    self.lblEstadoViaje.numberOfLines = 2;
+    [self.sheetPanel addSubview:self.lblEstadoViaje];
+
     // Status label
     self.statusLabel = [[UILabel alloc] init];
     self.statusLabel.font = [UIFont fontWithName:@"NotoSans-Regular" size:15]
@@ -367,11 +395,35 @@
     [self.shareButton addTarget:self action:@selector(btnShareTripClicked:) forControlEvents:UIControlEventTouchUpInside];
     [self.sheetPanel addSubview:self.shareButton];
 
+    // Chat: en Android es un boton mas de esta fila, con el numero de mensajes sin
+    // leer encima. Aqui estaba enterrado dentro del menu del boton de llamar, asi que
+    // no habia forma de ver que el conductor habia escrito sin abrir ese menu.
+    self.btnChatConductor = [[MIBadgeButton alloc] init];
+    self.btnChatConductor.backgroundColor = [UIColor colorNamed:@"app_theame"]
+        ?: [UIColor colorWithRed:0xEB/255.0 green:0xB5/255.0 blue:0x18/255.0 alpha:1];
+    self.btnChatConductor.layer.cornerRadius = 10;
+    self.btnChatConductor.clipsToBounds = NO;
+    self.btnChatConductor.badgeBackgroundColor = [UIColor colorWithRed:0xEB/255.0 green:0x54/255.0 blue:0x4D/255.0 alpha:1];
+    self.btnChatConductor.badgeTextColor = [UIColor whiteColor];
+    self.btnChatConductor.hideWhenZero = YES;
+    if (@available(iOS 13.0, *)) {
+        [self.btnChatConductor setImage:[[UIImage systemImageNamed:@"message.fill"]
+            imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate] forState:UIControlStateNormal];
+    }
+    self.btnChatConductor.tintColor = [UIColor blackColor];
+    [self.btnChatConductor addTarget:self action:@selector(openChatViewController)
+                    forControlEvents:UIControlEventTouchUpInside];
+    [self.sheetPanel addSubview:self.btnChatConductor];
+
     // Action button (SOS or Phone — content set by updateHeaderForStatus:)
     self.actionButton = [UIButton buttonWithType:UIButtonTypeCustom];
     self.actionButton.layer.cornerRadius = 24;
     self.actionButton.clipsToBounds = YES;
     [self.sheetPanel addSubview:self.actionButton];
+
+    self.separadorCabecera = [[UIView alloc] init];
+    self.separadorCabecera.backgroundColor = [UIColor colorWithRed:0xEF/255.0 green:0xEF/255.0 blue:0xEF/255.0 alpha:1];
+    [self.sheetPanel addSubview:self.separadorCabecera];
 }
 
 - (void)setupDriverCard {
@@ -390,6 +442,18 @@
     self.imgDriver.clipsToBounds = YES;
     self.imgDriver.backgroundColor = [UIColor colorWithWhite:0.92 alpha:1];
     [self.driverCard addSubview:self.imgDriver];
+
+    // Estrella. Android pinta el icono y al lado "2.80 (105)"; aqui salia un numero
+    // suelto -- el redondeo de la nota -- que no se entendia como valoracion.
+    self.imgEstrella = [[UIImageView alloc] init];
+    if (@available(iOS 13.0, *)) {
+        self.imgEstrella.image = [[UIImage systemImageNamed:@"star.fill"]
+            imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+    }
+    self.imgEstrella.tintColor = [UIColor colorNamed:@"app_theame"]
+        ?: [UIColor colorWithRed:0xEB/255.0 green:0xB5/255.0 blue:0x18/255.0 alpha:1];
+    self.imgEstrella.contentMode = UIViewContentModeScaleAspectFit;
+    [self.driverCard addSubview:self.imgEstrella];
 
     // Rating
     self.starRatingLbl = [[UILabel alloc] init];
@@ -419,6 +483,19 @@
     self.imageVehicle.clipsToBounds = YES;
     [self.driverCard addSubview:self.imageVehicle];
 
+    // Categoria: icono y nombre, como en Android. Es lo que le dice al pasajero que
+    // esta esperando un taxi y no un envio.
+    self.imgCategoria = [[UIImageView alloc] init];
+    self.imgCategoria.contentMode = UIViewContentModeScaleAspectFit;
+    [self.driverCard addSubview:self.imgCategoria];
+
+    self.lblCategoria = [[UILabel alloc] init];
+    self.lblCategoria.font = [UIFont fontWithName:@"NotoSans-Bold" size:12]
+                             ?: [UIFont boldSystemFontOfSize:12];
+    self.lblCategoria.textColor = [UIColor colorWithRed:0x69/255.0 green:0x69/255.0 blue:0x69/255.0 alpha:1];
+    self.lblCategoria.textAlignment = NSTextAlignmentCenter;
+    [self.driverCard addSubview:self.lblCategoria];
+
     // Plate number
     self.lblCarNumber = [[UILabel alloc] init];
     self.lblCarNumber.font = [UIFont fontWithName:@"NotoSans-Regular" size:11]
@@ -426,6 +503,40 @@
     self.lblCarNumber.textColor = [UIColor colorWithWhite:0.45 alpha:1];
     self.lblCarNumber.textAlignment = NSTextAlignmentRight;
     [self.driverCard addSubview:self.lblCarNumber];
+}
+
+/**
+ Los datos bancarios del conductor para el pago movil.
+
+ Nace oculta y solo aparece cuando el viaje se paga asi Y el conductor los tiene
+ puestos. Android la tiene igual (cvPagoMovilInfo): sin estos datos el pasajero no
+ puede transferir, porque el cobro no pasa por el app.
+ */
+- (void)setupTarjetaPagoMovil {
+    self.tarjetaPagoMovil = [[UIView alloc] init];
+    self.tarjetaPagoMovil.backgroundColor = UIColor.whiteColor;
+    self.tarjetaPagoMovil.layer.cornerRadius = 12;
+    self.tarjetaPagoMovil.layer.borderWidth = 1;
+    self.tarjetaPagoMovil.layer.borderColor =
+        [UIColor colorWithRed:0xEF/255.0 green:0xEF/255.0 blue:0xEF/255.0 alpha:1].CGColor;
+    self.tarjetaPagoMovil.hidden = YES;
+    [self.sheetPanel addSubview:self.tarjetaPagoMovil];
+
+    UILabel *titulo = [[UILabel alloc] init];
+    titulo.text = [LanguageHelper getStringWithKey:@"k_s10_datos_pago_movil"
+                                      defaultValue:@"DATOS PAGO MÓVIL DEL CONDUCTOR"];
+    titulo.font = [UIFont fontWithName:@"NotoSans-Bold" size:10] ?: [UIFont boldSystemFontOfSize:10];
+    titulo.textColor = [UIColor colorNamed:@"app_theame"]
+        ?: [UIColor colorWithRed:0xEB/255.0 green:0xB5/255.0 blue:0x18/255.0 alpha:1];
+    titulo.tag = 903;
+    [self.tarjetaPagoMovil addSubview:titulo];
+
+    self.lblPagoMovilDatos = [[UILabel alloc] init];
+    self.lblPagoMovilDatos.font = [UIFont fontWithName:@"NotoSans-Regular" size:12]
+                                  ?: [UIFont systemFontOfSize:12];
+    self.lblPagoMovilDatos.textColor = [UIColor colorWithRed:0x21/255.0 green:0x21/255.0 blue:0x21/255.0 alpha:1];
+    self.lblPagoMovilDatos.numberOfLines = 3;
+    [self.tarjetaPagoMovil addSubview:self.lblPagoMovilDatos];
 }
 
 - (void)setupDestinationCard {
@@ -443,8 +554,17 @@
                                  ?: [UIFont systemFontOfSize:15];
     self.destinationLabel.textColor = [UIColor colorNamed:@"color_app_label"]
                                       ?: [UIColor colorWithWhite:0.2 alpha:1];
-    self.destinationLabel.numberOfLines = 0;
+    self.destinationLabel.numberOfLines = 2;
     [self.destinationCard addSubview:self.destinationLabel];
+
+    // De donde sale. Aqui solo se enseñaba el destino, asi que el pasajero no podia
+    // comprobar que la recogida era la que habia elegido.
+    self.lblDireccionRecogida = [[UILabel alloc] init];
+    self.lblDireccionRecogida.font = [UIFont fontWithName:@"NotoSans-Regular" size:11]
+                                     ?: [UIFont systemFontOfSize:11];
+    self.lblDireccionRecogida.textColor = [UIColor colorWithRed:0x69/255.0 green:0x69/255.0 blue:0x69/255.0 alpha:1];
+    self.lblDireccionRecogida.numberOfLines = 2;
+    [self.destinationCard addSubview:self.lblDireccionRecogida];
 
     UIButton *pinBtn = [UIButton buttonWithType:UIButtonTypeSystem];
     if (@available(iOS 13.0, *)) {
@@ -482,9 +602,11 @@
 
 - (void)setupCancelButton {
     self.btnCancelTrip = [UIButton buttonWithType:UIButtonTypeCustom];
-    [self.btnCancelTrip setTitle:@"Cancelar recorrido" forState:UIControlStateNormal];
-    self.btnCancelTrip.titleLabel.font = [UIFont fontWithName:@"NotoSans-Bold" size:17]
-                                         ?: [UIFont boldSystemFontOfSize:17];
+    [self.btnCancelTrip setTitle:[LanguageHelper getStringWithKey:@"k_s10_cancelar_viaje"
+                                                     defaultValue:@"Cancelar viaje"]
+                        forState:UIControlStateNormal];
+    self.btnCancelTrip.titleLabel.font = [UIFont fontWithName:@"NotoSans-Bold" size:15]
+                                         ?: [UIFont boldSystemFontOfSize:15];
     [self.btnCancelTrip setTitleColor:UIColor.blackColor forState:UIControlStateNormal];
     self.btnCancelTrip.backgroundColor = [UIColor colorWithRed:232/255.0 green:232/255.0 blue:232/255.0 alpha:1];
     self.btnCancelTrip.layer.cornerRadius = 14;
@@ -829,14 +951,24 @@
     [self updateHeaderForStatus:self.currentTrip.trip_Status];
     self.destinationLabel.text = isEmpty(self.currentTrip.trip_drop_loc);
 
+    // "2.80 (105)", como Android. Antes salia el redondeo a entero y a secas, que no
+    // se leia como una valoracion sino como un numero suelto al lado del nombre.
     float rating=self.currentTrip.driver.rating;
-    int result = (int)roundf(rating);
-    _starRatingLbl.text=[NSString stringWithFormat:@"%d",result];
-    if(result<=0){
-        self.viewRating.hidden=YES;
-    }else{
-        self.viewRating.hidden=NO;
+    int cuantas = (int)self.currentTrip.driver.ratingCount;
+    if (rating > 0) {
+        _starRatingLbl.text = (cuantas > 0)
+            ? [NSString stringWithFormat:@"%.2f (%d)", rating, cuantas]
+            : [NSString stringWithFormat:@"%.2f", rating];
+        self.imgEstrella.hidden = NO;
+    } else {
+        _starRatingLbl.text = @"";
+        self.imgEstrella.hidden = YES;
     }
+    self.viewRating.hidden = (rating <= 0);
+
+    self.lblDireccionRecogida.text = isEmpty(self.currentTrip.trip_pick_loc);
+    [self actualizarCategoriaDelConductor];
+    [self actualizarTarjetaDePagoMovil];
 //    if (self.isFromrequest) {
 //        NSDictionary *dictEstimate = defaults_object(@"estimate");
 //        if (dictEstimate) {
@@ -875,12 +1007,28 @@
     }
     [self.imageVehicle sd_setImageWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@%@",url_base_images, self.currentTrip.driver.d_car_image_path]]];
 
-    // Populate payment amount label
+    // El importe, en dolares y debajo en bolivares -- dos lineas, como Android. Con
+    // una sola linea el pasajero tenia que hacer la conversion de cabeza justo cuando
+    // va a pagar.
     if (self.currentTrip.trip_fare.length > 0) {
-        CityModel *cityModel = [CityModel getCityByCityId:self.currentTrip.city_id];
-        NSString *formattedFare = [Utilities formatAmountAndCurrency:[self.currentTrip.trip_fare floatValue]
-                                                            currency:cityModel.city_cur];
-        self.paymentAmountLabel.text = formattedFare ?: self.currentTrip.trip_fare;
+        CityModel *ciudad = [CityModel getCityByCityId:self.currentTrip.city_id];
+        float importe = [self.currentTrip.trip_fare floatValue];
+        NSString *enDolares = [Utilities formatAmountAndCurrency:importe currency:ciudad.city_cur]
+                              ?: self.currentTrip.trip_fare;
+
+        float tasa = [ConstantModel tasaDolarALocal];
+        if (tasa > 0) {
+            NSNumberFormatter *formato = [[NSNumberFormatter alloc] init];
+            formato.numberStyle = NSNumberFormatterDecimalStyle;
+            formato.minimumFractionDigits = 2;
+            formato.maximumFractionDigits = 2;
+            NSString *enLocal = [formato stringFromNumber:@(importe * tasa)] ?: @"";
+            self.paymentAmountLabel.numberOfLines = 2;
+            self.paymentAmountLabel.text = [NSString stringWithFormat:@"%@\nBs %@", enDolares, enLocal];
+        } else {
+            self.paymentAmountLabel.numberOfLines = 1;
+            self.paymentAmountLabel.text = enDolares;
+        }
     }
 }
 
@@ -1145,6 +1293,9 @@
 
 -(void) setUpUi{
     [self updateHeaderForStatus:self.currentTrip.trip_Status ?: currentTripStatus];
+    self.lblDireccionRecogida.text = isEmpty(self.currentTrip.trip_pick_loc);
+    [self actualizarCategoriaDelConductor];
+    [self actualizarTarjetaDePagoMovil];
     [self showTripOtpOnUi];
     self.destinationLabel.text = isEmpty(self.currentTrip.trip_drop_loc);
     if([self.currentTrip.trip_Status isEqualToString:TS_ACCEPTED]||[self.currentTrip.trip_Status isEqualToString:TS_ARRIVE])  {
@@ -1215,28 +1366,32 @@
         }
     }
     if(showOtp){
+        // El rotulo del OTP es SOLO eso. El estado del viaje vive en su propia
+        // etiqueta y no se pisa: antes los dos compartian esta y el estado se perdia.
         self.statusLabel.text = [LanguageHelper getStringWithKey:@"k_r8_s8_give_number_to_driver" defaultValue:@"Dale este número a tu conductor"];
-        self.statusLabel.font = [UIFont fontWithName:@"NotoSans-Regular" size:13]
-                                ?: [UIFont systemFontOfSize:13];
-        NSMutableAttributedString *attr = [[NSMutableAttributedString alloc] init];
-        NSDictionary *grayAttrs = @{
-            NSFontAttributeName: ([UIFont fontWithName:@"NotoSans-Regular" size:15] ?: [UIFont systemFontOfSize:15]),
-            NSForegroundColorAttributeName: [UIColor colorWithWhite:0.45 alpha:1]
-        };
-        [attr appendAttributedString:[[NSAttributedString alloc] initWithString:@"OTP: " attributes:grayAttrs]];
-        NSDictionary *blueAttrs = @{
-            NSFontAttributeName: ([UIFont fontWithName:@"NotoSans-Bold" size:22] ?: [UIFont boldSystemFontOfSize:22]),
-            NSForegroundColorAttributeName: [UIColor colorWithRed:21/255.0 green:101/255.0 blue:192/255.0 alpha:1]
-        };
-        [attr appendAttributedString:[[NSAttributedString alloc] initWithString:otpNumber attributes:blueAttrs]];
-        self.lbTripOtp.attributedText = attr;
+        self.statusLabel.font = [UIFont fontWithName:@"NotoSans-Regular" size:11]
+                                ?: [UIFont systemFontOfSize:11];
+        self.statusLabel.textColor = [UIColor colorWithRed:0x69/255.0 green:0x69/255.0 blue:0x69/255.0 alpha:1];
+        self.statusLabel.hidden = NO;
+
+        // Pastilla amarilla, como el trip_otp de Android. En azul sobre blanco parecia
+        // un enlace; aqui es el dato que hay que leerle al conductor.
+        self.lbTripOtp.text = [NSString stringWithFormat:@"%@%@",
+            [LanguageHelper getStringWithKey:@"k_93_s4_otp" defaultValue:@"OTP: "], otpNumber];
+        self.lbTripOtp.attributedText = nil;
+        self.lbTripOtp.font = [UIFont fontWithName:@"NotoSans-Bold" size:18] ?: [UIFont boldSystemFontOfSize:18];
+        self.lbTripOtp.textColor = [UIColor blackColor];
+        self.lbTripOtp.textAlignment = NSTextAlignmentCenter;
+        self.lbTripOtp.backgroundColor = [UIColor colorNamed:@"app_theame"]
+            ?: [UIColor colorWithRed:0xEB/255.0 green:0xB5/255.0 blue:0x18/255.0 alpha:1];
+        self.lbTripOtp.layer.cornerRadius = 17;
+        self.lbTripOtp.clipsToBounds = YES;
         self.lbTripOtp.numberOfLines = 1;
         self.lbTripOtp.hidden = NO;
         [self.view setNeedsLayout];
     }else{
-        self.statusLabel.text = [LanguageHelper getStringWithKey:@"k_r6_s8_driver_arrived" defaultValue:@"Ya estás en camino…"];
-        self.statusLabel.font = [UIFont fontWithName:@"NotoSans-Regular" size:15]
-                                ?: [UIFont systemFontOfSize:15];
+        self.statusLabel.text = @"";
+        self.statusLabel.hidden = YES;
         self.lbTripOtp.attributedText = nil;
         self.lbTripOtp.text = @"";
         self.lbTripOtp.hidden = YES;
@@ -1657,85 +1812,162 @@
         [self.view bringSubviewToFront:self.btnGps];
     }
 
-    // GPS button: 44x44 above sheet, 16pt from right, 12pt above sheet top
+    // --- La hoja, medida por su contenido ---
+    //
+    // Antes empezaba en un 44% fijo de la pantalla. Con la tarjeta de pago movil
+    // puesta -- que aparece o no segun el metodo de pago -- el boton de cancelar se
+    // salia por abajo. Ahora se suma lo que ocupa cada pieza y la hoja arranca donde
+    // haga falta, que es lo que hace Android con wrap_content pegado al fondo.
+    CGFloat cardW  = w - pad * 2;
+    CGFloat safeB  = self.view.safeAreaInsets.bottom;
+
+    CGFloat alto = 10 + 5 + 12;                       // asa
+
+    CGFloat altoCabecera = 48;                        // los botones mandan
+    CGFloat altoEstado   = 22;
+    CGFloat altoOtpLbl   = 16;
+    CGFloat altoOtp      = 34;
+    BOOL hayOtp = !self.lbTripOtp.isHidden;
+    CGFloat altoColumna = altoEstado + (hayOtp ? 2 + altoOtpLbl + 6 + altoOtp : 0);
+    CGFloat bloqueCabecera = MAX(altoCabecera, altoColumna);
+    alto += bloqueCabecera + 8 + 1 + 8;               // + separador
+
+    CGFloat altoTarjetaConductor = 66;
+    alto += altoTarjetaConductor;
+
+    BOOL hayPagoMovil = !self.tarjetaPagoMovil.isHidden;
+    CGFloat altoPagoMovil = 66;
+    if (hayPagoMovil) {
+        alto += 6 + altoPagoMovil;
+    }
+
+    CGFloat altoDirecciones = 62;
+    alto += 6 + altoDirecciones;
+
+    CGFloat altoPrecio = 52;
+    alto += 6 + altoPrecio;
+
+    CGFloat altoCancelar = 44;
+    BOOL hayCancelar = !self.btnCancelTrip.isHidden;
+    if (hayCancelar) {
+        alto += 8 + altoCancelar;
+    }
+    alto += 14 + safeB;
+
+    // Nunca mas de dos tercios de pantalla: el mapa tiene que seguir contando algo.
+    CGFloat arriba = h - alto;
+    if (arriba < h * 0.30f) {
+        arriba = h * 0.30f;
+    }
+    self.sheetTop = arriba;
+    self.sheetPanel.frame = CGRectMake(0, self.sheetTop, w, h - self.sheetTop);
+
     CGFloat gpsSize = 44;
     self.btnGps.frame = CGRectMake(w - pad - gpsSize,
                                    self.sheetTop - 12 - gpsSize,
                                    gpsSize, gpsSize);
     self.btnGps.layer.cornerRadius = gpsSize / 2;
 
-    // Sheet panel
-    self.sheetPanel.frame = CGRectMake(0, self.sheetTop, w, h - self.sheetTop);
-
-    // Drag handle: 36x5, centered, 10pt from sheet top
     self.dragHandle.frame = CGRectMake((w - 36) / 2, 10, 36, 5);
 
-    // --- Header row ---
-    CGFloat headerY  = 28;
-    CGFloat btnSize  = 48;
-    CGFloat shareSz  = 36;
-    CGFloat actionX  = w - pad - btnSize;
-    CGFloat shareX   = actionX - shareSz - 8;
-    CGFloat labelW   = shareX - pad - 8;
+    // --- Cabecera: estado y OTP a la izquierda, acciones a la derecha ---
+    CGFloat y = 10 + 5 + 12;
+    CGFloat btnSize = 44;
+    CGFloat shareSz = 22;
 
-    self.actionButton.frame = CGRectMake(actionX, headerY, btnSize, btnSize);
-    self.shareButton.frame  = CGRectMake(shareX, headerY + (btnSize - shareSz) / 2, shareSz, shareSz);
-    self.statusLabel.frame  = CGRectMake(pad, headerY, labelW, 44);
-    // OTP sits below the full button row with a clear gap
-    CGFloat otpH  = 30;
-    CGFloat otpGap = 8;
-    self.lbTripOtp.frame = CGRectMake(pad, headerY + btnSize + otpGap, labelW, otpH);
+    CGFloat xAccion = w - pad - btnSize;
+    CGFloat yAccion = y + (bloqueCabecera - btnSize) / 2.0;
+    self.actionButton.frame = CGRectMake(xAccion, yAccion, btnSize, btnSize);
+    self.actionButton.layer.cornerRadius = btnSize / 2;
 
-    // --- Driver card ---
-    BOOL otpVisible = !self.lbTripOtp.isHidden;
-    CGFloat cardY = headerY + btnSize + (otpVisible ? otpGap + otpH + 10 : 16);
-    CGFloat driverCardH = 88;
-    CGFloat cardW       = w - pad * 2;
-    self.driverCard.frame = CGRectMake(pad, cardY, cardW, driverCardH);
+    CGFloat xChat = xAccion - 12 - btnSize;
+    self.btnChatConductor.frame = CGRectMake(xChat, yAccion, btnSize, btnSize);
 
-    // Driver card subviews
-    CGFloat avatarSz = 52;
-    self.imgDriver.frame = CGRectMake(12, (driverCardH - avatarSz) / 2, avatarSz, avatarSz);
+    CGFloat xShare = xChat - 12 - shareSz;
+    self.shareButton.frame = CGRectMake(xShare, yAccion + (btnSize - shareSz) / 2, shareSz, shareSz);
+
+    CGFloat anchoColumna = xShare - pad - 8;
+    self.lblEstadoViaje.frame = CGRectMake(pad, y, anchoColumna, altoEstado);
+    if (hayOtp) {
+        self.statusLabel.frame = CGRectMake(pad, CGRectGetMaxY(self.lblEstadoViaje.frame) + 2,
+                                            anchoColumna, altoOtpLbl);
+        self.lbTripOtp.frame   = CGRectMake(pad, CGRectGetMaxY(self.statusLabel.frame) + 6,
+                                            anchoColumna, altoOtp);
+    } else {
+        self.statusLabel.frame = CGRectZero;
+        self.lbTripOtp.frame   = CGRectZero;
+    }
+    y += bloqueCabecera + 8;
+
+    self.separadorCabecera.frame = CGRectMake(pad, y, cardW, 1);
+    y += 1 + 8;
+
+    // --- Tarjeta del conductor ---
+    self.driverCard.frame = CGRectMake(pad, y, cardW, altoTarjetaConductor);
+
+    CGFloat avatarSz = 42;
+    self.imgDriver.frame = CGRectMake(10, (altoTarjetaConductor - avatarSz) / 2, avatarSz, avatarSz);
     self.imgDriver.layer.cornerRadius = avatarSz / 2;
 
-    CGFloat carImgW = 64, carImgH = 40;
-    CGFloat carImgX = cardW - 12 - carImgW;
-    self.imageVehicle.frame = CGRectMake(carImgX, (driverCardH - carImgH) / 2 - 4, carImgW, carImgH);
-    self.lblCarNumber.frame = CGRectMake(carImgX, self.imageVehicle.frame.origin.y + carImgH + 2, carImgW, 14);
+    CGFloat anchoCategoria = 62;
+    CGFloat xCategoria = cardW - 10 - anchoCategoria;
+    self.imgCategoria.frame = CGRectMake(xCategoria + (anchoCategoria - 34) / 2, 8, 34, 26);
+    self.lblCategoria.frame = CGRectMake(xCategoria, 36, anchoCategoria, 16);
+    // El hueco del vehiculo que habia antes lo ocupa ahora la categoria.
+    self.imageVehicle.frame = CGRectZero;
+    self.lblCarNumber.frame = CGRectZero;
 
-    CGFloat statsX = 12 + avatarSz + 10;
-    CGFloat statsW = carImgX - statsX - 6;
-    self.starRatingLbl.frame = CGRectMake(statsX, 14, statsW, 16);
-    self.lblDriverName.frame = CGRectMake(statsX, CGRectGetMaxY(self.starRatingLbl.frame) + 4, statsW, 20);
-    self.lbCarName.frame     = CGRectMake(statsX, CGRectGetMaxY(self.lblDriverName.frame) + 3, statsW, 16);
+    CGFloat xDatos = 10 + avatarSz + 12;
+    CGFloat anchoDatos = xCategoria - xDatos - 8;
+    self.imgEstrella.frame   = CGRectMake(xDatos, 11, 12, 12);
+    self.starRatingLbl.frame = CGRectMake(xDatos + 16, 9, anchoDatos - 16, 16);
+    self.lblDriverName.frame = CGRectMake(xDatos, 26, anchoDatos, 18);
+    self.lbCarName.frame     = CGRectMake(xDatos, 44, anchoDatos, 14);
+    y += altoTarjetaConductor;
 
-    // --- Destination card ---
-    CGFloat destY = CGRectGetMaxY(self.driverCard.frame) + 12;
-    CGFloat destH = 64;
-    self.destinationCard.frame = CGRectMake(pad, destY, cardW, destH);
+    // --- Pago movil ---
+    if (hayPagoMovil) {
+        y += 6;
+        self.tarjetaPagoMovil.frame = CGRectMake(pad, y, cardW, altoPagoMovil);
+        UIView *tituloPM = [self.tarjetaPagoMovil viewWithTag:903];
+        tituloPM.frame = CGRectMake(10, 8, cardW - 20, 12);
+        self.lblPagoMovilDatos.frame = CGRectMake(10, 24, cardW - 20, altoPagoMovil - 32);
+        y += altoPagoMovil;
+    }
 
-    CGFloat pinSz = 28;
+    // --- Direcciones ---
+    y += 6;
+    self.destinationCard.frame = CGRectMake(pad, y, cardW, altoDirecciones);
+    CGFloat pinSz = 16;
     UIView *pinBtn = [self.destinationCard viewWithTag:901];
-    pinBtn.frame = CGRectMake(cardW - 12 - pinSz, (destH - pinSz) / 2, pinSz, pinSz);
-    self.destinationLabel.frame = CGRectMake(12, 0, cardW - 12 - pinSz - 8 - 12, destH);
+    pinBtn.frame = CGRectMake(cardW - 10 - pinSz, 10, pinSz, pinSz);
+    CGFloat anchoDir = cardW - 20 - pinSz - 8;
+    self.destinationLabel.frame      = CGRectMake(10, 8, anchoDir, 32);
+    self.lblDireccionRecogida.frame  = CGRectMake(10, 42, anchoDir, 14);
+    y += altoDirecciones;
 
-    // --- Payment row ---
-    CGFloat payY = CGRectGetMaxY(self.destinationCard.frame) + 12;
-    CGFloat payH = 52;
-    self.paymentRow.frame = CGRectMake(0, payY, w, payH);
-
+    // --- Precio ---
+    y += 6;
+    self.paymentRow.frame = CGRectMake(pad, y, cardW, altoPrecio);
+    self.paymentRow.layer.cornerRadius = 12;
+    self.paymentRow.clipsToBounds = YES;
     UIView *payLabel = [self.paymentRow viewWithTag:902];
-    payLabel.frame = CGRectMake(pad, 0, 160, payH);
-    self.paymentAmountLabel.frame = CGRectMake(w - pad - 160, 0, 160, payH);
+    payLabel.frame = CGRectMake(16, 0, 150, altoPrecio);
+    self.paymentAmountLabel.frame = CGRectMake(cardW - 16 - 180, 0, 180, altoPrecio);
+    y += altoPrecio;
 
-    // --- Cancel button ---
-    CGFloat cancelY = CGRectGetMaxY(self.paymentRow.frame) + 16;
-    self.btnCancelTrip.frame = CGRectMake(pad, cancelY, w - pad * 2, 56);
+    // --- Cancelar ---
+    if (hayCancelar) {
+        y += 8;
+        self.btnCancelTrip.frame = CGRectMake(pad, y, cardW, altoCancelar);
+    } else {
+        self.btnCancelTrip.frame = CGRectZero;
+    }
 
-    // --- Message banner (floats inside sheet, near top, hidden by default) ---
+    // --- Aviso de mensaje (flota dentro de la hoja, oculto por defecto) ---
     CGFloat bannerH = 64;
-    CGFloat bannerW = w - pad * 2;
-    self.viewMessage.frame = CGRectMake(pad, headerY + btnSize + 8, bannerW, bannerH);
+    CGFloat bannerW = cardW;
+    self.viewMessage.frame = CGRectMake(pad, 10 + 5 + 12, bannerW, bannerH);
     CGFloat msgAvatarSz = 40;
     self.msgAvatarView.frame = CGRectMake(12, (bannerH - msgAvatarSz) / 2, msgAvatarSz, msgAvatarSz);
     self.msgAvatarView.layer.cornerRadius = msgAvatarSz / 2;
@@ -1773,11 +2005,10 @@
         [self.actionButton removeGestureRecognizer:gr];
     }];
 
+    [self actualizarEstadoDelViaje:status];
+
     if ([status isEqualToString:TS_BEGIN]||[status isEqualToString:TS_PICKED]) {
         // Trip started / rider picked up — show drop leg: SOS button, no OTP, no cancel
-        self.statusLabel.text = [LanguageHelper getStringWithKey:@"k_r6_s8_driver_arrived" defaultValue:@"Ya estás en camino…"];
-        self.statusLabel.font = [UIFont fontWithName:@"NotoSans-Regular" size:15]
-                                ?: [UIFont systemFontOfSize:15];
         self.actionButton.backgroundColor = [UIColor colorWithRed:0xFF/255.0 green:0xE1/255.0 blue:0xDE/255.0 alpha:1];
         self.actionButton.layer.cornerRadius = 24;
         UIImage *sosAsset = [UIImage imageNamed:@"ic_sos_button"];
@@ -1792,10 +2023,7 @@
         self.btnCancelTrip.hidden = YES;
         self.lbTripOtp.hidden = YES;
     } else {
-        // Driver on the way / arrived — showTripOtpOnUi will set the correct statusLabel text
-        self.statusLabel.text = [LanguageHelper getStringWithKey:@"k_r8_s8_give_number_to_driver" defaultValue:@"Dale este número a tu conductor"];
-        self.statusLabel.font = [UIFont fontWithName:@"NotoSans-Regular" size:13]
-                                ?: [UIFont systemFontOfSize:13];
+        // Driver on the way / arrived — showTripOtpOnUi coloca el rotulo y la pastilla
         self.actionButton.backgroundColor = yellow;
         if (@available(iOS 13.0, *)) {
             [self.actionButton setImage:[UIImage systemImageNamed:@"phone.fill"] forState:UIControlStateNormal];
@@ -1805,6 +2033,85 @@
         self.btnCancelTrip.hidden = NO;
         // lbTripOtp visibility is controlled by showTripOtpOnUi (otp_start/otp_end flags)
     }
+}
+
+/**
+ El titulo de estado, con los mismos textos que Android.
+
+ Van en su propia etiqueta y no en la del OTP: son dos cosas distintas y el pasajero
+ necesita las dos a la vez -- en que punto va el viaje, y que numero dar.
+ */
+- (void)actualizarEstadoDelViaje:(NSString *)estado {
+    NSString *texto;
+    if ([estado isEqualToString:TS_BEGIN] || [estado isEqualToString:TS_PICKED]) {
+        texto = [LanguageHelper getStringWithKey:@"k_r5_s8_on_ride" defaultValue:@"Ya estás en camino..."];
+    } else if ([estado isEqualToString:TS_ARRIVE]) {
+        texto = [LanguageHelper getStringWithKey:@"k_r6_s8_driver_arrived" defaultValue:@"¡El conductor ha llegado!"];
+    } else {
+        texto = [LanguageHelper getStringWithKey:@"k_ride_progress_status_arriving"
+                                    defaultValue:@"El conductor está en camino"];
+    }
+    self.lblEstadoViaje.text = texto;
+}
+
+/**
+ Los datos bancarios del conductor, solo si el viaje se paga por pago movil.
+
+ El metodo se compara contra las dos formas de escribirlo a proposito: Android manda
+ "Pago Movil" y iOS manda "Card" para el mismo metodo, asi que un viaje pedido desde
+ un iPhone no encontraria su propia tarjeta si solo se mirara una de las dos.
+ */
+- (void)actualizarTarjetaDePagoMovil {
+    self.tarjetaPagoMovil.hidden = YES;
+
+    NSString *modo = [isEmpty(self.currentTrip.trip_pay_mode) lowercaseString];
+    BOOL esPagoMovil = ([modo containsString:@"pago movil"]
+                        || [modo containsString:@"pago móvil"]
+                        || [modo isEqualToString:@"card"]);
+    if (!esPagoMovil) {
+        return;
+    }
+
+    NSString *datos = isEmpty(self.currentTrip.driver.d_bank_info);
+    if (![datos hasPrefix:@"{"]) {
+        return;
+    }
+    NSError *error = nil;
+    NSDictionary *json = [NSJSONSerialization JSONObjectWithData:[datos dataUsingEncoding:NSUTF8StringEncoding]
+                                                        options:0
+                                                          error:&error];
+    if (error != nil || ![json isKindOfClass:[NSDictionary class]]) {
+        return;
+    }
+
+    NSString *banco   = isEmpty([json objectForKey:@"bank"]);
+    NSString *tipoId  = isEmpty([json objectForKey:@"idType"]);
+    NSString *numeroId = isEmpty([json objectForKey:@"idNumber"]);
+    NSString *telefono = isEmpty([json objectForKey:@"phone"]);
+    if (banco.length == 0 && numeroId.length == 0 && telefono.length == 0) {
+        return;
+    }
+
+    self.lblPagoMovilDatos.text = [NSString stringWithFormat:@"Banco: %@\nID: %@ %@\nTel: %@",
+                                   banco.length ? banco : @"N/A",
+                                   tipoId, numeroId,
+                                   telefono.length ? telefono : @"N/A"];
+    self.tarjetaPagoMovil.hidden = NO;
+}
+
+/** La categoria del viaje: icono y nombre, a la derecha de la tarjeta del conductor. */
+- (void)actualizarCategoriaDelConductor {
+    CategoryModel *cat = [CategoryModel getCategoryByid:self.currentTrip.driver.category_id];
+    if (cat == nil) {
+        self.lblCategoria.text = @"";
+        return;
+    }
+    self.lblCategoria.text = [isEmpty(cat.cat_name) uppercaseString];
+    UIImage *respaldo = [[cat.cat_name lowercaseString] containsString:@"moto"]
+        ? [UIImage imageNamed:@"ic_vehicle_moto"]
+        : ([UIImage imageNamed:@"ic_vehicle_car"] ?: [UIImage imageNamed:@"map_car_icon"]);
+    [self.imgCategoria sd_setImageWithURL:[NSURL URLWithString:isEmpty(cat.cat_image_path)]
+                         placeholderImage:respaldo];
 }
 
 - (IBAction)ButtonCancelTrip:(id)sender {
@@ -2591,7 +2898,12 @@
 
 -(void) updateUnReadCount{
     if([[ConstantModel getConstantsObject] getCValueFK:ckey_ech]==YES){
-        if([_firebaseUnReadChat messageCount]>0) {
+        // El numero tambien encima del boton de chat, no solo en el aviso: el aviso se
+        // va solo y el boton se queda, que es lo que hace Android con viewChatBadge.
+        int sinLeer = [_firebaseUnReadChat messageCount];
+        self.btnChatConductor.badgeString = (sinLeer > 0)
+            ? [NSString stringWithFormat:@"%d", sinLeer] : nil;
+        if(sinLeer>0) {
             [self.viewMessage setHidden:NO];
             self.lblMsgDriverName.text=[NSString stringWithFormat:@"%@ %@",self.currentTrip.driver.d_fname,self.currentTrip.driver.d_lname];
             self.lblMessage.text=[_firebaseUnReadChat lastMessagText];
