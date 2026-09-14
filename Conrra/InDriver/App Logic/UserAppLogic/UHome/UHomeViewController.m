@@ -147,8 +147,10 @@
     UIView   *homeTopBar;
     CGFloat   sheetCollapsedY;
     CGFloat   sheetExpandedY;
-    UIView   *autoVehicleCard;
-    UIView   *motoVehicleCard;
+    /** Fila de categorias del servidor. Antes eran dos tarjetas fijas. */
+    UIScrollView *vehicleCardsScroll;
+    NSMutableArray<UIView *> *vehicleCards;
+    NSInteger selectedVehicleIndex;
     UILabel  *homeAvailabilityLabel;
     UFareOfferViewController *currentFareOfferVC;
 }
@@ -1915,6 +1917,11 @@
     [self onCatgoryButtonTap:[arrButtons objectAtIndex:0]];
     //    });
     [_scrollViewCategory setContentSize:CGSizeMake(cellWidth*(arrCategory.count), 100)];
+
+    // La fila que ve el pasajero es la nueva; esta de arriba es la del template
+    // viejo, que sigue viva pero oculta. Repintar aqui es el unico enganche que hace
+    // falta: getCategoryFormServer ya llama a este metodo cuando llegan las categorias.
+    [self rebuildVehicleCards];
 }
 
 
@@ -4616,76 +4623,111 @@
     [homeBottomSheet addGestureRecognizer:pan];
 }
 
+/**
+ La fila de categorias, tal y como la manda el servidor.
+
+ ANTES ESTABAN CABLEADAS A MANO: dos tarjetas fijas rotuladas "Moto" y "Auto", con
+ imagenes del paquete, y un comentario que daba por hecho "index 0 -- matches server
+ order". En Panama el backend devuelve Taxi, Envio y Luxor: se pintaban dos tarjetas
+ con nombres e iconos que no eran, y la tercera categoria no existia para el pasajero.
+
+ El nombre y el icono salen ahora de CategoryModel, igual que en Android
+ (MainScreenActivity, categoriesAdapter). El hueco conserva el alto de 140 px que tenia,
+ asi que nada de lo que va debajo en la hoja se mueve.
+
+ Con tres o menos caben en el ancho; con mas, la fila se desplaza en horizontal en vez
+ de encoger las tarjetas hasta que no se lea el nombre.
+ */
 -(void)buildVehicleCards {
     CGFloat sw = self.view.bounds.size.width;
-    CGFloat cardW = (sw - 16.0 * 2 - 8.0) / 2.0;
     CGFloat cardH = 140.0;
     CGFloat cardY = 8 + 4 + 12; // handle: y=8, h=4, gap=12
 
-    // --- Moto card (left, index 0 — matches server order) ---
-    motoVehicleCard = [[UIView alloc] initWithFrame:CGRectMake(16, cardY, cardW, cardH)];
-    motoVehicleCard.backgroundColor = [UIColor whiteColor];
-    motoVehicleCard.layer.cornerRadius = 16;
-    motoVehicleCard.layer.borderWidth = 1.5f;
-    motoVehicleCard.layer.borderColor = [UIColor colorWithRed:0.878f green:0.878f blue:0.878f alpha:1.0f].CGColor;
-    motoVehicleCard.clipsToBounds = YES;
+    vehicleCards = [[NSMutableArray alloc] init];
+    selectedVehicleIndex = 0;
 
-    UIImageView *motoImgView = [[UIImageView alloc] initWithFrame:CGRectMake((cardW - 80) / 2, 12, 80, 70)];
-    UIImage *motoImg = [UIImage imageNamed:@"ic_vehicle_moto"];
-    motoImgView.image = motoImg;
-    motoImgView.contentMode = UIViewContentModeScaleAspectFit;
-    [motoVehicleCard addSubview:motoImgView];
+    vehicleCardsScroll = [[UIScrollView alloc] initWithFrame:CGRectMake(0, cardY, sw, cardH)];
+    vehicleCardsScroll.backgroundColor = [UIColor clearColor];
+    vehicleCardsScroll.showsHorizontalScrollIndicator = NO;
+    [homeBottomSheet addSubview:vehicleCardsScroll];
 
-    UILabel *motoLbl = [[UILabel alloc] initWithFrame:CGRectMake(0, cardH - 32, cardW, 24)];
-    motoLbl.text = @"Moto";
-    motoLbl.font = [UIFont fontWithName:@"NotoSans-Bold" size:15] ?: [UIFont boldSystemFontOfSize:15];
-    motoLbl.textAlignment = NSTextAlignmentCenter;
-    motoLbl.textColor = [UIColor colorWithRed:0.157f green:0.157f blue:0.157f alpha:1.0f];
-    [motoVehicleCard addSubview:motoLbl];
-
-    UITapGestureRecognizer *motoTap = [[UITapGestureRecognizer alloc]
-        initWithTarget:self action:@selector(onMotoCardTap)];
-    motoVehicleCard.userInteractionEnabled = YES;
-    [motoVehicleCard addGestureRecognizer:motoTap];
-    [homeBottomSheet addSubview:motoVehicleCard];
-
-    // --- Auto card (right, index 1 — matches server order) ---
-    autoVehicleCard = [[UIView alloc] initWithFrame:CGRectMake(16 + cardW + 8, cardY, cardW, cardH)];
-    autoVehicleCard.backgroundColor = [UIColor whiteColor];
-    autoVehicleCard.layer.cornerRadius = 16;
-    autoVehicleCard.layer.borderWidth = 1.5f;
-    autoVehicleCard.layer.borderColor = [UIColor colorWithRed:0.878f green:0.878f blue:0.878f alpha:1.0f].CGColor;
-    autoVehicleCard.clipsToBounds = YES;
-
-    UIImageView *autoImgView = [[UIImageView alloc] initWithFrame:CGRectMake((cardW - 80) / 2, 12, 80, 70)];
-    UIImage *carImg = [UIImage imageNamed:@"ic_vehicle_car"] ?: [UIImage imageNamed:@"map_car_icon"];
-    autoImgView.image = carImg;
-    autoImgView.contentMode = UIViewContentModeScaleAspectFit;
-    [autoVehicleCard addSubview:autoImgView];
-
-    UILabel *autoLbl = [[UILabel alloc] initWithFrame:CGRectMake(0, cardH - 32, cardW, 24)];
-    autoLbl.text = @"Auto";
-    autoLbl.font = [UIFont fontWithName:@"NotoSans-Bold" size:15] ?: [UIFont boldSystemFontOfSize:15];
-    autoLbl.textAlignment = NSTextAlignmentCenter;
-    autoLbl.textColor = [UIColor colorWithRed:0.157f green:0.157f blue:0.157f alpha:1.0f];
-    [autoVehicleCard addSubview:autoLbl];
-
-    UITapGestureRecognizer *autoTap = [[UITapGestureRecognizer alloc]
-        initWithTarget:self action:@selector(onAutoCardTap)];
-    autoVehicleCard.userInteractionEnabled = YES;
-    [autoVehicleCard addGestureRecognizer:autoTap];
-    [homeBottomSheet addSubview:autoVehicleCard];
-
-    // Auto-select first card visually
-    [self updateVehicleCardSelection:0];
+    [self rebuildVehicleCards];
 }
 
--(void)onMotoCardTap {
-    [self vehicleCardTapped:0];
+/** Repinta la fila con lo que haya en arrayCagetgory. Se puede llamar las veces que haga falta. */
+-(void)rebuildVehicleCards {
+    if (vehicleCardsScroll == nil) {
+        return;
+    }
+    for (UIView *v in [vehicleCardsScroll subviews]) {
+        [v removeFromSuperview];
+    }
+    [vehicleCards removeAllObjects];
+
+    NSArray *cats = arrayCagetgory;
+    if (![cats isKindOfClass:[NSArray class]] || cats.count == 0) {
+        vehicleCardsScroll.contentSize = CGSizeZero;
+        return;
+    }
+    if (selectedVehicleIndex >= (NSInteger)cats.count) {
+        selectedVehicleIndex = 0;
+    }
+
+    CGFloat sw = self.view.bounds.size.width;
+    CGFloat cardH = 140.0;
+    CGFloat margen = 16.0;
+    CGFloat sep = 8.0;
+    NSInteger aLaVez = MIN((NSInteger)cats.count, 3);
+    CGFloat cardW = (sw - margen * 2 - sep * (aLaVez - 1)) / aLaVez;
+
+    CGFloat x = margen;
+    for (NSInteger i = 0; i < (NSInteger)cats.count; i++) {
+        CategoryModel *cat = [cats objectAtIndex:(NSUInteger)i];
+
+        UIView *card = [[UIView alloc] initWithFrame:CGRectMake(x, 0, cardW, cardH)];
+        card.backgroundColor = [UIColor whiteColor];
+        card.layer.cornerRadius = 16;
+        card.layer.borderWidth = 1.5f;
+        card.layer.borderColor = [UIColor colorWithRed:0.878f green:0.878f blue:0.878f alpha:1.0f].CGColor;
+        card.clipsToBounds = YES;
+        card.tag = i;
+
+        UIImageView *img = [[UIImageView alloc] initWithFrame:CGRectMake((cardW - 80) / 2, 12, 80, 70)];
+        img.contentMode = UIViewContentModeScaleAspectFit;
+        // Si la imagen del servidor no carga, queda el icono del paquete que mas se
+        // parezca: mejor una silueta generica que un hueco en blanco.
+        UIImage *respaldo = [[cat.cat_name lowercaseString] containsString:@"moto"]
+            ? [UIImage imageNamed:@"ic_vehicle_moto"]
+            : ([UIImage imageNamed:@"ic_vehicle_car"] ?: [UIImage imageNamed:@"map_car_icon"]);
+        [img sd_setImageWithURL:[NSURL URLWithString:isEmpty(cat.cat_image_path)]
+               placeholderImage:respaldo];
+        [card addSubview:img];
+
+        UILabel *lbl = [[UILabel alloc] initWithFrame:CGRectMake(4, cardH - 32, cardW - 8, 24)];
+        lbl.text = isEmpty(cat.cat_name);
+        lbl.font = [UIFont fontWithName:@"NotoSans-Bold" size:15] ?: [UIFont boldSystemFontOfSize:15];
+        lbl.textAlignment = NSTextAlignmentCenter;
+        lbl.adjustsFontSizeToFitWidth = YES;
+        lbl.minimumScaleFactor = 0.7f;
+        lbl.textColor = [UIColor colorWithRed:0.157f green:0.157f blue:0.157f alpha:1.0f];
+        [card addSubview:lbl];
+
+        UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc]
+            initWithTarget:self action:@selector(onVehicleCardTap:)];
+        card.userInteractionEnabled = YES;
+        [card addGestureRecognizer:tap];
+
+        [vehicleCardsScroll addSubview:card];
+        [vehicleCards addObject:card];
+        x += cardW + sep;
+    }
+
+    vehicleCardsScroll.contentSize = CGSizeMake(x - sep + margen, cardH);
+    [self updateVehicleCardSelection:selectedVehicleIndex];
 }
 
--(void)onAutoCardTap {
-    [self vehicleCardTapped:1];
+-(void)onVehicleCardTap:(UITapGestureRecognizer *)gesto {
+    [self vehicleCardTapped:gesto.view.tag];
 }
 
 -(void)vehicleCardTapped:(NSInteger)index {
@@ -4701,16 +4743,21 @@
 }
 
 -(void)updateVehicleCardSelection:(NSInteger)index {
-    if (!autoVehicleCard || !motoVehicleCard) return;
+    if (vehicleCards.count == 0) {
+        return;
+    }
+    selectedVehicleIndex = index;
     UIColor *selBorder = [UIColor colorNamed:@"app_theame"];
     UIColor *selBg     = [UIColor colorWithRed:1.0f green:0.984f blue:0.918f alpha:1.0f]; // #FFFBEA
     UIColor *defBorder = [UIColor colorWithRed:0.878f green:0.878f blue:0.878f alpha:1.0f];
     UIColor *defBg     = [UIColor whiteColor];
 
-    motoVehicleCard.layer.borderColor = (index == 0) ? selBorder.CGColor : defBorder.CGColor;
-    motoVehicleCard.backgroundColor  = (index == 0) ? selBg  : defBg;
-    autoVehicleCard.layer.borderColor = (index == 1) ? selBorder.CGColor : defBorder.CGColor;
-    autoVehicleCard.backgroundColor  = (index == 1) ? selBg  : defBg;
+    for (NSInteger i = 0; i < (NSInteger)vehicleCards.count; i++) {
+        UIView *card = [vehicleCards objectAtIndex:(NSUInteger)i];
+        BOOL elegida = (i == index);
+        card.layer.borderColor = elegida ? selBorder.CGColor : defBorder.CGColor;
+        card.backgroundColor   = elegida ? selBg : defBg;
+    }
 }
 
 
