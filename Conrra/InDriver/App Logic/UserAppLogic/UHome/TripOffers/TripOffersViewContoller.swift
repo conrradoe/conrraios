@@ -75,6 +75,26 @@ private class TripOffersRootView: UIView {
     private let searchingLabel = UILabel()
     private let cancelButton   = UIButton(type: .system)
 
+    /**
+     La paleta de Android, valor por valor (res/values/colors.xml).
+
+     Se copian los numeros en vez de tirar de los colores del catalogo de iOS: los
+     nombres no se corresponden uno a uno entre las dos apps, y la unica forma de que
+     las dos pantallas se vean iguales es partir de la misma tinta.
+     */
+    private enum Tinta {
+        static let textoPrimario  = UIColor(red: 0x21/255.0, green: 0x21/255.0, blue: 0x21/255.0, alpha: 1) // neutral_900
+        static let textoTerciario = UIColor(red: 0x69/255.0, green: 0x69/255.0, blue: 0x69/255.0, alpha: 1) // neutral_500
+        static let bordeSuave     = UIColor(red: 0xEF/255.0, green: 0xEF/255.0, blue: 0xEF/255.0, alpha: 1) // neutral_150
+        static let asa            = UIColor(red: 0xC8/255.0, green: 0xC8/255.0, blue: 0xC8/255.0, alpha: 1) // neutral_300
+        static let verde          = UIColor(red: 0x54/255.0, green: 0xAB/255.0, blue: 0x47/255.0, alpha: 1) // state_success
+        static let rojo           = UIColor(red: 0xEB/255.0, green: 0x54/255.0, blue: 0x4D/255.0, alpha: 1) // state_error
+        static let rojoCancelar   = UIColor(red: 0xEB/255.0, green: 0x57/255.0, blue: 0x57/255.0, alpha: 1) // tvCancel
+        static let amarillo       = UIColor(red: 0xEB/255.0, green: 0xB5/255.0, blue: 0x18/255.0, alpha: 1) // brand_yellow_400
+        static let grisAjustador  = UIColor(red: 0xE0/255.0, green: 0xE0/255.0, blue: 0xE0/255.0, alpha: 1) // bg_stepper_button
+        static let grisApagado    = UIColor(red: 0x69/255.0, green: 0x69/255.0, blue: 0x69/255.0, alpha: 1) // rounded_corner_grey
+    }
+
     /// Contenido de la hoja de abajo.
     private let asa             = UIView()
     private let tarjetaViaje    = UIView()
@@ -86,7 +106,9 @@ private class TripOffersRootView: UIView {
     private let lblDestino      = UILabel()
     private let lblTuOferta     = UILabel()
     private let btnMenos        = UIButton(type: .custom)
-    private let lblMonto        = UILabel()
+    /// El simbolo y el numero van aparte, como en Android (tvStepperCurrency + etStepper).
+    private let lblMoneda       = UILabel()
+    private let txtMonto        = UITextField()
     private let btnMas          = UIButton(type: .custom)
     private let lblConversion   = UILabel()
     private let btnEnviarOferta = UIButton(type: .custom)
@@ -286,7 +308,7 @@ private class TripOffersRootView: UIView {
         sheetPanel.backgroundColor = .white
         // Redondeada por ARRIBA: la hoja sube desde el borde de abajo.
         sheetPanel.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
-        sheetPanel.layer.cornerRadius = 20
+        sheetPanel.layer.cornerRadius = 24              // radius_2xl
         sheetPanel.layer.shadowColor   = UIColor.black.cgColor
         sheetPanel.layer.shadowOpacity = 0.10
         sheetPanel.layer.shadowRadius  = 8
@@ -306,31 +328,38 @@ private class TripOffersRootView: UIView {
         view.addSubview(cabecera)
         (view as? TripOffersRootView)?.contenedorTransparente = cabecera
 
-        btnAtras.backgroundColor = UIColor(white: 0.13, alpha: 1)
+        btnAtras.backgroundColor = Tinta.textoPrimario
         btnAtras.tintColor = .white
         btnAtras.layer.cornerRadius = 23
         btnAtras.clipsToBounds = true
-        btnAtras.setImage(UIImage(systemName: "chevron.left"), for: .normal)
+        btnAtras.setImage(UIImage(systemName: "arrow.left") ?? UIImage(systemName: "chevron.left"), for: .normal)
         btnAtras.addTarget(self, action: #selector(didTapCancel), for: .touchUpInside)
+        // Android lo esconde en los viajes normales y solo lo deja en los programados
+        // (noti_Back.visibility). En un viaje que se acaba de pedir, volver atras no
+        // lleva a ningun sitio: lo que hay que hacer es cancelar, y eso ya esta al lado.
+        btnAtras.isHidden = !(trip?.is_ride_later ?? false)
         cabecera.addSubview(btnAtras)
 
         searchingLabel.text = "Buscando Conductor..."
-        searchingLabel.font = UIFont(name: "NotoSans-Bold", size: 17) ?? UIFont.boldSystemFont(ofSize: 17)
-        searchingLabel.textColor = UIColor(white: 0.10, alpha: 1)
+        // autoSize uniforme de 13 a 18 en Android: aqui, la mayor y que encoja hasta 13.
+        searchingLabel.font = UIFont(name: "NotoSans-Bold", size: 18) ?? UIFont.boldSystemFont(ofSize: 18)
+        searchingLabel.textColor = Tinta.textoPrimario
         searchingLabel.textAlignment = .center
+        searchingLabel.numberOfLines = 1
+        searchingLabel.lineBreakMode = .byTruncatingTail
         searchingLabel.adjustsFontSizeToFitWidth = true
-        searchingLabel.minimumScaleFactor = 0.72
+        searchingLabel.minimumScaleFactor = 13.0 / 18.0
         searchingLabel.layer.shadowColor = UIColor.white.cgColor
         searchingLabel.layer.shadowOpacity = 1
-        searchingLabel.layer.shadowRadius = 6
+        searchingLabel.layer.shadowRadius = 10
         searchingLabel.layer.shadowOffset = .zero
         cabecera.addSubview(searchingLabel)
 
         // Pastilla blanca propia: en rojo sobre el mapa no se leeria.
         cancelButton.setTitle("Cancelar Pedido", for: .normal)
         cancelButton.titleLabel?.font = UIFont(name: "NotoSans-Bold", size: 15) ?? UIFont.boldSystemFont(ofSize: 15)
-        cancelButton.setTitleColor(UIColor(red: 0.922, green: 0.341, blue: 0.341, alpha: 1), for: .normal)
-        cancelButton.backgroundColor = UIColor(white: 1, alpha: 0.92)
+        cancelButton.setTitleColor(Tinta.rojoCancelar, for: .normal)
+        cancelButton.backgroundColor = UIColor(white: 1, alpha: 0.5)   // bg_circle_white_alpha
         cancelButton.layer.cornerRadius = 23
         cancelButton.clipsToBounds = true
         cancelButton.addTarget(self, action: #selector(didTapCancel), for: .touchUpInside)
@@ -338,49 +367,51 @@ private class TripOffersRootView: UIView {
     }
 
     private func setupContenidoDeLaHoja() {
-        let oscuro = UIColor(white: 0.157, alpha: 1)
-        let gris   = UIColor(white: 0.45, alpha: 1)
-        let borde  = UIColor(white: 0.878, alpha: 1)
-
-        asa.backgroundColor = UIColor(white: 0.85, alpha: 1)
+        asa.backgroundColor = Tinta.asa
         asa.layer.cornerRadius = 2
         sheetPanel.addSubview(asa)
 
-        // --- Tarjeta de las direcciones ---
+        // --- Tarjeta de las direcciones (bg_request_inner) ---
+        tarjetaViaje.backgroundColor = .white
         tarjetaViaje.layer.borderWidth = 1
-        tarjetaViaje.layer.borderColor = borde.cgColor
-        tarjetaViaje.layer.cornerRadius = 12
+        tarjetaViaje.layer.borderColor = Tinta.bordeSuave.cgColor
+        tarjetaViaje.layer.cornerRadius = 12          // radius_md
         sheetPanel.addSubview(tarjetaViaje)
 
-        puntoRecogida.backgroundColor = UIColor(red: 0.18, green: 0.72, blue: 0.35, alpha: 1)
+        // La columna de la izquierda es FIJA: punto, 28 de linea y pin, pegados arriba.
+        // No se alinea cada marca con su direccion -- en Android tampoco, y por eso una
+        // direccion de dos lineas deja la linea corta. Calcarlo incluye calcar eso.
+        puntoRecogida.backgroundColor = Tinta.verde
         puntoRecogida.layer.cornerRadius = 6
         tarjetaViaje.addSubview(puntoRecogida)
 
-        lineaUnion.backgroundColor = borde
+        lineaUnion.backgroundColor = Tinta.bordeSuave
         tarjetaViaje.addSubview(lineaUnion)
 
-        puntoDestino.backgroundColor = UIColor(red: 0.90, green: 0.25, blue: 0.25, alpha: 1)
+        puntoDestino.backgroundColor = Tinta.rojo
         puntoDestino.layer.cornerRadius = 6
         tarjetaViaje.addSubview(puntoDestino)
 
-        lblRecogida.font = UIFont(name: "NotoSans-Regular", size: 14) ?? UIFont.systemFont(ofSize: 14)
-        lblRecogida.textColor = oscuro
+        lblRecogida.font = UIFont(name: "NotoSans-Regular", size: 13) ?? UIFont.systemFont(ofSize: 13)
+        lblRecogida.textColor = Tinta.textoPrimario
         lblRecogida.numberOfLines = 2
+        lblRecogida.lineBreakMode = .byTruncatingTail
         tarjetaViaje.addSubview(lblRecogida)
 
         lblNotas.font = UIFont(name: "NotoSans-Regular", size: 12) ?? UIFont.systemFont(ofSize: 12)
-        lblNotas.textColor = gris
-        lblNotas.numberOfLines = 2
+        lblNotas.textColor = Tinta.textoTerciario
+        lblNotas.numberOfLines = 0
         tarjetaViaje.addSubview(lblNotas)
 
-        lblDestino.font = UIFont(name: "NotoSans-Regular", size: 14) ?? UIFont.systemFont(ofSize: 14)
-        lblDestino.textColor = gris
+        lblDestino.font = UIFont(name: "NotoSans-Regular", size: 13) ?? UIFont.systemFont(ofSize: 13)
+        lblDestino.textColor = Tinta.textoPrimario
         lblDestino.numberOfLines = 2
+        lblDestino.lineBreakMode = .byTruncatingTail
         tarjetaViaje.addSubview(lblDestino)
 
         // --- Ajustador ---
         lblTuOferta.font = UIFont(name: "NotoSans-Bold", size: 14) ?? UIFont.boldSystemFont(ofSize: 14)
-        lblTuOferta.textColor = oscuro
+        lblTuOferta.textColor = Tinta.textoPrimario
         sheetPanel.addSubview(lblTuOferta)
 
         prepararBotonDeAjuste(btnMenos, accion: #selector(bajarOferta))
@@ -388,31 +419,48 @@ private class TripOffersRootView: UIView {
         sheetPanel.addSubview(btnMenos)
         sheetPanel.addSubview(btnMas)
 
-        lblMonto.font = UIFont(name: "NotoSans-Bold", size: 28) ?? UIFont.boldSystemFont(ofSize: 28)
-        lblMonto.textColor = oscuro
-        lblMonto.textAlignment = .center
-        lblMonto.adjustsFontSizeToFitWidth = true
-        lblMonto.minimumScaleFactor = 0.6
-        sheetPanel.addSubview(lblMonto)
+        lblMoneda.font = UIFont(name: "NotoSans-Bold", size: 22) ?? UIFont.boldSystemFont(ofSize: 22)
+        lblMoneda.textColor = Tinta.textoPrimario
+        sheetPanel.addSubview(lblMoneda)
+
+        // Se puede escribir el importe a mano, como el etStepper de Android.
+        txtMonto.font = UIFont(name: "NotoSans-Bold", size: 24) ?? UIFont.boldSystemFont(ofSize: 24)
+        txtMonto.textColor = Tinta.textoPrimario
+        txtMonto.borderStyle = .none
+        txtMonto.keyboardType = .decimalPad
+        txtMonto.addTarget(self, action: #selector(montoEscrito), for: .editingChanged)
+        sheetPanel.addSubview(txtMonto)
 
         lblConversion.font = UIFont(name: "NotoSans-Regular", size: 12) ?? UIFont.systemFont(ofSize: 12)
-        lblConversion.textColor = gris
+        lblConversion.textColor = Tinta.textoTerciario
         lblConversion.textAlignment = .center
         sheetPanel.addSubview(lblConversion)
 
-        btnEnviarOferta.titleLabel?.font = UIFont(name: "NotoSans-Bold", size: 17) ?? UIFont.boldSystemFont(ofSize: 17)
-        btnEnviarOferta.layer.cornerRadius = 14
+        btnEnviarOferta.titleLabel?.font = UIFont(name: "NotoSans-Bold", size: 16) ?? UIFont.boldSystemFont(ofSize: 16)
+        btnEnviarOferta.setTitleColor(Tinta.textoPrimario, for: .normal)
+        btnEnviarOferta.setTitleColor(Tinta.textoPrimario, for: .disabled)
         btnEnviarOferta.clipsToBounds = true
         btnEnviarOferta.addTarget(self, action: #selector(enviarOferta), for: .touchUpInside)
         sheetPanel.addSubview(btnEnviarOferta)
+
+        // El teclado del importe tapa la hoja entera: hace falta salida.
+        let cierre = UITapGestureRecognizer(target: self, action: #selector(cerrarTeclado))
+        // Sin esto el gesto le robaria el toque a los botones que tiene debajo.
+        cierre.cancelsTouchesInView = false
+        sheetPanel.addGestureRecognizer(cierre)
     }
 
+    @objc private func cerrarTeclado() {
+        view.endEditing(true)
+    }
+
+    /// bg_stepper_button: gris E0E0E0 y esquinas de pastilla.
     private func prepararBotonDeAjuste(_ boton: UIButton, accion: Selector) {
-        boton.backgroundColor = UIColor(white: 0.93, alpha: 1)
+        boton.backgroundColor = Tinta.grisAjustador
         boton.layer.cornerRadius = 24
         boton.clipsToBounds = true
         boton.titleLabel?.font = UIFont(name: "NotoSans-Regular", size: 16) ?? UIFont.systemFont(ofSize: 16)
-        boton.setTitleColor(UIColor(white: 0.35, alpha: 1), for: .normal)
+        boton.setTitleColor(Tinta.textoTerciario, for: .normal)
         boton.addTarget(self, action: accion, for: .touchUpInside)
     }
 
@@ -543,7 +591,7 @@ private class TripOffersRootView: UIView {
     /// Todo lo que vive dentro de la hoja mientras se espera.
     private var contenidoDeLaHoja: [UIView] {
         return [asa, bannerCard, tarjetaViaje, lblTuOferta,
-                btnMenos, lblMonto, btnMas, lblConversion, btnEnviarOferta]
+                btnMenos, lblMoneda, txtMonto, btnMas, lblConversion, btnEnviarOferta]
     }
 
 
@@ -577,7 +625,7 @@ private class TripOffersRootView: UIView {
             let anchoCancelar = min(max(self.cancelButton.intrinsicContentSize.width + 32, 100), w * 0.45)
             self.cancelButton.frame = CGRect(x: w - 16 - anchoCancelar, y: 0,
                                              width: anchoCancelar, height: alto)
-            let xTitulo = self.btnAtras.frame.maxX + 8
+            let xTitulo = (self.btnAtras.isHidden ? 16 : self.btnAtras.frame.maxX) + 8
             self.searchingLabel.frame = CGRect(x: xTitulo, y: 0,
                                                width: max(0, self.cancelButton.frame.minX - 8 - xTitulo),
                                                height: alto)
@@ -616,45 +664,54 @@ private class TripOffersRootView: UIView {
     }
 
     /// Lo que mide el contenido de la hoja. Se calcula antes de colocar nada.
+    /**
+     Lo que mide el contenido de la hoja, con los margenes de activity_offers.xml:
+     paddingTop 10, asa 4 + 12, banner + 12, tarjeta, +12 rotulo, +10 ajustador,
+     +4 conversion, +16 boton, paddingBottom 20.
+     */
     private func altoDelContenido(ancho w: CGFloat) -> CGFloat {
         let cw = w - Self.padLateral * 2
         var y: CGFloat = 10
-        y += 4 + 12                                   // asa
+        y += 4 + 12
         if hayBannerQueMostrar {
             y += alturaDelBanner(ancho: cw) + 12
         }
-        y += altoDeLaTarjetaDeViaje(ancho: cw) + 12
-        y += 20 + 10                                  // "tu ofreciste (...)"
-        y += 48 + 6                                   // ajustador
-        // Sin tasa configurada la conversion no se enseña y tampoco deja su hueco,
-        // igual que el GONE de Android: un blanco a media hoja se lee como que falta algo.
-        y += lblConversion.isHidden ? 10 : (16 + 16)
-        y += 56 + 20                                  // enviar oferta
+        y += altoDeLaTarjetaDeViaje(ancho: cw)
+        y += 12 + 18
+        y += 10 + 48
+        // Sin tasa configurada la conversion no se enseña y tampoco deja hueco, igual
+        // que el GONE de Android: un blanco a media hoja se lee como que falta algo.
+        y += lblConversion.isHidden ? 0 : (4 + 16)
+        y += 16 + 56
+        y += 20
         return y
     }
 
+    /// padding 12, columna de marcas de 12 de ancho, 12 de separacion, texto a la derecha.
     private func altoDeLaTarjetaDeViaje(ancho cw: CGFloat) -> CGFloat {
-        let anchoTexto = cw - 24 - 24
+        let anchoTexto = cw - 12 - 12 - 12 - 12
         var alto: CGFloat = 12
         alto += altoDeTexto(lblRecogida, ancho: anchoTexto)
-        if !(lblNotas.text ?? "").isEmpty {
-            alto += 6 + altoDeTexto(lblNotas, ancho: anchoTexto)
-        }
+        alto += 8 + altoDeTexto(lblNotas, ancho: anchoTexto)
         alto += 8 + altoDeTexto(lblDestino, ancho: anchoTexto)
         alto += 12
-        return max(alto, 64)
+        // La columna de marcas mide 12 + 28 + 12 y no encoge: si el texto es mas corto,
+        // manda ella.
+        return max(alto, 12 + 52 + 12)
     }
 
     private func altoDeTexto(_ etiqueta: UILabel, ancho: CGFloat) -> CGFloat {
         guard let texto = etiqueta.text, !texto.isEmpty, ancho > 0 else { return 0 }
-        let fuente = etiqueta.font ?? UIFont.systemFont(ofSize: 14)
-        let tope = fuente.lineHeight * CGFloat(max(etiqueta.numberOfLines, 1))
+        let fuente = etiqueta.font ?? UIFont.systemFont(ofSize: 13)
+        let lineas = etiqueta.numberOfLines
+        let sinTope = CGFloat.greatestFiniteMagnitude
+        let tope = lineas > 0 ? fuente.lineHeight * CGFloat(lineas) : sinTope
         let medida = (texto as NSString).boundingRect(
-            with: CGSize(width: ancho, height: tope + 2),
+            with: CGSize(width: ancho, height: lineas > 0 ? tope + 2 : sinTope),
             options: [.usesLineFragmentOrigin, .usesFontLeading],
             attributes: [.font: fuente],
             context: nil)
-        return ceil(min(medida.height, tope))
+        return ceil(lineas > 0 ? min(medida.height, tope) : medida.height)
     }
 
     private func colocarContenido(ancho w: CGFloat) {
@@ -675,58 +732,69 @@ private class TripOffersRootView: UIView {
         let altoTarjeta = altoDeLaTarjetaDeViaje(ancho: cw)
         tarjetaViaje.frame = CGRect(x: pad, y: y, width: cw, height: altoTarjeta)
         colocarTarjetaDeViaje(ancho: cw)
-        y += altoTarjeta + 12
+        y += altoTarjeta
 
-        lblTuOferta.frame = CGRect(x: pad, y: y, width: cw, height: 20)
-        y += 20 + 10
+        y += 12
+        lblTuOferta.frame = CGRect(x: pad, y: y, width: cw, height: 18)
+        y += 18
 
+        // Los botones se miden por su texto, con 20 de aire a cada lado (paddingHorizontal).
+        y += 10
         let ladoBoton: CGFloat = 48
-        let anchoBoton: CGFloat = 96
-        btnMenos.frame = CGRect(x: pad, y: y, width: anchoBoton, height: ladoBoton)
-        btnMas.frame   = CGRect(x: w - pad - anchoBoton, y: y, width: anchoBoton, height: ladoBoton)
-        lblMonto.frame = CGRect(x: btnMenos.frame.maxX + 8, y: y,
-                                width: max(0, btnMas.frame.minX - btnMenos.frame.maxX - 16),
-                                height: ladoBoton)
-        y += ladoBoton + 6
+        let anchoMenos = ceil(btnMenos.intrinsicContentSize.width) + 40
+        let anchoMas   = ceil(btnMas.intrinsicContentSize.width) + 40
+        btnMenos.frame = CGRect(x: pad, y: y, width: anchoMenos, height: ladoBoton)
+        btnMas.frame   = CGRect(x: w - pad - anchoMas, y: y, width: anchoMas, height: ladoBoton)
+
+        // El simbolo y el numero van juntos y centrados entre los dos botones.
+        let anchoMoneda = ceil(lblMoneda.intrinsicContentSize.width)
+        let anchoNumero = ceil(txtMonto.intrinsicContentSize.width) + 6
+        let huecoCentro = btnMas.frame.minX - btnMenos.frame.maxX
+        let anchoPar = min(anchoMoneda + 4 + anchoNumero, max(huecoCentro - 8, 0))
+        let xPar = btnMenos.frame.maxX + (huecoCentro - anchoPar) / 2
+        lblMoneda.frame = CGRect(x: xPar, y: y, width: anchoMoneda, height: ladoBoton)
+        txtMonto.frame  = CGRect(x: xPar + anchoMoneda + 4, y: y,
+                                 width: max(0, anchoPar - anchoMoneda - 4), height: ladoBoton)
+        y += ladoBoton
 
         if lblConversion.isHidden {
             lblConversion.frame = CGRect(x: pad, y: y, width: cw, height: 0)
-            y += 10
         } else {
+            y += 4
             lblConversion.frame = CGRect(x: pad, y: y, width: cw, height: 16)
-            y += 16 + 16
+            y += 16
         }
 
+        y += 16
         btnEnviarOferta.frame = CGRect(x: pad, y: y, width: cw, height: 56)
+        // bg_button_primary es una pastilla; el estado apagado usa rounded_corner_grey,
+        // que tiene 5 de radio. El radio va con el color, asi que lo pone quien pinta.
+        aplicarFormaDelBotonDeEnviar()
     }
 
     private func colocarTarjetaDeViaje(ancho cw: CGFloat) {
-        let anchoTexto = cw - 24 - 24
-        var y: CGFloat = 12
+        let anchoTexto = cw - 48
+        let xTexto: CGFloat = 36           // 12 de padding + 12 de columna + 12 de aire
 
+        // La columna de marcas, fija y pegada arriba.
+        puntoRecogida.frame = CGRect(x: 12, y: 12, width: 12, height: 12)
+        lineaUnion.frame    = CGRect(x: 17.5, y: 24, width: 1, height: 28)
+        puntoDestino.frame  = CGRect(x: 12, y: 52, width: 12, height: 12)
+
+        var y: CGFloat = 12
         let altoRecogida = altoDeTexto(lblRecogida, ancho: anchoTexto)
-        lblRecogida.frame = CGRect(x: 48, y: y, width: anchoTexto, height: altoRecogida)
-        puntoRecogida.frame = CGRect(x: 18, y: y + 4, width: 12, height: 12)
+        lblRecogida.frame = CGRect(x: xTexto, y: y, width: anchoTexto, height: altoRecogida)
         y += altoRecogida
 
-        if !(lblNotas.text ?? "").isEmpty {
-            let altoNotas = altoDeTexto(lblNotas, ancho: anchoTexto)
-            lblNotas.frame = CGRect(x: 48, y: y + 6, width: anchoTexto, height: altoNotas)
-            y += 6 + altoNotas
-        } else {
-            lblNotas.frame = .zero
-        }
+        y += 8
+        let altoNotas = altoDeTexto(lblNotas, ancho: anchoTexto)
+        lblNotas.frame = CGRect(x: xTexto, y: y, width: anchoTexto, height: altoNotas)
+        y += altoNotas
 
+        y += 8
         let altoDestino = altoDeTexto(lblDestino, ancho: anchoTexto)
-        lblDestino.frame = CGRect(x: 48, y: y + 8, width: anchoTexto, height: altoDestino)
-        puntoDestino.frame = CGRect(x: 18, y: y + 8 + 4, width: 12, height: 12)
-
-        lineaUnion.frame = CGRect(x: 23.5,
-                                  y: puntoRecogida.frame.maxY + 2,
-                                  width: 1,
-                                  height: max(0, puntoDestino.frame.minY - puntoRecogida.frame.maxY - 4))
+        lblDestino.frame = CGRect(x: xTexto, y: y, width: anchoTexto, height: altoDestino)
     }
-
 
     // MARK: - La oferta
 
@@ -744,6 +812,7 @@ private class TripOffersRootView: UIView {
         if !simbolo.isEmpty {
             moneda = simbolo
         }
+        lblMoneda.text = moneda
 
         montoOfrecido     = Float(trip?.trip_fare ?? "0") ?? 0
         montoDelAjustador = montoOfrecido
@@ -760,32 +829,31 @@ private class TripOffersRootView: UIView {
             hayTopes = true
         }
 
-        lblRecogida.text = trip?.trip_pick_loc ?? ""
-        lblDestino.text  = trip?.trip_drop_loc ?? ""
-        lblNotas.text    = notasDeRecogida()
+        /*
+         Los tres textos de la tarjeta, tal cual los escribe Android.
+
+         Las notas del pedido van pegadas a la direccion de recogida con dos saltos de
+         linea, y esa etiqueta admite dos lineas: cuando la direccion ya ocupa las dos
+         -- que es lo normal -- las notas no llegan a verse. Queda asi a proposito,
+         porque el encargo era calcar la pantalla; el hueco de en medio lo ocupa el
+         rotulo fijo "tu ofreciste", que es lo que pone Android en setLocalizeData.
+         */
+        let recogida = trip?.trip_pick_loc ?? ""
+        let notas = (trip?.pickup_notes ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if notas.isEmpty {
+            lblRecogida.text = recogida
+        } else {
+            lblRecogida.text = String(format: "%@\n\n%@ %@", recogida,
+                                      LanguageHelper.getStringWithKey("k_1_s8_special_notes",
+                                                                      defaultValue: "Notas especiales:"),
+                                      notas)
+        }
+        lblNotas.text   = LanguageHelper.getStringWithKey("k_1_s9_ur_ofr", defaultValue: "tu ofreciste")
+        lblDestino.text = trip?.trip_drop_loc ?? ""
 
         btnMenos.setTitle(String(format: "- %.2f", pasoDeOferta), for: .normal)
         btnMas.setTitle(String(format: "+ %.2f", pasoDeOferta), for: .normal)
         refrescarTextosDeLaOferta()
-    }
-
-    /**
-     Lo que se configuro al pedir, para que el pasajero lo tenga delante.
-
-     Llega en pickup_notes con el formato "Cash|Mascotas|3 Pasajero(s)". Se enseña con
-     las barras cambiadas por comas: son campos de una sola cadena, no una lista que
-     el pasajero deba leer separada.
-     */
-    private func notasDeRecogida() -> String {
-        let notas = (trip?.pickup_notes ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !notas.isEmpty else { return "" }
-        let partes = notas.split(separator: "|").map {
-            $0.trimmingCharacters(in: .whitespaces)
-        }.filter { !$0.isEmpty }
-        guard !partes.isEmpty else { return "" }
-        return String(format: "%@ %@",
-                      LanguageHelper.getStringWithKey("k_1_s8_special_notes", defaultValue: "Notas:"),
-                      partes.joined(separator: ", "))
     }
 
     @objc private func bajarOferta() { moverOferta(-pasoDeOferta) }
@@ -806,28 +874,46 @@ private class TripOffersRootView: UIView {
     }
 
     /**
+     El importe escrito a mano.
+
+     Se recorta a dos decimales mientras se teclea, como el doAfterTextChanged de
+     Android: el campo es el mismo sitio donde luego escribe el ajustador, y dejar
+     entrar tres decimales daria un importe que el boton no sabria comparar.
+     */
+    @objc private func montoEscrito() {
+        var texto = txtMonto.text ?? ""
+        if let punto = texto.firstIndex(of: ".") {
+            let decimales = texto[texto.index(after: punto)...]
+            if decimales.count > 2 {
+                texto = String(texto[..<punto]) + "." + String(decimales.prefix(2))
+                txtMonto.text = texto
+            }
+        }
+        montoDelAjustador = Float(texto) ?? 0
+        refrescarTextosDeLaOferta(actualizandoElCampo: false)
+    }
+
+    /**
      Pinta el importe en los tres sitios donde sale y decide si se puede enviar.
 
      El boton se apaga cuando el ajustador marca lo mismo que ya esta ofrecido: no hay
      nada que mandar, y un boton vivo que no hace nada se lee como que el envio fallo.
+     Apagado cambia de color Y de forma, porque Android usa dos fondos distintos --
+     bg_button_primary es una pastilla y rounded_corner_grey tiene 5 de radio.
      */
-    private func refrescarTextosDeLaOferta() {
+    private func refrescarTextosDeLaOferta(actualizandoElCampo: Bool = true) {
+        if actualizandoElCampo {
+            txtMonto.text = String(format: "%.2f", montoDelAjustador)
+        }
         let importe = Utilities.formatAmountAndCurrency(montoDelAjustador, currency: moneda) ?? ""
 
-        lblMonto.text = importe
-        lblTuOferta.text = String(format: "%@ (%@)",
-                                  LanguageHelper.getStringWithKey("k_1_s9_ur_ofr", defaultValue: "tu ofreciste"),
-                                  importe)
-        btnEnviarOferta.setTitle(String(format: "%@ (%@)",
-                                        LanguageHelper.getStringWithKey("k_63_s4_vw_snd_ofr", defaultValue: "Enviar oferta"),
-                                        importe), for: .normal)
+        lblTuOferta.text = String(format: "tu ofreciste (%@)", importe)
+        btnEnviarOferta.setTitle(String(format: "Enviar oferta (%@)", importe), for: .normal)
 
         let sePuedeEnviar = abs(montoDelAjustador - montoOfrecido) > 0.001
         btnEnviarOferta.isEnabled = sePuedeEnviar
-        btnEnviarOferta.backgroundColor = sePuedeEnviar
-            ? (UIColor(named: "app_theame") ?? UIColor(red: 0.922, green: 0.710, blue: 0.094, alpha: 1))
-            : UIColor(white: 0.72, alpha: 1)
-        btnEnviarOferta.setTitleColor(sePuedeEnviar ? .black : UIColor(white: 0.35, alpha: 1), for: .normal)
+        btnEnviarOferta.backgroundColor = sePuedeEnviar ? Tinta.amarillo : Tinta.grisApagado
+        aplicarFormaDelBotonDeEnviar()
 
         let tasa = ConstantModel.tasaDolarALocal()
         if tasa > 0 {
@@ -836,9 +922,7 @@ private class TripOffersRootView: UIView {
             formato.minimumFractionDigits = 2
             formato.maximumFractionDigits = 2
             let local = formato.string(from: NSNumber(value: montoDelAjustador * tasa)) ?? ""
-            lblConversion.text = String(format: "%@ Bs %@",
-                                        LanguageHelper.getStringWithKey("k_s10_conversion", defaultValue: "Conversión:"),
-                                        local)
+            lblConversion.text = String(format: "Conversión: Bs %@", local)
             lblConversion.isHidden = false
         } else {
             lblConversion.text = ""
@@ -846,8 +930,25 @@ private class TripOffersRootView: UIView {
         }
     }
 
+    private func aplicarFormaDelBotonDeEnviar() {
+        let alto = max(btnEnviarOferta.bounds.height, 56)
+        btnEnviarOferta.layer.cornerRadius = btnEnviarOferta.isEnabled ? alto / 2 : 5
+    }
+
     @objc private func enviarOferta() {
-        guard let trip = trip, montoDelAjustador > 0 else { return }
+        view.endEditing(true)
+        guard let trip = trip, montoDelAjustador > 0 else {
+            avisar(LanguageHelper.getStringWithKey("k_r1_s6_please_enter_amount"))
+            return
+        }
+        if hayTopes && montoDelAjustador < ofertaMinima {
+            avisar(LanguageHelper.getStringWithKey("k_r1_s6_pls_ntr_amnt_grtr_thn_min_fare"))
+            return
+        }
+        if hayTopes && montoDelAjustador > ofertaMaxima {
+            avisar(LanguageHelper.getStringWithKey("k_r1_s6_pls_ntr_amnt_less_thn_max_fare"))
+            return
+        }
         tripOfferManager.updateTripPayAmount(trip: trip, amount: montoDelAjustador) { [weak self] results, error in
             guard let self = self else { return }
             if error != nil || results == nil {
@@ -859,7 +960,7 @@ private class TripOffersRootView: UIView {
             // decide si queda algo por mandar.
             self.montoOfrecido = self.montoDelAjustador
             self.trip?.trip_fare = String(format: "%.2f", self.montoDelAjustador)
-            self.refrescarTextosDeLaOferta()
+            self.refrescarTextosDeLaOferta(actualizandoElCampo: false)
         }
     }
 
