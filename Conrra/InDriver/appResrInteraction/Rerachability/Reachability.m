@@ -47,7 +47,9 @@
 
 #import <sys/socket.h>
 #import <netinet/in.h>
-#import <netinet6/in6.h>
+// netinet6/in6.h es un header privado del sistema: los SDK nuevos lo rechazan
+// ("Use of private header from outside its module"). Sobra, ademas: lo incluye
+// netinet/in.h, que ya esta importado arriba. Aqui no se usa ningun tipo IPv6.
 #import <arpa/inet.h>
 #import <ifaddrs.h>
 #import <netdb.h>
