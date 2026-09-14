@@ -338,6 +338,22 @@
         isReturningFromFareOffer = NO;
         return;
     }
+    /*
+     Con la pantalla de tarifa viva NO se reinicia nada.
+
+     El reset de aqui abajo tira `direction` entera y la sustituye por una vacia, que
+     es lo correcto al entrar al home de nuevo pero no mientras se esta montando un
+     viaje. Cualquier pantalla que se presente en modo FullScreen por encima -- la hoja
+     de metodos de pago, sin ir mas lejos -- hace reaparecer el home al cerrarse y
+     disparaba este reset a media composicion.
+
+     Arreglar solo la hoja de pago dejaria la trampa puesta para la siguiente pantalla
+     que alguien presente igual, asi que la condicion se pone aqui.
+     */
+    if (currentFareOfferVC != nil) {
+        [self.navigationController setNavigationBarHidden:YES animated:NO];
+        return;
+    }
     if(isShowFarePolicyButtonTap){
         isShowFarePolicyButtonTap=NO;
         if(direction) {
@@ -354,9 +370,7 @@
     // In the 3-screen flow these legacy views must stay hidden on Screen 1
     // (reset: un-hides viewInputOffer; the others can bleed through too)
     if (isSheetSetup) {
-        self.viewInputOffer.hidden        = YES;
-        self.viewEstimateFareInput.hidden = YES;
-        self.showButtonOnView.hidden      = YES;
+        [self ocultarRestosDelDisenoViejo];
     }
     isMapDraged=NO;
     isMapRouteMake=NO;
@@ -5160,6 +5174,25 @@
     homeBottomSheet.hidden = NO;
     self.btnGps.hidden     = NO;
     [self ocultarPildoraDeRuta];
+    [self ocultarRestosDelDisenoViejo];
+}
+
+/**
+ Esconde lo que queda del home antiguo.
+
+ showFareInfoForCategory tiene dos caminos: con la pantalla de tarifa pendiente se sale
+ antes de tocar nada, pero cualquier estimacion posterior -- un cambio de categoria, un
+ cupon -- cae por el camino viejo y ENSEÑA los botones de informacion de tarifa, que en
+ este diseño no tienen sitio asignado y aparecen sueltos arriba a la izquierda, encima
+ de la barra de estado.
+ */
+-(void)ocultarRestosDelDisenoViejo {
+    [self categoryFareInformationIsHidden:YES];
+    self.viewInputOffer.hidden        = YES;
+    self.viewEstimateFareInput.hidden = YES;
+    self.showButtonOnView.hidden      = YES;
+    self.viewTimeDistance.hidden      = YES;
+    self.viewConfirmViewShow.hidden   = YES;
 }
 
 /**
@@ -5314,7 +5347,19 @@
     payVC.cityModel     = cityModel;
     // Pass the current fare so wallet validation can check the balance
     payVC.tripFare      = vc.currentAmount;
-    payVC.modalPresentationStyle = UIModalPresentationFullScreen;
+    /*
+     OverFullScreen, no FullScreen.
+
+     Se ve igual -- las dos ocupan la pantalla entera -- pero FullScreen SACA de la
+     ventana la jerarquia que hay debajo, incluido el home. Al cerrar la hoja el home
+     volvia a aparecer, con su viewWillAppear, y ahi hay un reset que reemplaza
+     `direction` por un objeto vacio: el pasajero perdia la recogida y el destino que
+     acababa de elegir, y al pedir el taxi le decia que no habia direccion.
+
+     Con OverFullScreen el home nunca se va de la ventana y su viewWillAppear no
+     llega a correr.
+     */
+    payVC.modalPresentationStyle = UIModalPresentationOverFullScreen;
     [vc.navigationController presentViewController:payVC animated:YES completion:nil];
 }
 
