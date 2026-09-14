@@ -65,8 +65,17 @@
 - (void)updatePaymentLabel:(NSString *)label icon:(nullable UIImage *)icon;
 
 /// Read the configuration toggles when building the trip request
-@property (assign, nonatomic, readonly) BOOL configExtraPassengers;
 @property (assign, nonatomic, readonly) BOOL configPetsAllowed;
 @property (assign, nonatomic, readonly) BOOL configIsDelivery;
+
+/// Cuantos viajan, contando al que pide. Entre 1 y el tope de la categoria.
+@property (assign, nonatomic, readonly) NSInteger numeroDePasajeros;
+/**
+ Lo que se suma a la tarifa por los pasajeros de mas.
+
+ Ya va incluido en currentAmount -- esto se expone solo para poder enseñarlo
+ desglosado, no para sumarlo otra vez.
+ */
+@property (assign, nonatomic, readonly) float recargoPorPasajeros;
 
 @end

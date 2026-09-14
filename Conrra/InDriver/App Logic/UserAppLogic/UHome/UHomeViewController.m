@@ -125,6 +125,8 @@
     BookingModel *_bookingModel;
     BOOL isFareCalculated;
     NSString *pickupNotes;
+    /** "Cash|Mascotas|3 Pasajero(s)": lo que se configuro al pedir, no lo que se escribio. */
+    NSString *configDelViaje;
     BOOL sosApiCalled;
     NSTimer *timerForResetPickDrop;
     HomePaymentViewModel * paymentViewModel;
@@ -149,6 +151,8 @@
     CGFloat   sheetExpandedY;
     /** Fila de categorias del servidor. Antes eran dos tarjetas fijas. */
     UIScrollView *vehicleCardsScroll;
+    /** "2,6 km - 9 min" sobre el mapa mientras se elige la tarifa. */
+    UILabel *pildoraRuta;
     NSMutableArray<UIView *> *vehicleCards;
     NSInteger selectedVehicleIndex;
     UILabel  *homeAvailabilityLabel;
@@ -3118,6 +3122,19 @@
     }
 }
 
+/** La configuracion y, detras, lo que el pasajero haya escrito a mano. */
+-(NSString *)notaDeRecogida {
+    NSString *escrita = [isEmpty(pickupNotes)
+        stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    if (configDelViaje.length == 0) {
+        return escrita;
+    }
+    if (escrita.length == 0) {
+        return configDelViaje;
+    }
+    return [NSString stringWithFormat:@"%@|%@", configDelViaje, escrita];
+}
+
 - (IBAction)onAddPickupDetailsButTap:(id)sender {
     if(self.txtPickupAddress.text.length==0 ||direction.pickAddress.length==0) {
         [UtilityClass swa:@"" m:[LanguageHelper getStringWithKey:@"k_r7_s3_enter_pickup_loc"] cbt:[LanguageHelper getStringWithKey:@"k_18_s4_Ok"] obt:nil vc:self];
@@ -3511,7 +3528,7 @@
     [dict  setObject:direction.dropAddress forKey:@"trip_to_loc"]; // drop
     [dict  setObject:direction.pickAddress  forKey:@"trip_from_loc"];
     [dict  setObject:TS_REQUEST forKey:TRIP_STATUS];
-    [dict  setObject:isEmpty(pickupNotes) forKey:@"pickup_notes"];
+    [dict  setObject:[self notaDeRecogida] forKey:@"pickup_notes"];
     [dict  setObject:[NSString stringWithFormat:@"%@",[Utilities getStringFromDate:[NSDate date]]] forKey:@"trip_date"];
     
     
@@ -4953,15 +4970,91 @@
     homeBottomSheet.hidden = YES;
     self.btnGps.hidden     = YES;
 
+    // La ruta se encuadro cuando se trazo, con el mapa entero a la vista. Ahora la hoja
+    // de tarifa tapa mas de la mitad de abajo, asi que hay que volver a encuadrarla en
+    // el trozo que queda; si no, el viaje se ve a medias o directamente escondido.
+    [self encuadrarRutaDejandoHuecoAbajo:self.view.bounds.size.height * 0.58f];
+    [self mostrarPildoraDeRuta];
+
     UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:vc];
     nav.modalPresentationStyle = UIModalPresentationOverFullScreen;
     nav.navigationBarHidden    = YES;
     [self presentViewController:nav animated:YES completion:nil];
 }
 
+/**
+ Encuadra la ruta dejando libre una franja de abajo.
+
+ zoomToFitMapAnnotations centra en el mapa ENTERO, que es lo correcto mientras se ve
+ entero. En cuanto una hoja tapa la parte de abajo hace falta apartar la ruta de esa
+ zona, y para eso MapKit tiene margenes: setVisibleMapRect:edgePadding: reduce el
+ rectangulo util en vez de tener que inventar un centro desplazado a ojo.
+ */
+-(void)encuadrarRutaDejandoHuecoAbajo:(CGFloat)hueco {
+    if (direction == nil
+        || direction.source.coordinate.latitude == emptyLoc.latitude
+        || direction.destination.coordinate.latitude == emptyLoc.latitude) {
+        return;
+    }
+
+    MKMapPoint p1 = MKMapPointForCoordinate(direction.source.coordinate);
+    MKMapPoint p2 = MKMapPointForCoordinate(direction.destination.coordinate);
+    MKMapRect rect = MKMapRectMake(MIN(p1.x, p2.x), MIN(p1.y, p2.y),
+                                   fabs(p1.x - p2.x), fabs(p1.y - p2.y));
+    if (MKMapRectIsNull(rect) || rect.size.width == 0 || rect.size.height == 0) {
+        return;
+    }
+
+    // Arriba se deja sitio para el boton del menu, el titulo y la pildora.
+    UIEdgeInsets margenes = UIEdgeInsetsMake(140, 48, hueco + 24, 48);
+    [self.mapView setVisibleMapRect:rect edgePadding:margenes animated:YES];
+}
+
+/** "2,6 km · 9 min" flotando sobre el mapa, como en Android. */
+-(void)mostrarPildoraDeRuta {
+    if (tripDistanceConvertedInUnit <= 0 && tripTime <= 0) {
+        return;
+    }
+    NSString *unidad = isDistanceUnitKm(cityModel.city_dist_unit) ? @"km" : @"mi";
+    NSString *texto = [NSString stringWithFormat:@"%.2f %@  ·  %d min",
+                       tripDistanceConvertedInUnit, unidad, tripTime];
+
+    if (pildoraRuta == nil) {
+        pildoraRuta = [[UILabel alloc] init];
+        pildoraRuta.backgroundColor = [UIColor whiteColor];
+        pildoraRuta.textColor = [UIColor colorWithRed:0.157f green:0.157f blue:0.157f alpha:1.0f];
+        pildoraRuta.font = [UIFont fontWithName:@"NotoSans-Bold" size:15] ?: [UIFont boldSystemFontOfSize:15];
+        pildoraRuta.textAlignment = NSTextAlignmentCenter;
+        pildoraRuta.layer.cornerRadius = 18;
+        pildoraRuta.clipsToBounds = NO;
+        pildoraRuta.layer.masksToBounds = NO;
+        pildoraRuta.layer.shadowColor = [UIColor blackColor].CGColor;
+        pildoraRuta.layer.shadowOpacity = 0.15f;
+        pildoraRuta.layer.shadowRadius = 6;
+        pildoraRuta.layer.shadowOffset = CGSizeMake(0, 2);
+        [self.view addSubview:pildoraRuta];
+    }
+    pildoraRuta.text = texto;
+    CGFloat ancho = [texto sizeWithAttributes:@{NSFontAttributeName: pildoraRuta.font}].width + 32;
+    CGFloat safeTop = self.view.safeAreaInsets.top;
+    if (safeTop <= 0) { safeTop = 44; }
+    pildoraRuta.frame = CGRectMake((self.view.bounds.size.width - ancho) / 2.0,
+                                   safeTop + 56, ancho, 36);
+    // El fondo blanco debe ir redondeado pero la sombra no puede recortarse: por eso
+    // masksToBounds queda en NO y el radio se aplica a la capa.
+    pildoraRuta.layer.backgroundColor = [UIColor whiteColor].CGColor;
+    pildoraRuta.hidden = NO;
+    [self.view bringSubviewToFront:pildoraRuta];
+}
+
+-(void)ocultarPildoraDeRuta {
+    pildoraRuta.hidden = YES;
+}
+
 -(void)restoreScreen1Overlays {
     homeBottomSheet.hidden = NO;
     self.btnGps.hidden     = NO;
+    [self ocultarPildoraDeRuta];
 }
 
 /**
@@ -5007,12 +5100,38 @@
 }
 
 -(void)fareOfferVC:(UFareOfferViewController *)vc didRequestTripWithAmount:(float)amount {
+    // Hay que leerlo ahora: en cuanto se cierre la pantalla, el contador y los
+    // interruptores se van con ella.
+    configDelViaje = [self notaDeConfiguracionDesde:vc];
+
     currentFareOfferVC = nil;
     [self dismissViewControllerAnimated:YES completion:^{
         [self restoreScreen1Overlays];
         self.txtExtmatedFareAmt.text = [Utilities formatAmount:amount];
         [self onRequestButtonTap:self.btRiderNow];
     }];
+}
+
+/**
+ "Cash|Mascotas,Delivery|3 Pasajero(s)" -- el mismo formato exacto que manda Android.
+
+ El conductor enseña esta cadena tal cual (TripModel.pickup_notes), sin interpretarla.
+ Por eso el formato importa: si iOS mandara otra cosa, el mismo viaje se leeria
+ distinto segun con que app lo hubiera pedido el pasajero.
+ */
+-(NSString *)notaDeConfiguracionDesde:(UFareOfferViewController *)vc {
+    NSMutableArray *opciones = [NSMutableArray array];
+    if (vc.configPetsAllowed) {
+        [opciones addObject:@"Mascotas"];
+    }
+    if (vc.configIsDelivery) {
+        [opciones addObject:@"Delivery"];
+    }
+
+    return [NSString stringWithFormat:@"%@|%@|%ld Pasajero(s)",
+            isEmpty(paymentViewModel.tripPayMode),
+            [opciones componentsJoinedByString:@","],
+            (long)vc.numeroDePasajeros];
 }
 
 -(void)fareOfferVCDidTapPayment:(UFareOfferViewController *)vc {

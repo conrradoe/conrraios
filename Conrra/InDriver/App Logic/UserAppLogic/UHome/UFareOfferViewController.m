@@ -16,6 +16,17 @@
 #import "LanguageHelper.h"
 
 static const CGFloat kRowH          = 76.0f; // height of each config toggle row
+
+/**
+ La regla de los pasajeros, la misma que Android (updatePassengerLogic).
+
+ Caben cinco en un coche y uno en una moto, y a partir del cuarto se cobra un
+ suplemento por cabeza. El tope de la moto no es una tarifa: es que no caben.
+ */
+static const NSInteger kPasajerosTopeCoche   = 5;
+static const NSInteger kPasajerosTopeMoto    = 1;
+static const NSInteger kPasajerosSinRecargo  = 3;
+static const float     kRecargoPorPasajero   = 0.75f;
 static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps)
 
 /// Full-screen root view that passes touch events through the transparent map area.
@@ -34,6 +45,9 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
     float _currentAmount;
     BOOL  _configExpanded;
     BOOL  _didBuildLayout;
+    NSInteger _numPasajeros;
+    /// Lo que los pasajeros de mas han añadido a _currentAmount.
+    float _recargoPasajeros;
 }
 
 // Fare stepper
@@ -56,11 +70,19 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
 @property (strong, nonatomic) UIButton     *pedirBtn;
 // Elige tu viaje
 @property (strong, nonatomic) UILabel *lblMontoLocal;
+// Chip de la categoria elegida, arriba a la derecha
+@property (strong, nonatomic) UILabel *lblChipCategoria;
+@property (strong, nonatomic) UIImageView *imgChipCategoria;
 @property (strong, nonatomic) NSMutableArray<UIView *> *filasCategoria;
 // Config toggle switches
-@property (strong, nonatomic) UISwitch     *switchPassengers;
 @property (strong, nonatomic) UISwitch     *switchPets;
 @property (strong, nonatomic) UISwitch     *switchDelivery;
+// Contador de pasajeros
+@property (strong, nonatomic) UILabel  *lblNumPasajeros;
+/// El subtitulo de la fila: cuenta el tope o el recargo, segun toque.
+@property (strong, nonatomic) UILabel  *lblDesglosePasajeros;
+@property (strong, nonatomic) UIButton *btnMasPasajeros;
+@property (strong, nonatomic) UIButton *btnMenosPasajeros;
 
 @end
 
@@ -70,9 +92,10 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
 
 #pragma mark - Config toggle accessors
 
-- (BOOL)configExtraPassengers { return self.switchPassengers.isOn; }
 - (BOOL)configPetsAllowed     { return self.switchPets.isOn; }
 - (BOOL)configIsDelivery      { return self.switchDelivery.isOn; }
+- (NSInteger)numeroDePasajeros { return _numPasajeros > 0 ? _numPasajeros : 1; }
+- (float)recargoPorPasajeros   { return _recargoPasajeros; }
 
 #pragma mark - Lifecycle
 
@@ -85,6 +108,7 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
 - (void)viewDidLoad {
     [super viewDidLoad];
     _currentAmount = (self.recommendedFare > 0) ? self.recommendedFare : 0.0f;
+    _numPasajeros  = 1;
 }
 
 - (void)viewDidLayoutSubviews {
@@ -174,6 +198,7 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
     titleLbl.font      = [UIFont fontWithName:@"NotoSans-Bold" size:18] ?: [UIFont boldSystemFontOfSize:18];
     titleLbl.textColor = darkText;
     [titleLbl sizeToFit];
+    [self montarChipDeCategoriaConAlto:52.0 ancho:sw];
     titleLbl.frame = CGRectMake((sw - titleLbl.frame.size.width) / 2.0,
                                  y + (44 - titleLbl.frame.size.height) / 2.0,
                                  titleLbl.frame.size.width,
@@ -364,8 +389,8 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
     NSArray *rows = @[
         @{ @"icon":  @"person.3.fill",
            @"icon2": @"person.2.fill",
-           @"title": [LanguageHelper getStringWithKey:@"k_s10_more_than_4_passengers" defaultValue:@"Llevo más de 4 Personas"],
-           @"sub":   [LanguageHelper getStringWithKey:@"k_s10_4_passengers_limit" defaultValue:@"4 Personas es el límite por vehículo"] },
+           @"title": [LanguageHelper getStringWithKey:@"k_s10_passengers" defaultValue:@"Pasajeros"],
+           @"sub":   @"" },
         @{ @"icon":  @"pawprint.fill",
            @"icon2": @"heart.fill",
            @"title": [LanguageHelper getStringWithKey:@"k_s10_i_have_pets" defaultValue:@"Llevo mascotas"],
@@ -380,10 +405,11 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
                           ?: [UIColor colorWithRed:0.922f green:0.710f blue:0.094f alpha:1.0f];
     UIColor *iconTint   = [UIColor colorWithRed:0.6f green:0.6f blue:0.6f alpha:1.0f];
 
+    // La primera fila no lleva interruptor sino contador, asi que su hueco va vacio.
     NSArray *switches = @[
-        (self.switchPassengers = [self makeSwitchWithTint:yellowTint]),
-        (self.switchPets       = [self makeSwitchWithTint:yellowTint]),
-        (self.switchDelivery   = [self makeSwitchWithTint:yellowTint]),
+        [NSNull null],
+        (self.switchPets     = [self makeSwitchWithTint:yellowTint]),
+        (self.switchDelivery = [self makeSwitchWithTint:yellowTint]),
     ];
 
     for (NSInteger i = 0; i < (NSInteger)rows.count; i++) {
@@ -403,12 +429,19 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
         iconView.contentMode = UIViewContentModeScaleAspectFit;
         [row addSubview:iconView];
 
-        UISwitch *sw = switches[(NSUInteger)i];
-        [sw sizeToFit];
-        CGFloat swW = sw.frame.size.width;
-        CGFloat swH = sw.frame.size.height;
-        sw.frame = CGRectMake(w - 16 - swW, (kRowH - swH) / 2.0, swW, swH);
-        [row addSubview:sw];
+        // El ancho del mando de la derecha, sea interruptor o contador: de el sale el
+        // sitio que le queda al texto.
+        CGFloat swW;
+        if (i == 0) {
+            swW = [self montarContadorEnFila:row ancho:w];
+        } else {
+            UISwitch *sw = switches[(NSUInteger)i];
+            [sw sizeToFit];
+            swW = sw.frame.size.width;
+            CGFloat swH = sw.frame.size.height;
+            sw.frame = CGRectMake(w - 16 - swW, (kRowH - swH) / 2.0, swW, swH);
+            [row addSubview:sw];
+        }
 
         // Available width for title + subtitle
         CGFloat textX    = 56.0;
@@ -438,6 +471,15 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
         [row addSubview:titleLbl];
         [row addSubview:subLbl];
 
+        if (i == 0) {
+            // Este subtitulo cambia con el contador -- se guarda para reescribirlo.
+            // Se le deja sitio para dos lineas fijas: si creciera al llegar el recargo,
+            // empujaria al titulo y la fila daria un salto en cada toque.
+            self.lblDesglosePasajeros = subLbl;
+            subLbl.frame = CGRectMake(textX, CGRectGetMaxY(titleLbl.frame) + 3, textMaxW, 32);
+            [self refrescarFilaDePasajeros];
+        }
+
         // Separator below row (not after last)
         if (i < (NSInteger)rows.count - 1) {
             UIView *sep = [[UIView alloc] initWithFrame:CGRectMake(16, ry + kRowH, w - 32, 1)];
@@ -445,6 +487,153 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
             [cv addSubview:sep];
         }
     }
+}
+
+/**
+ El "- 1 +" de la derecha. Devuelve lo que ocupa, para que el texto sepa donde acaba.
+ */
+- (CGFloat)montarContadorEnFila:(UIView *)fila ancho:(CGFloat)w {
+    CGFloat lado   = 32.0;
+    CGFloat hueco  = 34.0;   // sitio para el numero
+    CGFloat ancho  = lado * 2 + hueco;
+    CGFloat x      = w - 16 - ancho;
+    CGFloat y      = (kRowH - lado) / 2.0;
+
+    self.btnMenosPasajeros = [self botonDeContadorConTitulo:@"−"];
+    self.btnMenosPasajeros.frame = CGRectMake(x, y, lado, lado);
+    [self.btnMenosPasajeros addTarget:self action:@selector(menosPasajeros)
+                     forControlEvents:UIControlEventTouchUpInside];
+    [fila addSubview:self.btnMenosPasajeros];
+
+    self.lblNumPasajeros = [[UILabel alloc] initWithFrame:CGRectMake(x + lado, y, hueco, lado)];
+    self.lblNumPasajeros.font = [UIFont fontWithName:@"NotoSans-Bold" size:17] ?: [UIFont boldSystemFontOfSize:17];
+    self.lblNumPasajeros.textAlignment = NSTextAlignmentCenter;
+    self.lblNumPasajeros.textColor = [UIColor colorWithRed:0.157f green:0.157f blue:0.157f alpha:1.0f];
+    [fila addSubview:self.lblNumPasajeros];
+
+    self.btnMasPasajeros = [self botonDeContadorConTitulo:@"+"];
+    self.btnMasPasajeros.frame = CGRectMake(x + lado + hueco, y, lado, lado);
+    [self.btnMasPasajeros addTarget:self action:@selector(masPasajeros)
+                   forControlEvents:UIControlEventTouchUpInside];
+    [fila addSubview:self.btnMasPasajeros];
+
+    return ancho;
+}
+
+- (UIButton *)botonDeContadorConTitulo:(NSString *)titulo {
+    UIButton *b = [UIButton buttonWithType:UIButtonTypeCustom];
+    b.backgroundColor    = [UIColor colorWithRed:0.949f green:0.949f blue:0.949f alpha:1.0f];
+    b.layer.cornerRadius = 16;
+    b.clipsToBounds      = YES;
+    [b setTitle:titulo forState:UIControlStateNormal];
+    [b setTitleColor:[UIColor colorWithRed:0.157f green:0.157f blue:0.157f alpha:1.0f]
+            forState:UIControlStateNormal];
+    [b setTitleColor:[UIColor colorWithWhite:0.75f alpha:1.0f] forState:UIControlStateDisabled];
+    b.titleLabel.font = [UIFont systemFontOfSize:20 weight:UIFontWeightMedium];
+    return b;
+}
+
+#pragma mark - Pasajeros
+
+/** En moto va uno y en coche cinco: es sitio, no tarifa. */
+- (NSInteger)topeDePasajeros {
+    NSString *nombre = [self.categoriaElegida.cat_name lowercaseString];
+    if (nombre.length > 0 && [nombre containsString:@"moto"]) {
+        return kPasajerosTopeMoto;
+    }
+    return kPasajerosTopeCoche;
+}
+
+- (void)masPasajeros   { [self aplicarNumeroDePasajeros:_numPasajeros + 1]; }
+- (void)menosPasajeros { [self aplicarNumeroDePasajeros:_numPasajeros - 1]; }
+
+/**
+ Cambia cuantos van y ajusta lo que cuesta.
+
+ El recargo se suma AL IMPORTE, no se enseña aparte: es lo que se le va a ofrecer al
+ conductor, y tiene que salir en el numero grande y en el que se manda. Por eso aqui
+ se mueve la diferencia y no el total -- asi el pasajero conserva lo que hubiera
+ subido o bajado a mano con las flechas.
+
+ Los topes del ajustador tambien suben con el recargo, igual que en Android: son un
+ porcentaje de la tarifa de la categoria, y el recargo no es tarifa.
+ */
+- (void)aplicarNumeroDePasajeros:(NSInteger)n {
+    if (n < 1 || n > [self topeDePasajeros]) {
+        return;
+    }
+    _numPasajeros = n;
+
+    float recargoNuevo = 0.0f;
+    if (n > kPasajerosSinRecargo) {
+        recargoNuevo = (float)(n - kPasajerosSinRecargo) * kRecargoPorPasajero;
+    }
+    float diferencia  = recargoNuevo - _recargoPasajeros;
+    _recargoPasajeros = recargoNuevo;
+
+    _currentAmount += diferencia;
+    [self ajustarMontoALosTopes];
+    self.amountLabel.text = [self formattedAmount:_currentAmount];
+    [self actualizarMontoLocal];
+    [self refrescarFilaDePasajeros];
+}
+
+/** Vuelve a un pasajero y descuenta el recargo: al cambiar de categoria no se arrastra. */
+- (void)quitarRecargoDePasajeros {
+    _currentAmount   -= _recargoPasajeros;
+    _recargoPasajeros = 0.0f;
+    _numPasajeros     = 1;
+}
+
+- (void)ajustarMontoALosTopes {
+    float minimo = (self.minFare > 0) ? self.minFare + _recargoPasajeros : 0.0f;
+    float maximo = (self.maxFare > 0) ? self.maxFare + _recargoPasajeros : 0.0f;
+    if (minimo > 0 && _currentAmount < minimo) {
+        _currentAmount = minimo;
+    }
+    if (maximo > 0 && _currentAmount > maximo) {
+        _currentAmount = maximo;
+    }
+    if (_currentAmount < 0) {
+        _currentAmount = 0;
+    }
+}
+
+/**
+ El numero, el subtitulo y los botones.
+
+ Android avisa del tope con un Toast despues de que el toque no haya hecho nada. Aqui
+ el boton se apaga al llegar: se ve antes de tocar, y no hace falta interrumpir.
+ */
+- (void)refrescarFilaDePasajeros {
+    if (self.lblNumPasajeros == nil) {
+        return;
+    }
+    NSInteger tope = [self topeDePasajeros];
+    self.lblNumPasajeros.text = [NSString stringWithFormat:@"%ld", (long)_numPasajeros];
+
+    self.btnMenosPasajeros.enabled = (_numPasajeros > 1);
+    self.btnMasPasajeros.enabled   = (_numPasajeros < tope);
+    self.btnMenosPasajeros.alpha   = self.btnMenosPasajeros.enabled ? 1.0f : 0.4f;
+    self.btnMasPasajeros.alpha     = self.btnMasPasajeros.enabled   ? 1.0f : 0.4f;
+
+    NSString *texto;
+    if (tope == kPasajerosTopeMoto) {
+        texto = [LanguageHelper getStringWithKey:@"k_s10_moto_un_pasajero"
+                                    defaultValue:@"En moto solo viaja 1 pasajero"];
+    } else if (_recargoPasajeros > 0) {
+        NSInteger extra = _numPasajeros - kPasajerosSinRecargo;
+        texto = [NSString stringWithFormat:
+                 [LanguageHelper getStringWithKey:@"k_s10_recargo_pasajeros"
+                                     defaultValue:@"+ %@ por %ld pasajero(s) adicional(es)"],
+                 [self formattedAmount:_recargoPasajeros], (long)extra];
+    } else {
+        texto = [NSString stringWithFormat:
+                 [LanguageHelper getStringWithKey:@"k_s10_pasajeros_sin_recargo"
+                                     defaultValue:@"Hasta %ld sin recargo, máximo %ld"],
+                 (long)kPasajerosSinRecargo, (long)tope];
+    }
+    self.lblDesglosePasajeros.text = texto;
 }
 
 - (UISwitch *)makeSwitchWithTint:(UIColor *)tint {
@@ -526,6 +715,48 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
 }
 
 #pragma mark - Amount formatting
+
+/**
+ El icono y el nombre de la categoria elegida, arriba a la derecha.
+
+ Con la lista abierta puede parecer redundante, pero no lo es: en cuanto se desplaza la
+ hoja, la lista se va de la vista y el rotulo de arriba es lo unico que sigue diciendo
+ que se esta pidiendo. Android lo tiene por eso mismo.
+ */
+- (void)montarChipDeCategoriaConAlto:(CGFloat)altoCabecera ancho:(CGFloat)sw {
+    if (self.categoriaElegida == nil) {
+        return;
+    }
+    CGFloat ancho = 96.0;
+    CGFloat x = sw - 16 - ancho;
+
+    self.imgChipCategoria = [[UIImageView alloc] initWithFrame:CGRectMake(x, (altoCabecera - 28) / 2.0, 40, 28)];
+    self.imgChipCategoria.contentMode = UIViewContentModeScaleAspectFit;
+    [self.view addSubview:self.imgChipCategoria];
+
+    self.lblChipCategoria = [[UILabel alloc] initWithFrame:
+        CGRectMake(x + 44, (altoCabecera - 22) / 2.0, ancho - 44, 22)];
+    self.lblChipCategoria.font = [UIFont fontWithName:@"NotoSans-Bold" size:15] ?: [UIFont boldSystemFontOfSize:15];
+    self.lblChipCategoria.textColor = [UIColor colorWithRed:0.157f green:0.157f blue:0.157f alpha:1.0f];
+    self.lblChipCategoria.adjustsFontSizeToFitWidth = YES;
+    self.lblChipCategoria.minimumScaleFactor = 0.7f;
+    [self.view addSubview:self.lblChipCategoria];
+
+    [self actualizarChipDeCategoria];
+}
+
+- (void)actualizarChipDeCategoria {
+    CategoryModel *cat = self.categoriaElegida;
+    if (cat == nil || self.lblChipCategoria == nil) {
+        return;
+    }
+    self.lblChipCategoria.text = isEmpty(cat.cat_name);
+    UIImage *respaldo = [[cat.cat_name lowercaseString] containsString:@"moto"]
+        ? [UIImage imageNamed:@"ic_vehicle_moto"]
+        : ([UIImage imageNamed:@"ic_vehicle_car"] ?: [UIImage imageNamed:@"map_car_icon"]);
+    [self.imgChipCategoria sd_setImageWithURL:[NSURL URLWithString:isEmpty(cat.cat_image_path)]
+                             placeholderImage:respaldo];
+}
 
 #pragma mark - Elige tu viaje
 
@@ -670,6 +901,11 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
             : [UIColor whiteColor];
     }
 
+    // El recargo por pasajeros era de la categoria anterior, y ademas la nueva puede
+    // no admitir tantos -- una moto lleva uno. Se descuenta ANTES de tocar el precio,
+    // que es cuando _currentAmount todavia lo incluye.
+    [self quitarRecargoDePasajeros];
+
     // El precio de arriba pasa a ser el de la categoria elegida, y con el se recalculan
     // los topes del ajustador: son un porcentaje de SU tarifa, no de la anterior.
     float recomendado = [self precioDeCategoria:cat];
@@ -681,6 +917,11 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
         self.amountLabel.text = [self formattedAmount:_currentAmount];
         [self actualizarMontoLocal];
     }
+
+    self.amountLabel.text = [self formattedAmount:_currentAmount];
+    [self actualizarMontoLocal];
+    [self actualizarChipDeCategoria];
+    [self refrescarFilaDePasajeros];
 
     if ([self.delegate respondsToSelector:@selector(fareOfferVC:eligioCategoria:)]) {
         [self.delegate fareOfferVC:self eligioCategoria:cat];
@@ -712,20 +953,15 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
 #pragma mark - Stepper actions
 
 - (void)minusTapped {
-    float step      = [self stepAmount];
-    float newAmount = _currentAmount - step;
-    if (self.minFare > 0 && newAmount < self.minFare) newAmount = self.minFare;
-    if (newAmount < 0) newAmount = 0;
-    _currentAmount        = newAmount;
+    _currentAmount -= [self stepAmount];
+    [self ajustarMontoALosTopes];
     self.amountLabel.text = [self formattedAmount:_currentAmount];
     [self actualizarMontoLocal];
 }
 
 - (void)plusTapped {
-    float step      = [self stepAmount];
-    float newAmount = _currentAmount + step;
-    if (self.maxFare > 0 && newAmount > self.maxFare) newAmount = self.maxFare;
-    _currentAmount        = newAmount;
+    _currentAmount += [self stepAmount];
+    [self ajustarMontoALosTopes];
     self.amountLabel.text = [self formattedAmount:_currentAmount];
     [self actualizarMontoLocal];
 }
