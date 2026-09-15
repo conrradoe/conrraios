@@ -29,6 +29,11 @@ NS_ASSUME_NONNULL_BEGIN
 -(void) setLanguageListData:(NSArray *)array;
 -(NSString *) getlcidForCode:(NSString*)code;
 +(NSString *) getlcidCurrent;
+
+/// El idioma que el app esta usando: el que el usuario eligio, o el predeterminado.
++(NSString *) idiomaActual;
+/// El idioma con el que arranca el app cuando todavia nadie ha elegido ninguno.
++(NSString *) idiomaPorDefecto;
 @end
 
 NS_ASSUME_NONNULL_END

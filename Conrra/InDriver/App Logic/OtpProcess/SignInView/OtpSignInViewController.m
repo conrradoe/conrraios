@@ -646,23 +646,11 @@
 }
 
 -(void)updateLanguageName{
-    NSString *lng = [[NSUserDefaults standardUserDefaults]objectForKey:@"language"];
-    if (lng.length ==0) {
-        NSString *deviceLanguage = [[[NSBundle mainBundle] preferredLocalizations] objectAtIndex:0];
-        for (NSDictionary * dict in [[LanguageHelper sharedInstance] getLanguageList]) {
-//            if([[dict objectForKey:@"is_default"] boolValue])  {
-            if([[dict objectForKey:@"code"] isEqualToString:deviceLanguage]) {
-                self.lblLanguage.text=[dict objectForKey:@"name"];
-                break;
-            }
-        }
-    }
-    else{
-        for (NSDictionary * dict in [[LanguageHelper sharedInstance] getLanguageList]) {
-            if([[dict objectForKey:@"code"] isEqualToString:lng]) {
-                self.lblLanguage.text=[dict objectForKey:@"name"];
-                break;
-            }
+    NSString *lng = [LanguageHelper idiomaActual];
+    for (NSDictionary * dict in [[LanguageHelper sharedInstance] getLanguageList]) {
+        if([[dict objectForKey:@"code"] isEqualToString:lng]) {
+            self.lblLanguage.text=[dict objectForKey:@"name"];
+            break;
         }
     }
     if([[LanguageHelper sharedInstance] getLanguageList].count==Default_City_Count){

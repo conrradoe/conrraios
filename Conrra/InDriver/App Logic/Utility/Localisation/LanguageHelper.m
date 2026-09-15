@@ -27,7 +27,7 @@
         
         NSString *lng = [[NSUserDefaults standardUserDefaults]objectForKey:@"language"];
         if (lng.length ==0) {
-            sharedInstance.cunnrentLanguage=@"en";
+            sharedInstance.cunnrentLanguage=[LanguageHelper idiomaPorDefecto];
         }else{
             sharedInstance.cunnrentLanguage=lng;
         }
@@ -42,18 +42,14 @@
 -(void)setLanguageListData:(NSArray *)array{
     if([array isKindOfClass:[NSArray class]]){
         self->arrLanguageList=array;
+        // Se guarda ANTES de decidir: idiomaPorDefecto lee la lista de aqui, y guardando
+        // al final estaria decidiendo con la lista de la ejecucion anterior.
+        defaults_set_object(@"language_dict_list", array);
         NSString *lng = [[NSUserDefaults standardUserDefaults]objectForKey:@"language"];
         if (lng.length ==0) {
-            NSString *deviceLanguage = [[[NSBundle mainBundle] preferredLocalizations] objectAtIndex:0];
-            for (NSDictionary * dict in self->arrLanguageList) {
-//                if([[dict objectForKey:@"is_default"] boolValue])
-                if([[dict objectForKey:@"code"] isEqualToString:deviceLanguage]) {
-                    self.cunnrentLanguage=[dict objectForKey:@"code"];
-                    break;
-                }
-            }
+            // Nadie ha elegido idioma todavia, asi que manda el predeterminado del app.
+            self.cunnrentLanguage=[LanguageHelper idiomaPorDefecto];
         }
-        defaults_set_object(@"language_dict_list", array);
     }
 }
 
@@ -350,37 +346,91 @@
     return [s isEqualToString:@"Acceso"] ? @"Iniciar sesión" : s;
 }
 
--(void) configureLanguage
+/**
+ El idioma con el que arranca el app cuando el pasajero todavia no ha elegido ninguno.
+
+ Era "en" a secas. Y el unico intento de mirar el idioma del telefono estaba roto:
+ [[NSBundle mainBundle] preferredLocalizations] NO devuelve el idioma del telefono,
+ devuelve el corte entre los idiomas del telefono y los que el bundle dice soportar.
+ Como Info.plist solo declaraba "en", esa llamada contestaba "en" SIEMPRE, incluso en un
+ telefono en español. De ahi que el app se instalara en ingles pasara lo que pasara.
+
+ Ahora el predeterminado es el español, que es el idioma del pais donde opera CONRRA.
+ Se busca en la lista que publica el servidor para respetar el codigo exacto que use
+ ("es", "es-VE"...); si el servidor no publica ninguno se cae en el que el marque por
+ defecto -- que es lo que mira Android en setAppDefaultLang() -- y en ultimo termino en
+ "es" a pelo, que al no encontrar traduccion enseña el texto en ingles en vez de la
+ clave cruda.
+
+ OJO: no puede llamar a sharedInstance. Se la llama DESDE dentro de su dispatch_once y
+ eso se traba. Por eso lee la lista de NSUserDefaults y no de getLanguageList.
+ */
++(NSString *) idiomaPorDefecto
 {
-    NSString *lng = [[NSUserDefaults standardUserDefaults]objectForKey:@"language"];
-    if (lng.length ==0) {
-        NSString *deviceLanguage = [[[NSBundle mainBundle] preferredLocalizations] objectAtIndex:0];
-        for (NSDictionary * dict in [[LanguageHelper sharedInstance] getLanguageList]) {
-            
-//            if([[dict objectForKey:@"is_default"] boolValue])
-            if([[dict objectForKey:@"code"] isEqualToString:deviceLanguage])
-            {
-                if([[dict objectForKey:@"is_rtl"] boolValue])
-                {
-                    [[UIView appearance] setSemanticContentAttribute:UISemanticContentAttributeForceRightToLeft];
-                }else{
-                    [[UIView appearance] setSemanticContentAttribute:UISemanticContentAttributeForceLeftToRight];
-                }
-                break;
+    NSArray *lista = defaults_object(@"language_dict_list");
+    if(![lista isKindOfClass:[NSArray class]]){
+        lista = @[];
+    }
+    for (NSDictionary * dict in lista) {
+        if(![dict isKindOfClass:[NSDictionary class]]) continue;
+        NSString *codigo = [dict objectForKey:@"code"];
+        if(![codigo isKindOfClass:[NSString class]]) continue;
+        // "es" pelado o cualquier variante regional ("es-VE", "es_419"). El guion importa:
+        // con un hasPrefix:@"es" a secas colaria cualquier codigo futuro que empiece igual.
+        NSString *bajo = [codigo lowercaseString];
+        if([bajo isEqualToString:@"es"] || [bajo hasPrefix:@"es-"] || [bajo hasPrefix:@"es_"]){
+            return codigo;
+        }
+    }
+    for (NSDictionary * dict in lista) {
+        if(![dict isKindOfClass:[NSDictionary class]]) continue;
+        if([[dict objectForKey:@"is_default"] boolValue]){
+            NSString *codigo = [dict objectForKey:@"code"];
+            if([codigo isKindOfClass:[NSString class]] && codigo.length>0){
+                return codigo;
             }
         }
-    }else{
-        for (NSDictionary * dict in [[LanguageHelper sharedInstance] getLanguageList]) {
-            if([[dict objectForKey:@"code"] isEqualToString:lng])
+    }
+    return @"es";
+}
+
+/**
+ El idioma que el app esta usando ahora mismo.
+
+ Lo que el usuario haya elegido manda siempre; si no ha elegido nada, el predeterminado.
+ Esta misma decision estaba copiada a mano en seis sitios -- el ayudante, las dos
+ pantallas de acceso, la de idioma y la geocodificacion de direcciones -- y los seis
+ traian el mismo fallo del bundle. Ahora se contesta en uno.
+ */
++(NSString *) idiomaActual
+{
+    NSString *elegido = [[NSUserDefaults standardUserDefaults] objectForKey:@"language"];
+    if([elegido isKindOfClass:[NSString class]] && elegido.length>0){
+        return elegido;
+    }
+    return [LanguageHelper idiomaPorDefecto];
+}
+
+/**
+ Pone el sentido de lectura que toque, izquierda-derecha o derecha-izquierda.
+
+ Los dos caminos que habia -- uno para "no ha elegido idioma" y otro para "si" -- hacian
+ exactamente lo mismo salvo con que codigo comparar. Ahora se pregunta el codigo una vez
+ y se recorre la lista una vez.
+ */
+-(void) configureLanguage
+{
+    NSString *lng = [LanguageHelper idiomaActual];
+    for (NSDictionary * dict in [[LanguageHelper sharedInstance] getLanguageList]) {
+        if([[dict objectForKey:@"code"] isEqualToString:lng])
+        {
+            if([[dict objectForKey:@"is_rtl"] boolValue])
             {
-                if([[dict objectForKey:@"is_rtl"] boolValue])
-                {
-                    [[UIView appearance] setSemanticContentAttribute:UISemanticContentAttributeForceRightToLeft];
-                }else{
-                    [[UIView appearance] setSemanticContentAttribute:UISemanticContentAttributeForceLeftToRight];
-                }
-                break;
+                [[UIView appearance] setSemanticContentAttribute:UISemanticContentAttributeForceRightToLeft];
+            }else{
+                [[UIView appearance] setSemanticContentAttribute:UISemanticContentAttributeForceLeftToRight];
             }
+            break;
         }
     }
 }

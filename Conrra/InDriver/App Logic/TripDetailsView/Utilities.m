@@ -787,21 +787,9 @@
 }
 +(void) getAddressStrinByLat: (float) latitude longitude: (float) longitude withcompletionHandler : (void(^)(NSString * locAddress,NSString * country))completionHandler {
      
-    NSString *language = @"en";
-    NSString *lng = [[NSUserDefaults standardUserDefaults]objectForKey:@"language"];
-    if (lng.length ==0) {
-        NSString *deviceLanguage = [[[NSBundle mainBundle] preferredLocalizations] objectAtIndex:0];
-        for (NSDictionary * dict in [[LanguageHelper sharedInstance] getLanguageList]) {
-            
-//            if([[dict objectForKey:@"is_default"] boolValue])  {
-            if([[dict objectForKey:@"code"] isEqualToString:deviceLanguage]) {
-                language=[dict objectForKey:@"code"];
-                break;
-            }
-        }
-    }else{
-        language = lng;
-    }
+    // Con lo de antes las direcciones volvian de Google en ingles ("Street", "Avenue")
+    // en cuanto el usuario no hubiera elegido idioma, que es siempre nada mas instalar.
+    NSString *language = [LanguageHelper idiomaActual];
     NSString *req = [NSString stringWithFormat:@"https://maps.google.com/maps/api/geocode/json?latlng=%f,%f&key=%@&language=%@",latitude,longitude,[APP_DELEGATE getGoogleKey], language];
     
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{

@@ -24,18 +24,8 @@
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    NSString *lng = [[NSUserDefaults standardUserDefaults]objectForKey:@"language"];
-    if (lng.length == 0) {
-        NSString *deviceLanguage = [[[NSBundle mainBundle] preferredLocalizations] objectAtIndex:0];
-        for (NSDictionary *dict in [[LanguageHelper sharedInstance] getLanguageList]) {
-            if ([[dict objectForKey:@"code"] isEqualToString:deviceLanguage]) {
-                selectedLang = [dict objectForKey:@"code"];
-                break;
-            }
-        }
-    } else {
-        selectedLang = lng;
-    }
+    // Asi la fila que sale marcada al entrar es la del idioma que el app usa de verdad.
+    selectedLang = [LanguageHelper idiomaActual];
     [self setUIFields];
     [self setupNewDesign];
 }
