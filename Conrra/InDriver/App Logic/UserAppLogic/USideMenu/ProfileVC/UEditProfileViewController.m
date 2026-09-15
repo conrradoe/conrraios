@@ -19,6 +19,8 @@
 #import "UserProfile.h"
 #import "CounrySelectionView.h"
 @interface UEditProfileViewController ()
+/// El codigo de quien invito a este pasajero. Solo vive en esta pantalla.
+@property (nonatomic, strong) UITextField *txtReferralCode;
 @end
 
 @implementation UEditProfileViewController
@@ -294,6 +296,36 @@
                      NSFontAttributeName: FONTS_NOTO_REGULAR(16)}];
     [phBox addSubview:phTf];
     self.txtMobile = phTf;
+    y += fH + 12;
+
+    /*
+     Codigo de referido.
+
+     Faltaba en iOS y en Android lleva tiempo estando (edit_referral_code_new). Sin el, un
+     pasajero que se registro sin poner el codigo de quien lo invito no tenia forma de
+     arreglarlo, y el que invito se quedaba sin su premio para siempre.
+
+     NO se esconde cuando la funcion de referidos esta apagada, igual que Android: el campo
+     esta en su layout sin condicion ninguna. Quien valida de verdad si el codigo sirve es
+     el servidor.
+     */
+    UIView *refBox = [[UIView alloc] initWithFrame:CGRectMake(fX, y, fW, fH)];
+    refBox.backgroundColor = fieldBg;
+    refBox.layer.cornerRadius = 14;
+    [cv addSubview:refBox];
+    UITextField *refTf = [[UITextField alloc] initWithFrame:CGRectMake(16, 0, fW - 32, fH)];
+    refTf.font = FONTS_NOTO_REGULAR(16);
+    refTf.textColor = darkText;
+    refTf.delegate = self;
+    // Mayusculas y sin autocorreccion: es un codigo, no una palabra. Android usa
+    // textCapCharacters por lo mismo.
+    refTf.autocapitalizationType = UITextAutocapitalizationTypeAllCharacters;
+    refTf.autocorrectionType = UITextAutocorrectionTypeNo;
+    refTf.attributedPlaceholder = [[NSAttributedString alloc] initWithString:
+        [LanguageHelper getStringWithKey:@"k_15_s2_referral_id" defaultValue:@"Código de referido (opcional)"]
+        attributes:@{NSForegroundColorAttributeName: grayText, NSFontAttributeName: FONTS_NOTO_REGULAR(16)}];
+    [refBox addSubview:refTf];
+    self.txtReferralCode = refTf;
     y += fH + 24;
 
     UIButton *saveBtn = [UIButton buttonWithType:UIButtonTypeCustom];
@@ -415,6 +447,8 @@
     if (profile.length>0) {
         [_imgProfile sd_setImageWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@%@",url_base_images, profile]] placeholderImage:[UIImage imageNamed:@"Profile Icon Crop Image"]];
     }
+    // El codigo de quien invito a este pasajero, si ya puso uno. Misma clave que Android.
+    self.txtReferralCode.text = isEmpty([dict1 objectForKey:@"ref_id"]);
     if (self.lblReferralCode) {
         if ([constantTaxiModel getCValueFK:ckey_erf] == NO) {
             self.lblReferralCode.text = @"";
@@ -469,6 +503,56 @@
         }
     }
     
+    /*
+     El codigo de referido va SIEMPRE en la peticion, pero solo se comprueba con el
+     servidor cuando ha cambiado.
+
+     Es el orden de Android (EditProfileActivity.saveProfile): comprobar un codigo que ya
+     estaba guardado seria una llamada de red por cada vez que alguien corrige su apellido,
+     y ademas dejaria al pasajero sin poder guardar nada si ese codigo antiguo dejo de ser
+     valido.
+     */
+    // isEmpty() y no .text a secas: UITextField.text es nulable, y meter un nil en el
+    // diccionario de la peticion no da un aviso, revienta.
+    NSString *codigoReferido = [[isEmpty(self.txtReferralCode.text) stringByTrimmingCharactersInSet:
+                                 [NSCharacterSet whitespaceAndNewlineCharacterSet]] uppercaseString];
+    NSString *codigoGuardado = [isEmpty([dict1 objectForKey:@"ref_id"]) uppercaseString];
+    [dict setObject:codigoReferido forKey:@"ref_id"];
+
+    if (codigoReferido.length > 0 && ![codigoReferido isEqualToString:codigoGuardado]) {
+        [self comprobarReferido:codigoReferido yLuegoGuardar:dict];
+    } else {
+        [self guardarPerfil:dict];
+    }
+}
+
+/**
+ Pregunta al servidor si el codigo de referido existe, y solo entonces guarda.
+
+ Si no existe se avisa y NO se guarda nada. Es a proposito: guardar un codigo invalido
+ dejaria al pasajero convencido de que ha acreditado a alguien que nunca va a cobrar.
+ */
+-(void)comprobarReferido:(NSString *)codigo yLuegoGuardar:(NSMutableDictionary *)dict {
+    [UtilityClass setLH:NO wt:[LanguageHelper getStringWithKey:@"k_53_s3_please_wait"]];
+    [GIC mkwerwu:API_VALIDATE_REFERRAL_CODE
+               d:@{@"ref_id": codigo}
+              cb:^(id results, NSError *error) {
+        [UtilityClass setLH:YES wt:[LanguageHelper getStringWithKey:@"k_53_s3_please_wait"]];
+        if (error != nil) {
+            [Utilities handleError:error viewController:self defaultMessage:@""];
+            return;
+        }
+        if ([[[results objectForKey:P_STATUS] uppercaseString] isEqualToString:@"OK"]) {
+            [self guardarPerfil:dict];
+        } else {
+            [self showAlertWithMessgae:[LanguageHelper getStringWithKey:@"k_30_s2_invalid_refrel"
+                                                           defaultValue:@"El código de referido no es válido"]];
+        }
+    }];
+}
+
+/** Manda el perfil al servidor. Separado para que los dos caminos lo compartan. */
+-(void)guardarPerfil:(NSMutableDictionary *)dict {
     [UtilityClass setLH:NO wt:[LanguageHelper getStringWithKey:@"k_r30_s3_loading"]];
     [GIC mkwu:UPDATE_USER_PROFILE
                   d:dict
