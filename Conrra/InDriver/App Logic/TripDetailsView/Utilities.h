@@ -96,4 +96,6 @@
 
 /// La pagina de recarga de la billetera, con el id del usuario ya puesto.
 +(NSString *) urlDeRecargas;
+/** Un importe en dolares, escrito en bolivares: "Bs -320,04". Vacio si no hay tasa. */
++(NSString *) montoEnBolivares:(float) dolares;
 @end

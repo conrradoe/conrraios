@@ -23,6 +23,7 @@
 #import "UpdateUserCurrentLocation.h"
 #import "SettingsModel.h"
 #import "PlanesViewController.h"
+#import "Utilities.h"
 #import "RecargasViewController.h"
 #import "NSString+URLEncoding.h"
 #import <Conrra-Swift.h>
@@ -33,6 +34,8 @@
     UILabel  *_ratingLabel;
     UILabel  *_balanceAmountLabel;
     UILabel  *_balanceRateLabel;
+    UILabel  *_lblRotuloBolivares;
+    UIImageView *_palomitaVerificado;
 }
 @end
 
@@ -78,6 +81,29 @@
     profileImg.image = [UIImage imageNamed:@"Profile Icon Crop Image"];
     [self.view addSubview:profileImg];
     _imgProfile = profileImg;
+
+    /*
+     La palomita azul de verificado, abajo a la izquierda de la foto.
+
+     Va FUERA de profileImg, no dentro: la foto lleva clipsToBounds para recortarse en
+     circulo, y cualquier hija suya se recortaria con ella. Y va despues, para quedar por
+     encima -- es el equivalente del bringToFront() que hace Android.
+
+     Abajo a la izquierda porque es donde la pone Android (layout_alignStart +
+     layout_alignBottom), no donde suele ir en otras apps.
+     */
+    UIImageView *palomita = [[UIImageView alloc] init];
+    palomita.translatesAutoresizingMaskIntoConstraints = NO;
+    palomita.contentMode = UIViewContentModeScaleAspectFit;
+    palomita.image = [UIImage systemImageNamed:@"checkmark.seal.fill"];
+    palomita.tintColor = [UIColor colorWithRed:0x1D/255.0 green:0x9B/255.0 blue:0xF0/255.0 alpha:1];
+    // Circulito blanco detras: sobre una foto oscura la palomita azul se pierde.
+    palomita.backgroundColor = [UIColor whiteColor];
+    palomita.layer.cornerRadius = 11;
+    palomita.clipsToBounds = YES;
+    palomita.hidden = YES;
+    [self.view addSubview:palomita];
+    _palomitaVerificado = palomita;
 
     // Name label
     UILabel *nameLbl = [[UILabel alloc] init];
@@ -138,7 +164,11 @@
 
     UILabel *tasaTitleLbl = [[UILabel alloc] init];
     tasaTitleLbl.translatesAutoresizingMaskIntoConstraints = NO;
-    tasaTitleLbl.text      = [LanguageHelper getStringWithKey:@"k_s10_exchange_rate" defaultValue:@"Tasa de cambio"];
+    // "Monto en bs", como Android: la linea de abajo NO es la tasa, es el mismo saldo
+    // escrito en bolivares. Enseñaba "Tasa de cambio / --" porque leia currency_conversion
+    // a pelo, que en esta instalacion viene vacia.
+    tasaTitleLbl.text      = [LanguageHelper getStringWithKey:@"k_s10_amount_in_bs" defaultValue:@"Monto en bs"];
+    _lblRotuloBolivares    = tasaTitleLbl;
     tasaTitleLbl.font      = FONTS_NOTO_REGULAR(12);
     tasaTitleLbl.textColor = [UIColor grayColor];
     [self.view addSubview:tasaTitleLbl];
@@ -243,6 +273,11 @@
         [profileImg.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:20],
         [profileImg.widthAnchor   constraintEqualToConstant:56],
         [profileImg.heightAnchor  constraintEqualToConstant:56],
+
+        [_palomitaVerificado.leadingAnchor constraintEqualToAnchor:profileImg.leadingAnchor],
+        [_palomitaVerificado.bottomAnchor  constraintEqualToAnchor:profileImg.bottomAnchor],
+        [_palomitaVerificado.widthAnchor   constraintEqualToConstant:22],
+        [_palomitaVerificado.heightAnchor  constraintEqualToConstant:22],
     ]];
 
     // Settings button (top-right)
@@ -645,14 +680,64 @@
     float walletBalance = [[userDict objectForKey:P_USER_WAlLET_AMOUNT] floatValue];
     _balanceAmountLabel.text = [NSString stringWithFormat:@"$%.2f", walletBalance];
 
-    // Exchange rate (Bs per 1 USD)
-    ConstantModel *cm = [ConstantModel getConstantsObject];
-    float rate = cm ? [cm.currency_conversion floatValue] : 0;
-    if (rate > 0) {
-        _balanceRateLabel.text = [NSString stringWithFormat:@"1 USD = Bs. %.2f", rate];
-    } else {
-        _balanceRateLabel.text = @"—";
+    // El mismo saldo en bolivares. Si el servidor no publica tasa se esconde la fila
+    // entera, como hace Android, en vez de dejar un guion suelto.
+    NSString *enBolivares = [Utilities montoEnBolivares:walletBalance];
+    _balanceRateLabel.text = enBolivares;
+    _balanceRateLabel.hidden = (enBolivares.length == 0);
+    _lblRotuloBolivares.hidden = (enBolivares.length == 0);
+
+    _palomitaVerificado.hidden = ![self estaVerificado:dict1] && ![self estaVerificado:userDict];
+}
+
+/**
+ Si la cuenta esta verificada.
+
+ Se miran muchos nombres de campo a proposito, igual que Android en la anotacion
+ @SerializedName de uIsVerified: el backend no ha sido consistente con como se llama, y
+ quedarse solo con "u_is_verified" dejaba la palomita apagada para cuentas que SI estan
+ verificadas. Tambien vale el codigo postal con "v" o "verified", que es el apaño que ya
+ existia en Android para las cuentas antiguas.
+ */
+- (BOOL)estaVerificado:(NSDictionary *)dict {
+    if (![dict isKindOfClass:[NSDictionary class]]) {
+        return NO;
     }
+    NSArray *campos = @[@"u_is_verified", @"is_verified", @"verified", @"u_verified",
+                        @"isVerified", @"is_user_verified", @"v_status", @"u_verified_status",
+                        @"verified_status", @"verify_status", @"u_verify_status",
+                        @"is_verified_passenger", @"verified_passenger",
+                        @"is_rider_verified", @"is_verified_user"];
+    NSArray *afirmativos = @[@"1", @"true", @"yes", @"y", @"verified", @"success",
+                             @"active", @"v", @"verified_passenger"];
+
+    for (NSString *campo in campos) {
+        id crudo = [dict objectForKey:campo];
+        if (crudo == nil) {
+            continue;
+        }
+        NSString *valor = [[NSString stringWithFormat:@"%@", crudo]
+                           stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+        // El servidor manda a veces el numero como decimal: "1.0".
+        if ([valor hasSuffix:@".0"]) {
+            valor = [valor substringToIndex:valor.length - 2];
+        }
+        for (NSString *afirmativo in afirmativos) {
+            if ([valor caseInsensitiveCompare:afirmativo] == NSOrderedSame) {
+                return YES;
+            }
+        }
+    }
+
+    for (NSString *campo in @[@"u_zip", @"u_zipcode"]) {
+        id crudo = [dict objectForKey:campo];
+        NSString *valor = [NSString stringWithFormat:@"%@", crudo ?: @""];
+        if ([valor caseInsensitiveCompare:@"v"] == NSOrderedSame ||
+            [valor caseInsensitiveCompare:@"verified"] == NSOrderedSame) {
+            return YES;
+        }
+    }
+    return NO;
 }
 
 #pragma mark - Navigation

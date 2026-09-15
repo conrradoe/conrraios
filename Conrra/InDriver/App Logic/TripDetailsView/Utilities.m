@@ -838,6 +838,32 @@
  es. Si todavia no hay usuario se devuelve la pagina pelada, que al menos explica que
  hay que entrar.
  */
+/**
+ Un importe en dolares, escrito en bolivares.
+
+ Equivale a Controller.formatLocalAmount de Android: importe por la tasa, con el separador
+ de miles y el decimal a la venezolana (Bs -320,04). Devuelve vacio si el servidor no
+ publica tasa, para que quien llame pueda esconder la linea entera en vez de enseñar un
+ cero que no significa nada.
+ */
++(NSString *) montoEnBolivares:(float) dolares {
+    float tasa = [ConstantModel tasaDolarALocal];
+    if (tasa <= 0) {
+        return @"";
+    }
+    NSNumberFormatter *formato = [[NSNumberFormatter alloc] init];
+    formato.numberStyle = NSNumberFormatterDecimalStyle;
+    formato.minimumFractionDigits = 2;
+    formato.maximumFractionDigits = 2;
+    formato.groupingSeparator = @".";
+    formato.decimalSeparator  = @",";
+    NSString *numero = [formato stringFromNumber:@(dolares * tasa)];
+    if (numero.length == 0) {
+        return @"";
+    }
+    return [NSString stringWithFormat:@"Bs %@", numero];
+}
+
 +(NSString *) urlDeRecargas {
     NSDictionary *dict = [[NSUserDefaults standardUserDefaults] objectForKey:P_USER_DICT_LOGGED];
     if (dict == nil) {
