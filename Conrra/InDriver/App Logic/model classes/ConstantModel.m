@@ -294,7 +294,33 @@ static NSDictionary *enableInfo;
     return 0;
 }
 
--(BOOL) getCValueFK:(NSString *) key{ 
+/**
+ Si una funcion esta encendida.
+
+ Mira PRIMERO la tabla `constants` del backend propio y solo despues las banderas del
+ servicio de licencias de Grepix. Es el orden de Android (Controller.isReferralEnabled), y
+ aqui hacia falta de verdad:
+
+ `enableInfo` se llena desde `constants_p`, que LoadingViewController escribe solo cuando
+ en la respuesta de licencias hay una fila cuyo `bundleId` coincide con el del app. El
+ bundle de iOS es "com.conrraapp.driver.test" y el registrado no lo es, asi que no coincide
+ ninguna, `constants_p` nunca se escribe y TODAS estas banderas contestan que no. Se veia en
+ el menu del pasajero: las opciones que salen de la tabla `constants` aparecian y las cinco
+ que salen de aqui -- notificaciones, metodo de pago, info de tarifas, referidos y legal --
+ no. En Android si salen porque su paquete si esta registrado.
+
+ Solo se acepta el valor propio si es exactamente "1" o "0"; cualquier otra cosa sigue de
+ largo hacia las licencias. Eso lo hace inmune a una colision de nombres: una constante con
+ ckey "en" y cvalue "English" no puede encender ni apagar nada por accidente.
+ */
+-(BOOL) getCValueFK:(NSString *) key{
+    NSString *propia = [ConstantModel valorDeConstantePorClave:key];
+    if ([propia isEqualToString:@"1"]) {
+        return YES;
+    }
+    if ([propia isEqualToString:@"0"]) {
+        return NO;
+    }
     if ([enableInfo isKindOfClass:[NSDictionary class] ]){
         return [[enableInfo objectForKey:key] boolValue];
     }
