@@ -148,6 +148,8 @@
     NSString * driverLicensePath;
     BOOL isGoToHomeScreen;
     BOOL isBeginRouteDraw;
+    /// El recorrido se encuadra una vez, no en cada refresco de la ruta.
+    BOOL yaEncuadreElRecorrido;
     BOOL isFirstRouteDraw;
     BOOL isBeginRouteCalling;
     MKAnnotationView *driverPinView;
@@ -970,8 +972,7 @@
             MKPolyline *polyline=[self getPolyline:arrayPath];
             [self.mapView addOverlay:polyline];
             [self addMapAnnotationsWith:userDriverLocationRoute];
-            //            [self.mapView setVisibleMapRect:[polyline boundingMapRect] edgePadding:UIEdgeInsetsMake(40.0, 60.0, 40.0, 60.0) animated:YES];
-            //            self.mapBottonMargin.constant=-((self.mapView.frame.size.height/2)*80/100.0);
+            [self encuadrarRecorrido:polyline];
             [self updateDriverAnotation:userLoc];
             self->isBeginRouteDraw=YES;
         }else{
@@ -992,6 +993,36 @@
     }];
 }
 
+
+/**
+ Encaja el recorrido entero en el trozo de mapa que se ve.
+
+ Estaba comentado, asi que la ruta se dibujaba pero la camara no se movia: el pasajero
+ veia un trozo de calle sin saber por donde va. El margen de abajo es el alto de la
+ hoja, que tapa mas de media pantalla; contra la vista entera el recorrido quedaria
+ detras de ella.
+
+ Solo se encuadra una vez por trazado. Si se hiciera en cada refresco, el mapa daria un
+ tiron cada pocos segundos y no habria manera de mirar nada con calma.
+ */
+-(void)encuadrarRecorrido:(MKPolyline *)recorrido {
+    if (recorrido == nil || yaEncuadreElRecorrido) {
+        return;
+    }
+    MKMapRect rect = [recorrido boundingMapRect];
+    if (MKMapRectIsNull(rect) || rect.size.width == 0) {
+        return;
+    }
+    yaEncuadreElRecorrido = YES;
+
+    CGFloat alto = self.view.bounds.size.height;
+    CGFloat tapaLaHoja = MAX(0, alto - self.sheetTop) + 16;
+    if (tapaLaHoja > alto * 0.66f) {
+        tapaLaHoja = alto * 0.66f;
+    }
+    UIEdgeInsets margenes = UIEdgeInsetsMake(self.view.safeAreaInsets.top + 70, 40, tapaLaHoja, 40);
+    [self.mapView setVisibleMapRect:rect edgePadding:margenes animated:YES];
+}
 
 -(MKPolyline *) getPolyline:(NSArray *)array{
     CLLocationCoordinate2D coords[array.count];
@@ -1256,7 +1287,9 @@
                 }
                 BOOL isCancelHandled=NO;
                 
-                if ([self.currentTrip.trip_Status isEqualToString:TS_BEGIN]||[self.currentTrip.trip_Status isEqualToString:TS_PICKED]||[self.currentTrip.trip_Status isEqualToString:TS_END]) {
+                // Solo al TERMINAR desaparece el boton. Con el viaje en marcha se queda,
+                // como en Android.
+                if ([self.currentTrip.trip_Status isEqualToString:TS_END]) {
                     self.btnCancelTrip.hidden=YES;
                     //self.btnPhone.hidden=YES;
                     [self.btnCancelTrip setConstraintConstant:0 forAttribute:(NSLayoutAttributeHeight)];
@@ -1956,7 +1989,10 @@
     alto += altoTarjetaConductor;
 
     BOOL hayPagoMovil = !self.tarjetaPagoMovil.isHidden;
-    CGFloat altoPagoMovil = 66;
+    // Tres lineas de 12 puntos mas el rotulo y los margenes. Con 66 la tercera --
+    // el telefono, que es justo el dato con el que se hace la transferencia -- se
+    // quedaba recortada.
+    CGFloat altoPagoMovil = 84;
     if (hayPagoMovil) {
         alto += 6 + altoPagoMovil;
     }
@@ -2059,7 +2095,7 @@
         self.tarjetaPagoMovil.frame = CGRectMake(pad, y, cardW, altoPagoMovil);
         UIView *tituloPM = [self.tarjetaPagoMovil viewWithTag:903];
         tituloPM.frame = CGRectMake(10, 8, cardW - 20, 12);
-        self.lblPagoMovilDatos.frame = CGRectMake(10, 24, cardW - 20, altoPagoMovil - 32);
+        self.lblPagoMovilDatos.frame = CGRectMake(10, 26, cardW - 20, altoPagoMovil - 36);
         y += altoPagoMovil;
     }
 
@@ -2164,7 +2200,10 @@
         UITapGestureRecognizer *doubleTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(btnSosClickedDouble)];
         doubleTap.numberOfTapsRequired = 2;
         [self.actionButton addGestureRecognizer:doubleTap];
-        self.btnCancelTrip.hidden = YES;
+        // El boton de cancelar SIGUE ahi con el viaje empezado. Android no lo esconde
+        // nunca -- en "begin" lo pone explicitamente visible -- y tiene sentido: que el
+        // viaje haya arrancado no quiere decir que ya no se pueda echar atras.
+        self.btnCancelTrip.hidden = NO;
         self.lbTripOtp.hidden = YES;
     } else {
         // Driver on the way / arrived — showTripOtpOnUi coloca el rotulo y la pastilla
@@ -2483,8 +2522,10 @@
     if (!isBeginTripCalled) {
         NSString *message=[LanguageHelper getStringWithKey:@"k_4_s14_trip_started"];
         statusPre =TS_BEGIN;
-        _btnCancelTrip.hidden=YES;
-        _btncanceltripHeightconstraints.constant =0;
+        // El boton de cancelar se queda. Android no lo esconde en ningun momento del
+        // viaje; aqui se escondia justo al arrancar, que es cuando el pasajero todavia
+        // puede querer echarse atras.
+        _btnCancelTrip.hidden=NO;
         if ([self isShowAlert]) {
             isBeginTripCalled =YES;
            UIAlertController * alertForHide =  [self showAlertWithOk:[LanguageHelper getStringWithKey:@"k_com_s_18_trip_status"] message:message handler:^(UIAlertAction * _Nonnull action) {
