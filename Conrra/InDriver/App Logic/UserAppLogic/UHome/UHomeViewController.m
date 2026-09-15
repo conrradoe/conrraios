@@ -117,6 +117,8 @@
     NSTimer *tripCheckTimerForMyLocation;
     
     BOOL isShwoPickUpLocationOnLoad;
+    /// Para no lanzar dos geocodificaciones de la recogida a la vez.
+    BOOL resolviendoRecogida;
     BOOL isRideLaterButtonTap;
     BOOL isShareRideButtonTap;
     BOOL isShowFarePolicyButtonTap;
@@ -372,6 +374,10 @@
     if (isSheetSetup) {
         [self ocultarRestosDelDisenoViejo];
     }
+    // El reset acaba de dejar la recogida sin direccion. Se vuelve a resolver en vez
+    // de esperar a un aviso del GPS que ya no va a pedir nada.
+    [self asegurarDireccionDeRecogida];
+
     isMapDraged=NO;
     isMapRouteMake=NO;
     isPickupSelected =NO;
@@ -3875,6 +3881,70 @@
     }
 }
 
+/**
+ Se asegura de que haya direccion de recogida, y la resuelve si falta.
+
+ Hacia falta porque la de partida se resolvia UNA sola vez por ejecucion:
+ locationManager:didUpdateLocations: llama a setupPickupDropAddressWhenLoadApp: solo
+ mientras isShwoPickUpLocationOnLoad sea NO, y ese metodo lo pone a YES nada mas entrar.
+ Ese mismo metodo ademas se rinde si imCenterPickupLocation esta escondida, que en este
+ diseño lo esta.
+
+ Resultado: en cuanto algo borraba direction.pickAddress -- el reset de viewWillAppear,
+ por ejemplo -- la recogida no volvia NUNCA, y el pasajero se quedaba con "Ingrese la
+ ubicacion de recogida" hasta reiniciar el app, con el mapa enseñandole la ruta que
+ acababa de trazar.
+
+ Aqui no se mira ninguna de esas dos banderas: si falta el dato y hay una coordenada
+ con la que resolverlo, se resuelve.
+ */
+-(void)asegurarDireccionDeRecogida {
+    if (self.txtPickupAddress.text.length > 0 && direction.pickAddress.length > 0) {
+        return;
+    }
+
+    // La mejor coordenada que haya: la que el pasajero eligio, o donde esta el movil.
+    CLLocationCoordinate2D punto = direction.source.coordinate;
+    if (!CLLocationCoordinate2DIsValid(punto) || (punto.latitude == 0 && punto.longitude == 0)) {
+        CLLocation *delMovil = [APP_DELEGATE currLoc];
+        if (delMovil == nil) {
+            return;
+        }
+        punto = delMovil.coordinate;
+    }
+    if (punto.latitude == 0 && punto.longitude == 0) {
+        return;
+    }
+
+    if (resolviendoRecogida) {
+        return;
+    }
+    resolviendoRecogida = YES;
+
+    CLLocationCoordinate2D fijo = punto;
+    [Utilities getAddressStrinByLat:(float)fijo.latitude
+                          longitude:(float)fijo.longitude
+              withcompletionHandler:^(NSString *locAddress, NSString *country) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            self->resolviendoRecogida = NO;
+            if (locAddress.length == 0) {
+                return;
+            }
+            // Si mientras tanto el pasajero eligio una recogida, esa manda.
+            if (self.txtPickupAddress.text.length > 0 && self->direction.pickAddress.length > 0) {
+                return;
+            }
+            self.txtPickupAddress.text = locAddress;
+            self->direction.source = [[CLLocation alloc] initWithLatitude:fijo.latitude
+                                                                longitude:fijo.longitude];
+            self->direction.pickAddress = locAddress;
+            self->isPickupSelected = YES;
+            [self->nearByDriverHandler changePickUpLocation:self->direction.source];
+            [self addMapAnnotationsWith:self->direction type:@"source"];
+        });
+    }];
+}
+
 -(void)resetResetPickDrop{
     [self invalidateResetPickDrop];
     if(!isGoToHomeScreen){
@@ -5175,6 +5245,7 @@
     self.btnGps.hidden     = NO;
     [self ocultarPildoraDeRuta];
     [self ocultarRestosDelDisenoViejo];
+    [self asegurarDireccionDeRecogida];
 }
 
 /**
@@ -5292,8 +5363,12 @@
     // interruptores se van con ella.
     configDelViaje = [self notaDeConfiguracionDesde:vc];
 
-    currentFareOfferVC = nil;
+    // currentFareOfferVC se suelta DESPUES de cerrar, no antes: es la señal que usa
+    // viewWillAppear para saber que hay un viaje a medio montar y no reiniciarlo.
+    // Ponerlo a nil aqui arriba dejaba ese guardia sin efecto justo en el momento en
+    // que hace falta.
     [self dismissViewControllerAnimated:YES completion:^{
+        self->currentFareOfferVC = nil;
         [self restoreScreen1Overlays];
         self.txtExtmatedFareAmt.text = [Utilities formatAmount:amount];
         [self onRequestButtonTap:self.btRiderNow];
