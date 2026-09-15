@@ -58,6 +58,7 @@
 #import "PaymentMethodViewController.h"
 #import <ReactiveObjC/ReactiveObjC.h>
 #import "UWalletViewController.h"
+#import "RecargasViewController.h"
 #import "UTripHistoryViewController.h"
 #import <MessageUI/MFMailComposeViewController.h>
 #import "URouteInputViewController.h"
@@ -5444,17 +5445,19 @@
  Se empuja en la navegacion de la pantalla de tarifa, no se presenta en modal: el boton
  de volver de AboutUsViewController hace pop, y en un modal sin pila no haria nada.
  */
+/**
+ El pasajero eligio billetera y no le alcanza el saldo.
+
+ Antes se le abria directamente la pagina web de recargas. Ahora va al selector, que es
+ donde estan los tres metodos -- y donde esta el unico que acredita al instante, el C2P.
+ Mandarlo a la web era mandarlo al camino mas lento justo cuando tiene un viaje esperando.
+ */
 -(void)paymentSheetDidRequestWalletTopUp:(PaymentMethodViewController *)vc {
     UINavigationController *nav = currentFareOfferVC.navigationController ?: self.navigationController;
     if (nav == nil) {
         return;
     }
-    AboutUsViewController *web = [[UIStoryboard storyboardWithName:@"User" bundle:nil]
-                                  instantiateViewControllerWithIdentifier:@"AboutUsViewController"];
-    web.isCustomUrl = YES;
-    web.customTitle = [LanguageHelper getStringWithKey:@"k_s10_recargar" defaultValue:@"Recargar"];
-    web.customUrl   = [Utilities urlDeRecargas];
-    [nav pushViewController:web animated:YES];
+    [nav pushViewController:[[RecargasViewController alloc] init] animated:YES];
 }
 
 -(void)paymentSheet:(PaymentMethodViewController *)vc

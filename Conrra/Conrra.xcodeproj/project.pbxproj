@@ -78,6 +78,10 @@
 		D357A9A027F2F66C0086E2D4 /* CategoryCell.xib in Resources */ = {isa = PBXBuildFile; fileRef = D357A84027F2F66C0086E2D4 /* CategoryCell.xib */; };
 		D357A9A127F2F66C0086E2D4 /* UHomeViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = D357A84127F2F66C0086E2D4 /* UHomeViewController.m */; };
 		D357A9A327F2F66C0086E2D4 /* SettingViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = D357A84727F2F66C0086E2D4 /* SettingViewController.m */; };
+		89B2CC384CA440E9B192AD2B /* RecargaEstilo.m in Sources */ = {isa = PBXBuildFile; fileRef = 286AB2CF366447A6947CA85D /* RecargaEstilo.m */; };
+		1EF7D8AE4D584A61A57B40E3 /* RecargasViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 20CE1AE0F2C6472D99053ADD /* RecargasViewController.m */; };
+		05C616BCD06F4F7E9B3F5EA3 /* RecargaC2PViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 973B94A1D14F479FAF590384 /* RecargaC2PViewController.m */; };
+		EBA67F1D6A614C54BF8C25C8 /* RecargaBotonViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 30ACBF88F6E845E8BBAA7330 /* RecargaBotonViewController.m */; };
 		1200733C659D4087871896F4 /* ConrraMapaSelectorViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = E27A00F7C3BF4E9582563DAC /* ConrraMapaSelectorViewController.m */; };
 		A5038AAF7F1240C19B8A9CBF /* ConrraAvisoLocal.m in Sources */ = {isa = PBXBuildFile; fileRef = 9081982A068C47CBA3DEE80B /* ConrraAvisoLocal.m */; };
 		577B36D90960470B9954A54B /* ConrraDestinoDePlan.m in Sources */ = {isa = PBXBuildFile; fileRef = DB5BD24B804B4571B40CED22 /* ConrraDestinoDePlan.m */; };
@@ -616,6 +620,14 @@
 		D357A84127F2F66C0086E2D4 /* UHomeViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = UHomeViewController.m; sourceTree = "<group>"; };
 		D357A84627F2F66C0086E2D4 /* SettingViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SettingViewController.h; sourceTree = "<group>"; };
 		D357A84727F2F66C0086E2D4 /* SettingViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SettingViewController.m; sourceTree = "<group>"; };
+		00B6C42AA70E4AEDA64A8857 /* RecargaEstilo.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RecargaEstilo.h; sourceTree = "<group>"; };
+		286AB2CF366447A6947CA85D /* RecargaEstilo.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RecargaEstilo.m; sourceTree = "<group>"; };
+		87C480AEF3914B05A4449118 /* RecargasViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RecargasViewController.h; sourceTree = "<group>"; };
+		20CE1AE0F2C6472D99053ADD /* RecargasViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RecargasViewController.m; sourceTree = "<group>"; };
+		D6702AD70662448C84CE048C /* RecargaC2PViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RecargaC2PViewController.h; sourceTree = "<group>"; };
+		973B94A1D14F479FAF590384 /* RecargaC2PViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RecargaC2PViewController.m; sourceTree = "<group>"; };
+		931FD0365220487C9A0D7EDB /* RecargaBotonViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RecargaBotonViewController.h; sourceTree = "<group>"; };
+		30ACBF88F6E845E8BBAA7330 /* RecargaBotonViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RecargaBotonViewController.m; sourceTree = "<group>"; };
 		92EF1D55C55542EC95B9AEF2 /* ConrraMapaSelectorViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraMapaSelectorViewController.h; sourceTree = "<group>"; };
 		E27A00F7C3BF4E9582563DAC /* ConrraMapaSelectorViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraMapaSelectorViewController.m; sourceTree = "<group>"; };
 		07A75B65E6F74203B8CD8A51 /* ConrraAvisoLocal.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraAvisoLocal.h; sourceTree = "<group>"; };
@@ -1399,6 +1411,7 @@
 		D357A7DB27F2F66C0086E2D4 /* UserAppLogic */ = {
 			isa = PBXGroup;
 			children = (
+				E9FB8C481A084BED8F9667FA /* URecargas */,
 				91C1748B3157464EB4778F86 /* Publicidad */,
 				D357A7DF27F2F66C0086E2D4 /* FareSummeryVC */,
 				D357A7F227F2F66C0086E2D4 /* USideMenu */,
@@ -1693,6 +1706,21 @@
 				CF13DD69C8974AC49478A9D9 /* ConrraCarruselBanners.m */,
 			);
 			path = Publicidad;
+			sourceTree = "<group>";
+		};
+		E9FB8C481A084BED8F9667FA /* URecargas */ = {
+			isa = PBXGroup;
+			children = (
+				00B6C42AA70E4AEDA64A8857 /* RecargaEstilo.h */,
+				286AB2CF366447A6947CA85D /* RecargaEstilo.m */,
+				87C480AEF3914B05A4449118 /* RecargasViewController.h */,
+				20CE1AE0F2C6472D99053ADD /* RecargasViewController.m */,
+				D6702AD70662448C84CE048C /* RecargaC2PViewController.h */,
+				973B94A1D14F479FAF590384 /* RecargaC2PViewController.m */,
+				931FD0365220487C9A0D7EDB /* RecargaBotonViewController.h */,
+				30ACBF88F6E845E8BBAA7330 /* RecargaBotonViewController.m */,
+			);
+			path = URecargas;
 			sourceTree = "<group>";
 		};
 		D357A84527F2F66C0086E2D4 /* USettings */ = {
@@ -3701,6 +3729,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				89B2CC384CA440E9B192AD2B /* RecargaEstilo.m in Sources */,
+				1EF7D8AE4D584A61A57B40E3 /* RecargasViewController.m in Sources */,
+				05C616BCD06F4F7E9B3F5EA3 /* RecargaC2PViewController.m in Sources */,
+				EBA67F1D6A614C54BF8C25C8 /* RecargaBotonViewController.m in Sources */,
 				1200733C659D4087871896F4 /* ConrraMapaSelectorViewController.m in Sources */,
 				A5038AAF7F1240C19B8A9CBF /* ConrraAvisoLocal.m in Sources */,
 				577B36D90960470B9954A54B /* ConrraDestinoDePlan.m in Sources */,

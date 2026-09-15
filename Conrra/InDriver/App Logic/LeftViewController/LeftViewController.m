@@ -25,6 +25,7 @@
 #import "UserProfile.h"
 #import "CityModel.h"
 #import "Utilities.h"
+#import "RecargasViewController.h"
 
 @interface LeftViewController ()<MFMailComposeViewControllerDelegate> {
     UILabel *_ratingLabel;
@@ -790,13 +791,11 @@
         [self LogoutPressed_isLogout:YES];
 
     } else if ([sideOption isEqualToString:@"recargas"]) {
-        AboutUsViewController *vc = [self.storyboard instantiateViewControllerWithIdentifier:@"AboutUsViewController"];
-        vc.isCustomUrl  = YES;
-        vc.customTitle  = @"Recargas";
-        vc.customUrl    = [Utilities urlDeRecargas];
+        // El selector, no la web directa. Android usa la MISMA RecargaActivity para las dos
+        // caras del app, y el conductor recarga igual que el pasajero.
         MainViewController *mainViewController = (MainViewController *)self.sideMenuController;
         UINavigationController *navVC = (UINavigationController *)mainViewController.rootViewController;
-        [navVC pushViewController:vc animated:YES];
+        [navVC pushViewController:[[RecargasViewController alloc] init] animated:YES];
         [mainViewController hideLeftViewAnimated:YES completionHandler:nil];
 
     } else if ([sideOption isEqualToString:@"chat_with_us"]) {

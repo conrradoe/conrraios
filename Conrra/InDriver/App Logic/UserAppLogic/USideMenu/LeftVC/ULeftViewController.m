@@ -23,6 +23,7 @@
 #import "UpdateUserCurrentLocation.h"
 #import "SettingsModel.h"
 #import "PlanesViewController.h"
+#import "RecargasViewController.h"
 #import "NSString+URLEncoding.h"
 #import <Conrra-Swift.h>
 #import "UHomeViewController.h"
@@ -399,12 +400,15 @@
 - (void)onConstantCalled {
     ConstantModel *constantModel = [ConstantModel getConstantsObject];
 
-    // Mi wallet (new item — always shown; opens WebView)
+    /*
+     El orden es el de Android (MainScreenActivity.manageLeftslider), a proposito.
+
+     No es cosmetica: un pasajero que usa las dos apps busca "Recargar" donde lo dejo la
+     ultima vez, y encontrarlo en otro sitio hace que parezca otra aplicacion.
+     */
+
+    // Tus viajes
     self.arrSideMenu = [[NSMutableArray alloc] initWithObjects:
-        @{@"title": @"Mi wallet",
-          @"icon":  @"menu_icon_wallet",
-          @"identifier": @"mi_wallet"},
-        // Mis viajes
         @{@"title": [LanguageHelper getStringWithKey:@"k_6_s4_a1_your_rides" defaultValue:@"Tus viajes"],
           @"icon":  @"menu_icon_trips",
           @"identifier": @"UTripHistoryViewController"},
@@ -427,20 +431,88 @@
         }];
     }
 
+    /*
+     Contacto Pago Movil.
+
+     Es la misma pantalla que antes se llamaba aqui "Contacto SOS": guarda los contactos de
+     emergencia Y los datos de pago movil. Se le pone el rotulo de Android porque es lo que
+     el pasajero viene a hacer aqui el 99% de las veces -- registrar su banco y su telefono
+     para cobrar y pagar -- y "SOS" no lo sugiere en absoluto.
+     */
+    [self.arrSideMenu addObject:@{
+        @"title": [LanguageHelper getStringWithKey:@"k_s10_contacto_pago_movil"
+                                      defaultValue:@"Contacto Pago Móvil"],
+        @"icon":  @"menu_icon_sos",
+        @"identifier": @"SettingViewController"
+    }];
+
+    /*
+     Mi Billetera y Recargar, con el mismo interruptor que Android (ewl).
+
+     "Mi wallet" abria un WebView apuntando a google.com con un TODO al lado, y la pantalla
+     de billetera del pasajero -- UWalletViewController -- ya existia en el storyboard sin
+     que nada la abriera desde el menu. Ahora apunta donde debe.
+     */
+    if ([constantModel getCValueFK:ckey_ewl]) {
+        [self.arrSideMenu addObject:@{
+            @"title": [LanguageHelper getStringWithKey:@"k_1_s10_wallet" defaultValue:@"Mi Billetera"],
+            @"icon":  @"menu_icon_wallet",
+            @"identifier": StoryBoardUtiles.WALLET_VC
+        }];
+        [self.arrSideMenu addObject:@{
+            // No hay recurso propio para Recargar, y repetir el icono de la billetera
+            // dejaria dos filas seguidas indistinguibles de un vistazo. El simbolo del
+            // sistema entra por el camino de respaldo de la celda.
+            @"title": [LanguageHelper getStringWithKey:@"k_s10_recarga_menu" defaultValue:@"Recargar"],
+            @"icon":  @"menu_icon_recargas",
+            @"sfSymbol": @"plus.circle",
+            @"identifier": @"recargas"
+        }];
+    }
+
+    // Referidos
+    if ([constantModel getCValueFK:ckey_erf]) {
+        [self.arrSideMenu addObject:@{
+            @"title": [LanguageHelper getStringWithKey:@"k_s10_referral" defaultValue:@"Referidos"],
+            @"icon":  @"referrals",
+            @"identifier": @"ReferralViewController"
+        }];
+    }
+
     // Notificaciones
     if ([constantModel getCValueFK:ckey_en]) {
         [self.arrSideMenu addObject:@{
-            @"title": [LanguageHelper getStringWithKey:@"k_15_s4_a1_notifications"],
+            @"title": [LanguageHelper getStringWithKey:@"k_15_s4_a1_notifications"
+                                          defaultValue:@"Notificaciones"],
             @"icon":  @"menu_icon_notifications",
             @"identifier": @"NotificationViewController",
             @"storyboard": StoryBoardUtiles.STORYBOARD_MAIN
         }];
     }
 
+    // Info de tarifas
+    if ([constantModel getCValueFK:ckey_efi]) {
+        [self.arrSideMenu addObject:@{
+            @"title": [LanguageHelper getStringWithKey:@"k_2_s10_fare_info"
+                                          defaultValue:@"Información de tarifas"],
+            @"icon":  @"fare_info",
+            @"identifier": @"FareInfoViewController"
+        }];
+    }
+
+    // Metodo de pago
+    if ([constantModel getCValueFK:ckey_est]) {
+        [self.arrSideMenu addObject:@{
+            @"title": [LanguageHelper getStringWithKey:@"k_3_s5_payemnt" defaultValue:@"Método de pago"],
+            @"icon":  @"ic_payment_method",
+            @"identifier": @"PaymentMethodListViewController"
+        }];
+    }
+
     // Lenguaje
     if ([[LanguageHelper sharedInstance] getLanguageList].count > Default_City_Count) {
         [self.arrSideMenu addObject:@{
-            @"title": [LanguageHelper getStringWithKey:@"k_12_s4_a1_language"],
+            @"title": [LanguageHelper getStringWithKey:@"k_12_s4_a1_language" defaultValue:@"Idioma"],
             @"icon":  @"menu_icon_language",
             @"identifier": @"LanguageViewController",
             @"storyboard": StoryBoardUtiles.STORYBOARD_MAIN
@@ -450,68 +522,34 @@
     // Comparte
     if (constantModel.enable_share) {
         [self.arrSideMenu addObject:@{
-            @"title": [LanguageHelper getStringWithKey:@"k_9_s4_a1_share"],
+            @"title": [LanguageHelper getStringWithKey:@"k_9_s4_a1_share" defaultValue:@"Comparte"],
             @"icon":  @"menu_icon_share",
             @"identifier": SIDE_MENU_SHARE
-        }];
-    }
-
-    // Contacto SOS
-    [self.arrSideMenu addObject:@{
-        @"title": [LanguageHelper getStringWithKey:@"k_s40_contacts_title"],
-        @"icon":  @"menu_icon_sos",
-        @"identifier": @"SettingViewController"
-    }];
-
-    // Chatea con nosotros
-    if (constantModel.enable_chat) {
-        [self.arrSideMenu addObject:@{
-            @"title": [LanguageHelper getStringWithKey:@"k_11_s4_chat_us"],
-            @"icon":  @"menu_icon_chat",
-            @"identifier": @"chat_with_us"
         }];
     }
 
     // Contáctanos
     if (constantModel.enable_contactus) {
         [self.arrSideMenu addObject:@{
-            @"title": [LanguageHelper getStringWithKey:@"k_11_s4_a1_contact_us"],
+            @"title": [LanguageHelper getStringWithKey:@"k_11_s4_a1_contact_us" defaultValue:@"Contáctanos"],
             @"icon":  @"menu_icon_contact",
             @"identifier": SIDE_MENU_SUPPORT
         }];
     }
 
-    // Payment (feature-flagged, shown if enabled)
-    if ([constantModel getCValueFK:ckey_est]) {
+    // Chatea con nosotros
+    if (constantModel.enable_chat) {
         [self.arrSideMenu addObject:@{
-            @"title": [LanguageHelper getStringWithKey:@"k_3_s5_payemnt" defaultValue:@"Payment"],
-            @"icon":  @"ic_payment_method",
-            @"identifier": @"PaymentMethodListViewController"
-        }];
-    }
-
-    // Fare Info
-    if ([constantModel getCValueFK:ckey_efi]) {
-        [self.arrSideMenu addObject:@{
-            @"title": @"Fare Info",
-            @"icon":  @"fare_info",
-            @"identifier": @"FareInfoViewController"
-        }];
-    }
-
-    // Referral
-    if ([constantModel getCValueFK:ckey_erf]) {
-        [self.arrSideMenu addObject:@{
-            @"title": [LanguageHelper getStringWithKey:@"k_s10_referral"],
-            @"icon":  @"referrals",
-            @"identifier": @"ReferralViewController"
+            @"title": [LanguageHelper getStringWithKey:@"k_11_s4_chat_us" defaultValue:@"Chatea con nosotros"],
+            @"icon":  @"menu_icon_chat",
+            @"identifier": @"chat_with_us"
         }];
     }
 
     // Legal
     if ([constantModel getCValueFK:ckey_elg]) {
         [self.arrSideMenu addObject:@{
-            @"title": [LanguageHelper getStringWithKey:@"k_2_s10_legal"],
+            @"title": [LanguageHelper getStringWithKey:@"k_2_s10_legal" defaultValue:@"Legal"],
             @"icon":  @"legal",
             @"identifier": @"LegalViewController"
         }];
@@ -642,8 +680,10 @@
     // 16pt medium weight
     cell.lblMenu.font = [UIFont systemFontOfSize:16 weight:UIFontWeightMedium];
 
-    // Notification badge
-    if ([title isEqualToString:[LanguageHelper getStringWithKey:@"k_15_s4_a1_notifications"]]) {
+    // El globito de avisos se busca por IDENTIFICADOR, no por el rotulo. Comparando
+    // rotulos, cambiar la traduccion -- o darle un texto por defecto a la fila, como ahora
+    // -- dejaba el globito sin salir nunca, sin que nada pareciera roto.
+    if ([[item objectForKey:@"identifier"] isEqualToString:@"NotificationViewController"]) {
         if ([APP_DELEGATE notificationCount] > 0) {
             [cell.viewNotification setHidden:NO];
             cell.lblNotificationCount.text = [NSString stringWithFormat:@"%d", [APP_DELEGATE notificationCount]];
@@ -655,8 +695,18 @@
         [cell.viewNotification setHidden:YES];
     }
 
-    // Icon: always use custom asset
+    // El icono, y si el recurso no existe el simbolo del sistema que la fila indique.
+    // El menu del conductor ya lo hacia asi; aqui una fila sin recurso salia sin icono y
+    // el rotulo quedaba desalineado con el resto, sin ningun aviso de que faltaba nada.
     UIImage *iconImage = [UIImage imageNamed:[item objectForKey:@"icon"]];
+    if (iconImage == nil) {
+        NSString *simbolo = [item objectForKey:@"sfSymbol"];
+        if (simbolo.length > 0) {
+            iconImage = [UIImage systemImageNamed:simbolo
+                                withConfiguration:[UIImageSymbolConfiguration
+                                                   configurationWithWeight:UIImageSymbolWeightRegular]];
+        }
+    }
     UIImage *image = [iconImage imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
     // gray-500 (#6B7280)
     cell.imgIcon.tintColor = [UIColor colorWithRed:107/255.0 green:114/255.0 blue:128/255.0 alpha:1];
@@ -684,35 +734,19 @@
     } else if ([sideOption isEqualToString:SIDE_MENU_SHARE]) {
         [self shareApp];
 
-    } else if ([sideOption isEqualToString:@"mi_wallet"]) {
-        // Mi Wallet — opens a WebView
-        // TODO: Replace "https://www.google.com" with the actual Mi Wallet URL
-        AboutUsViewController *vc = [self.storyboard instantiateViewControllerWithIdentifier:@"AboutUsViewController"];
-        vc.isCustomUrl  = YES;
-        vc.customTitle  = @"Mi Wallet";
-        vc.customUrl    = @"https://www.google.com"; // TODO: Replace with actual wallet URL
-        MainViewController *mainVC = (MainViewController *)self.sideMenuController;
-        UINavigationController *navVC = (UINavigationController *)mainVC.rootViewController;
-        [navVC pushViewController:vc animated:YES];
-        [mainVC hideLeftViewAnimated:YES completionHandler:nil];
+    } else if ([sideOption isEqualToString:@"recargas"]) {
+        // No esta en ningun storyboard: se monta a mano, como Sitios.
+        [self empujar:[[RecargasViewController alloc] init]];
 
     } else if ([sideOption isEqualToString:@"planes_sitios"]) {
-        // No esta en ningun storyboard: se crea a mano, como Mi Wallet.
-        PlanesViewController *vc = [[PlanesViewController alloc] init];
-        MainViewController *mainVC = (MainViewController *)self.sideMenuController;
-        UINavigationController *navVC = (UINavigationController *)mainVC.rootViewController;
-        [navVC pushViewController:vc animated:YES];
-        [mainVC hideLeftViewAnimated:YES completionHandler:nil];
+        [self empujar:[[PlanesViewController alloc] init]];
 
     } else if ([sideOption isEqualToString:@"chat_with_us"]) {
         AboutUsViewController *vc = [self.storyboard instantiateViewControllerWithIdentifier:@"AboutUsViewController"];
         vc.isCustomUrl  = YES;
-        vc.customTitle  = [LanguageHelper getStringWithKey:@"k_11_s4_chat_us"];
+        vc.customTitle  = [LanguageHelper getStringWithKey:@"k_11_s4_chat_us" defaultValue:@"Chatea con nosotros"];
         vc.customUrl    = isEmpty([SettingsModel getSettignsObject].enable_chat);
-        MainViewController *mainVC = (MainViewController *)self.sideMenuController;
-        UINavigationController *navVC = (UINavigationController *)mainVC.rootViewController;
-        [navVC pushViewController:vc animated:YES];
-        [mainVC hideLeftViewAnimated:YES completionHandler:nil];
+        [self empujar:vc];
 
     } else if ([sideOption isEqualToString:SIDE_MENU_DEACTIVATE]) {
         [self LogoutPressed_isLogout:NO];
@@ -794,6 +828,20 @@
 }
 
 #pragma mark - Navigation helpers
+
+/**
+ Empuja una pantalla montada a mano y cierra el menu.
+
+ Las pantallas que no viven en ningun storyboard -- Sitios, Recargas -- repetian estas
+ cuatro lineas cada una, y son cuatro lineas que hay que acertar enteras: si se olvida el
+ hideLeftView, la pantalla se abre con el menu todavia encima.
+ */
+- (void)empujar:(UIViewController *)vc {
+    MainViewController *mainVC = (MainViewController *)self.sideMenuController;
+    UINavigationController *navVC = (UINavigationController *)mainVC.rootViewController;
+    [navVC pushViewController:vc animated:YES];
+    [mainVC hideLeftViewAnimated:YES completionHandler:nil];
+}
 
 - (void)setViewControllers:(NSString *)sender storyboardName:(NSString *)storyboardName {
     MainViewController *mainVC = (MainViewController *)self.sideMenuController;
