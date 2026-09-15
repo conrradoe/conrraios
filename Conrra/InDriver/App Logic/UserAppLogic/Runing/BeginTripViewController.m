@@ -150,6 +150,8 @@
     BOOL isBeginRouteDraw;
     /// El recorrido se encuadra una vez, no en cada refresco de la ruta.
     BOOL yaEncuadreElRecorrido;
+    /// Con que estado se encuadro el mapa la ultima vez.
+    NSString *ultimoEstadoEncuadrado;
     BOOL isFirstRouteDraw;
     BOOL isBeginRouteCalling;
     MKAnnotationView *driverPinView;
@@ -623,6 +625,22 @@
     [self.filaMetodoDePago addSubview:self.lblMetodoDePago];
 }
 
+/** Lo que mide de verdad la tarjeta de pago movil con el texto que lleva dentro. */
+- (CGFloat)altoDeLaTarjetaDePagoMovilConAncho:(CGFloat)ancho {
+    NSString *texto = self.lblPagoMovilDatos.text;
+    if (texto.length == 0 || ancho <= 0) {
+        return 84;
+    }
+    UIFont *fuente = self.lblPagoMovilDatos.font ?: [UIFont systemFontOfSize:12];
+    CGRect medida = [texto boundingRectWithSize:CGSizeMake(ancho - 20, CGFLOAT_MAX)
+                                        options:(NSStringDrawingUsesLineFragmentOrigin |
+                                                 NSStringDrawingUsesFontLeading)
+                                     attributes:@{NSFontAttributeName: fuente}
+                                        context:nil];
+    // 26 arriba (margen + rotulo) y 10 abajo.
+    return ceilf(medida.size.height) + 36;
+}
+
 /**
  Traduce trip_pay_mode a algo legible, con el mismo reparto que Android.
 
@@ -665,6 +683,7 @@
         return;
     }
     self.lblMetodoDePago.text = texto;
+    [self.view setNeedsLayout];
     if (@available(iOS 13.0, *)) {
         self.imgMetodoDePago.image = [[UIImage systemImageNamed:icono]
             imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
@@ -995,6 +1014,79 @@
 
 
 /**
+ Encuadra el viaje con los puntos que SIEMPRE se conocen.
+
+ El encuadre que habia salia de directionSource.northeast/southwest, que los rellena el
+ servicio de rutas: si la ruta no llego -- y no llega mientras el conductor no suba su
+ rastro, que es de donde sale temp_route_data -- esos valores se quedan a cero y la
+ camara no tiene a donde ir. Por eso el mapa enseñaba un trozo de calle cualquiera.
+
+ Aqui se usan el coche, la recogida y el destino, que vienen en el propio viaje. Antes
+ de arrancar interesan coche y recogida (por donde viene a buscarte); con el viaje en
+ marcha, coche y destino (cuanto queda).
+
+ Se rehace solo al CAMBIAR de estado. En cada refresco de la ruta el mapa daria un tiron
+ cada pocos segundos.
+ */
+-(void)encuadrarViajeEnCurso {
+    NSString *estado = isEmpty(self.currentTrip.trip_Status);
+    if (estado.length == 0 || [estado isEqualToString:ultimoEstadoEncuadrado]) {
+        return;
+    }
+
+    NSMutableArray *puntos = [[NSMutableArray alloc] init];
+    CLLocationCoordinate2D coche = CLLocationCoordinate2DMake(self.currentTrip.driver.lat,
+                                                              self.currentTrip.driver.lng);
+    if (coche.latitude != 0 || coche.longitude != 0) {
+        [puntos addObject:[NSValue valueWithMKCoordinate:coche]];
+    }
+
+    BOOL enMarcha = ([estado isEqualToString:TS_BEGIN] || [estado isEqualToString:TS_PICKED]);
+    CLLocationCoordinate2D otro = enMarcha
+        ? CLLocationCoordinate2DMake([self.currentTrip.trip_drop_lat doubleValue],
+                                     [self.currentTrip.trip_drop_long doubleValue])
+        : CLLocationCoordinate2DMake([self.currentTrip.trip_pick_lat doubleValue],
+                                     [self.currentTrip.trip_pick_long doubleValue]);
+    if (otro.latitude != 0 || otro.longitude != 0) {
+        [puntos addObject:[NSValue valueWithMKCoordinate:otro]];
+    }
+
+    if (puntos.count == 0) {
+        return;
+    }
+    ultimoEstadoEncuadrado = estado;
+
+    MKMapRect rect = MKMapRectNull;
+    for (NSValue *v in puntos) {
+        MKMapPoint p = MKMapPointForCoordinate([v MKCoordinateValue]);
+        MKMapRect suyo = MKMapRectMake(p.x, p.y, 0.1, 0.1);
+        rect = MKMapRectIsNull(rect) ? suyo : MKMapRectUnion(rect, suyo);
+    }
+    if (MKMapRectIsNull(rect)) {
+        return;
+    }
+    // Con un solo punto el rectangulo es un pixel: se le da un cuadro de ~1,2 km.
+    if (puntos.count == 1) {
+        CLLocationCoordinate2D unico = [[puntos firstObject] MKCoordinateValue];
+        MKCoordinateRegion region = MKCoordinateRegionMakeWithDistance(unico, 1200, 1200);
+        [self.mapView setRegion:[self.mapView regionThatFits:region] animated:YES];
+        return;
+    }
+
+    [self.mapView setVisibleMapRect:rect edgePadding:[self margenesDelMapa] animated:YES];
+}
+
+/** El hueco que deja la hoja, para que nada quede detras de ella. */
+-(UIEdgeInsets)margenesDelMapa {
+    CGFloat alto = self.view.bounds.size.height;
+    CGFloat tapaLaHoja = MAX(0, alto - self.sheetTop) + 16;
+    if (tapaLaHoja > alto * 0.66f) {
+        tapaLaHoja = alto * 0.66f;
+    }
+    return UIEdgeInsetsMake(self.view.safeAreaInsets.top + 70, 40, tapaLaHoja, 40);
+}
+
+/**
  Encaja el recorrido entero en el trozo de mapa que se ve.
 
  Estaba comentado, asi que la ruta se dibujaba pero la camara no se movia: el pasajero
@@ -1015,13 +1107,7 @@
     }
     yaEncuadreElRecorrido = YES;
 
-    CGFloat alto = self.view.bounds.size.height;
-    CGFloat tapaLaHoja = MAX(0, alto - self.sheetTop) + 16;
-    if (tapaLaHoja > alto * 0.66f) {
-        tapaLaHoja = alto * 0.66f;
-    }
-    UIEdgeInsets margenes = UIEdgeInsetsMake(self.view.safeAreaInsets.top + 70, 40, tapaLaHoja, 40);
-    [self.mapView setVisibleMapRect:rect edgePadding:margenes animated:YES];
+    [self.mapView setVisibleMapRect:rect edgePadding:[self margenesDelMapa] animated:YES];
 }
 
 -(MKPolyline *) getPolyline:(NSArray *)array{
@@ -1131,6 +1217,8 @@
         [self updateDriverAnotation:pickup];
     }
     [self.imageVehicle sd_setImageWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@%@",url_base_images, self.currentTrip.driver.d_car_image_path]]];
+
+    [self encuadrarViajeEnCurso];
 
     /*
      El importe, y debajo en bolivares. Como Android.
@@ -1989,10 +2077,11 @@
     alto += altoTarjetaConductor;
 
     BOOL hayPagoMovil = !self.tarjetaPagoMovil.isHidden;
-    // Tres lineas de 12 puntos mas el rotulo y los margenes. Con 66 la tercera --
-    // el telefono, que es justo el dato con el que se hace la transferencia -- se
-    // quedaba recortada.
-    CGFloat altoPagoMovil = 84;
+    // Se MIDE el texto en vez de suponer cuanto ocupa. Noto Sans tiene las metricas
+    // altas -- tres lineas de 12 puntos pasan de 48 -- y cada vez que puse un numero
+    // a ojo se quedaba corto por poco y cortaba el telefono, que es justo el dato con
+    // el que se hace la transferencia.
+    CGFloat altoPagoMovil = [self altoDeLaTarjetaDePagoMovilConAncho:cardW];
     if (hayPagoMovil) {
         alto += 6 + altoPagoMovil;
     }
@@ -2095,7 +2184,7 @@
         self.tarjetaPagoMovil.frame = CGRectMake(pad, y, cardW, altoPagoMovil);
         UIView *tituloPM = [self.tarjetaPagoMovil viewWithTag:903];
         tituloPM.frame = CGRectMake(10, 8, cardW - 20, 12);
-        self.lblPagoMovilDatos.frame = CGRectMake(10, 26, cardW - 20, altoPagoMovil - 36);
+        self.lblPagoMovilDatos.frame = CGRectMake(10, 26, cardW - 20, altoPagoMovil - 26 - 10);
         y += altoPagoMovil;
     }
 
@@ -2280,6 +2369,7 @@
                                    tipoId, numeroId,
                                    telefono.length ? telefono : @"N/A"];
     self.tarjetaPagoMovil.hidden = NO;
+    [self.view setNeedsLayout];
 }
 
 /** La categoria del viaje: icono y nombre, a la derecha de la tarjeta del conductor. */
