@@ -1101,14 +1101,31 @@
     }
     [self.imageVehicle sd_setImageWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@%@",url_base_images, self.currentTrip.driver.d_car_image_path]]];
 
-    // El importe, en dolares y debajo en bolivares -- dos lineas, como Android. Con
-    // una sola linea el pasajero tenia que hacer la conversion de cabeza justo cuando
-    // va a pagar.
+    /*
+     El importe, y debajo en bolivares. Como Android.
+
+     Las dos lineas van con tamaños distintos -- el importe manda -- y por eso se monta
+     con texto atribuido: un UILabel solo sabe de UNA fuente para todo su contenido.
+     Antes era una sola cadena con salto de linea a 22 puntos, que en una fila de 52 no
+     entraba y el label recortaba con puntos suspensivos: se veia "$2.10..." y los
+     bolivares no aparecian nunca.
+     */
     if (self.currentTrip.trip_fare.length > 0) {
         CityModel *ciudad = [CityModel getCityByCityId:self.currentTrip.city_id];
         float importe = [self.currentTrip.trip_fare floatValue];
         NSString *enDolares = [Utilities formatAmountAndCurrency:importe currency:ciudad.city_cur]
                               ?: self.currentTrip.trip_fare;
+
+        UIColor *oscuro = [UIColor colorNamed:@"color_app_label"]
+            ?: [UIColor colorWithRed:0x21/255.0 green:0x21/255.0 blue:0x21/255.0 alpha:1];
+        NSMutableParagraphStyle *parrafo = [[NSMutableParagraphStyle alloc] init];
+        parrafo.alignment = NSTextAlignmentRight;
+
+        NSMutableAttributedString *texto = [[NSMutableAttributedString alloc] initWithString:enDolares
+            attributes:@{ NSFontAttributeName: ([UIFont fontWithName:@"NotoSans-Bold" size:22]
+                                                ?: [UIFont boldSystemFontOfSize:22]),
+                          NSForegroundColorAttributeName: oscuro,
+                          NSParagraphStyleAttributeName: parrafo }];
 
         float tasa = [ConstantModel tasaDolarALocal];
         if (tasa > 0) {
@@ -1117,12 +1134,18 @@
             formato.minimumFractionDigits = 2;
             formato.maximumFractionDigits = 2;
             NSString *enLocal = [formato stringFromNumber:@(importe * tasa)] ?: @"";
-            self.paymentAmountLabel.numberOfLines = 2;
-            self.paymentAmountLabel.text = [NSString stringWithFormat:@"%@\nBs %@", enDolares, enLocal];
-        } else {
-            self.paymentAmountLabel.numberOfLines = 1;
-            self.paymentAmountLabel.text = enDolares;
+            [texto appendAttributedString:[[NSAttributedString alloc] initWithString:
+                [NSString stringWithFormat:@"\nBs %@", enLocal]
+                attributes:@{ NSFontAttributeName: ([UIFont fontWithName:@"NotoSans-Bold" size:17]
+                                                    ?: [UIFont boldSystemFontOfSize:17]),
+                              NSForegroundColorAttributeName: oscuro,
+                              NSParagraphStyleAttributeName: parrafo }]];
         }
+
+        self.paymentAmountLabel.numberOfLines = 2;
+        self.paymentAmountLabel.adjustsFontSizeToFitWidth = YES;
+        self.paymentAmountLabel.minimumScaleFactor = 0.6f;
+        self.paymentAmountLabel.attributedText = texto;
     }
 }
 
@@ -1470,9 +1493,12 @@
 
         // Pastilla amarilla, como el trip_otp de Android. En azul sobre blanco parecia
         // un enlace; aqui es el dato que hay que leerle al conductor.
+        // attributedText va ANTES que text, no despues: ponerlo a nil borra lo que el
+        // label tenga puesto, y estando debajo se llevaba por delante el OTP que se
+        // acababa de escribir. La pastilla salia amarilla y vacia.
+        self.lbTripOtp.attributedText = nil;
         self.lbTripOtp.text = [NSString stringWithFormat:@"%@%@",
             [LanguageHelper getStringWithKey:@"k_93_s4_otp" defaultValue:@"OTP: "], otpNumber];
-        self.lbTripOtp.attributedText = nil;
         self.lbTripOtp.font = [UIFont fontWithName:@"NotoSans-Bold" size:18] ?: [UIFont boldSystemFontOfSize:18];
         self.lbTripOtp.textColor = [UIColor blackColor];
         self.lbTripOtp.textAlignment = NSTextAlignmentCenter;
@@ -1944,7 +1970,9 @@
         alto += 6 + altoMetodo;
     }
 
-    CGFloat altoPrecio = 52;
+    // Dos lineas de verdad: el importe y debajo los bolivares. Con 52 no cabian y el
+    // label recortaba la segunda, que es lo que dejaba "$2.10..." con puntos suspensivos.
+    CGFloat altoPrecio = 64;
     alto += 6 + altoPrecio;
 
     CGFloat altoCancelar = 44;
@@ -2067,8 +2095,9 @@
     self.paymentRow.layer.cornerRadius = 12;
     self.paymentRow.clipsToBounds = YES;
     UIView *payLabel = [self.paymentRow viewWithTag:902];
-    payLabel.frame = CGRectMake(16, 0, 150, altoPrecio);
-    self.paymentAmountLabel.frame = CGRectMake(cardW - 16 - 180, 0, 180, altoPrecio);
+    payLabel.frame = CGRectMake(16, 0, 130, altoPrecio);
+    CGFloat anchoImporte = cardW - 16 - 130 - 16 - 8;
+    self.paymentAmountLabel.frame = CGRectMake(cardW - 16 - anchoImporte, 0, anchoImporte, altoPrecio);
     y += altoPrecio;
 
     // --- Cancelar ---
