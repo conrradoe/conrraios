@@ -8,10 +8,17 @@
 
 /* Begin PBXBuildFile section */
 		0471158454324156A31835BE /* NotoSans-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 77C5D24C59784F3FA6F1CB03 /* NotoSans-Regular.ttf */; };
+		05C616BCD06F4F7E9B3F5EA3 /* RecargaC2PViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 973B94A1D14F479FAF590384 /* RecargaC2PViewController.m */; };
+		1200733C659D4087871896F4 /* ConrraMapaSelectorViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = E27A00F7C3BF4E9582563DAC /* ConrraMapaSelectorViewController.m */; };
 		12B4CC37A8414119ABED03B6 /* NotoSans-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = F01F14923EB244E8B6FB3626 /* NotoSans-Bold.ttf */; };
+		1EF7D8AE4D584A61A57B40E3 /* RecargasViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 20CE1AE0F2C6472D99053ADD /* RecargasViewController.m */; };
 		46FEBA7A8531D83A15F52979 /* Pods_Conrra.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8C3D0830815857F4A9265C24 /* Pods_Conrra.framework */; };
+		577B36D90960470B9954A54B /* ConrraDestinoDePlan.m in Sources */ = {isa = PBXBuildFile; fileRef = DB5BD24B804B4571B40CED22 /* ConrraDestinoDePlan.m */; };
+		57B36B2469D2429187164471 /* PlanesViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 5C3562E51F094F46852A86A0 /* PlanesViewController.m */; };
+		89B2CC384CA440E9B192AD2B /* RecargaEstilo.m in Sources */ = {isa = PBXBuildFile; fileRef = 286AB2CF366447A6947CA85D /* RecargaEstilo.m */; };
 		9475C579137E9387870B81EC /* RadarAnimationView.m in Sources */ = {isa = PBXBuildFile; fileRef = 237379DFF884A86F4F2133D5 /* RadarAnimationView.m */; };
 		9DF32FC4D472C62122B86325 /* UserPinAnnotationView.m in Sources */ = {isa = PBXBuildFile; fileRef = 1006C26EADC7E7AA5F24C56A /* UserPinAnnotationView.m */; };
+		A5038AAF7F1240C19B8A9CBF /* ConrraAvisoLocal.m in Sources */ = {isa = PBXBuildFile; fileRef = 9081982A068C47CBA3DEE80B /* ConrraAvisoLocal.m */; };
 		AA11BB22CC33DD44EE55FF01 /* RequestCardCell.m in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF03 /* RequestCardCell.m */; };
 		AA11BB23CC33DD44EE55FF01 /* OfferCardCell.m in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB23CC33DD44EE55FF03 /* OfferCardCell.m */; };
 		CC0003CC0003CC0003CC0003 /* ConrraButton.m in Sources */ = {isa = PBXBuildFile; fileRef = CC0002CC0002CC0002CC0002 /* ConrraButton.m */; };
@@ -78,16 +85,6 @@
 		D357A9A027F2F66C0086E2D4 /* CategoryCell.xib in Resources */ = {isa = PBXBuildFile; fileRef = D357A84027F2F66C0086E2D4 /* CategoryCell.xib */; };
 		D357A9A127F2F66C0086E2D4 /* UHomeViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = D357A84127F2F66C0086E2D4 /* UHomeViewController.m */; };
 		D357A9A327F2F66C0086E2D4 /* SettingViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = D357A84727F2F66C0086E2D4 /* SettingViewController.m */; };
-		89B2CC384CA440E9B192AD2B /* RecargaEstilo.m in Sources */ = {isa = PBXBuildFile; fileRef = 286AB2CF366447A6947CA85D /* RecargaEstilo.m */; };
-		1EF7D8AE4D584A61A57B40E3 /* RecargasViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 20CE1AE0F2C6472D99053ADD /* RecargasViewController.m */; };
-		05C616BCD06F4F7E9B3F5EA3 /* RecargaC2PViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 973B94A1D14F479FAF590384 /* RecargaC2PViewController.m */; };
-		EBA67F1D6A614C54BF8C25C8 /* RecargaBotonViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 30ACBF88F6E845E8BBAA7330 /* RecargaBotonViewController.m */; };
-		1200733C659D4087871896F4 /* ConrraMapaSelectorViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = E27A00F7C3BF4E9582563DAC /* ConrraMapaSelectorViewController.m */; };
-		A5038AAF7F1240C19B8A9CBF /* ConrraAvisoLocal.m in Sources */ = {isa = PBXBuildFile; fileRef = 9081982A068C47CBA3DEE80B /* ConrraAvisoLocal.m */; };
-		577B36D90960470B9954A54B /* ConrraDestinoDePlan.m in Sources */ = {isa = PBXBuildFile; fileRef = DB5BD24B804B4571B40CED22 /* ConrraDestinoDePlan.m */; };
-		F22D7B3C64574564B7F8F42C /* ConrraCatalogoDePlanes.m in Sources */ = {isa = PBXBuildFile; fileRef = 5F4F073533DA4B3FBEFC8DFF /* ConrraCatalogoDePlanes.m */; };
-		57B36B2469D2429187164471 /* PlanesViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 5C3562E51F094F46852A86A0 /* PlanesViewController.m */; };
-		F4FECEBF98C14BB2905699FD /* ConrraCarruselBanners.m in Sources */ = {isa = PBXBuildFile; fileRef = CF13DD69C8974AC49478A9D9 /* ConrraCarruselBanners.m */; };
 		D357A9A427F2F66C0086E2D4 /* BeginTripViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = D357A84927F2F66C0086E2D4 /* BeginTripViewController.m */; };
 		D357A9A527F2F66C0086E2D4 /* UIHelper.m in Sources */ = {isa = PBXBuildFile; fileRef = D357A84D27F2F66C0086E2D4 /* UIHelper.m */; };
 		D357A9A627F2F66C0086E2D4 /* FareReviewViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = D357A85027F2F66C0086E2D4 /* FareReviewViewController.m */; };
@@ -488,6 +485,9 @@
 		D3D1755C297A6FEE00A2C06B /* comgifmaker.gif in Resources */ = {isa = PBXBuildFile; fileRef = D3D1755B297A6FED00A2C06B /* comgifmaker.gif */; };
 		D3D6DD122BEF692600A271FE /* HomePaymentViewModel.m in Sources */ = {isa = PBXBuildFile; fileRef = D3D6DD112BEF692600A271FE /* HomePaymentViewModel.m */; };
 		D3E28A0E2BB447F80018C48D /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = D3E28A0D2BB447F80018C48D /* PrivacyInfo.xcprivacy */; };
+		EBA67F1D6A614C54BF8C25C8 /* RecargaBotonViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 30ACBF88F6E845E8BBAA7330 /* RecargaBotonViewController.m */; };
+		F22D7B3C64574564B7F8F42C /* ConrraCatalogoDePlanes.m in Sources */ = {isa = PBXBuildFile; fileRef = 5F4F073533DA4B3FBEFC8DFF /* ConrraCatalogoDePlanes.m */; };
+		F4FECEBF98C14BB2905699FD /* ConrraCarruselBanners.m in Sources */ = {isa = PBXBuildFile; fileRef = CF13DD69C8974AC49478A9D9 /* ConrraCarruselBanners.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -505,20 +505,37 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		00B6C42AA70E4AEDA64A8857 /* RecargaEstilo.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RecargaEstilo.h; sourceTree = "<group>"; };
 		01BCB721B17D343B2458CB2B /* UserPinAnnotationView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = UserPinAnnotationView.h; sourceTree = "<group>"; };
+		07A75B65E6F74203B8CD8A51 /* ConrraAvisoLocal.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraAvisoLocal.h; sourceTree = "<group>"; };
 		083FC0351047472FA58C03E5 /* RadarAnimationView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RadarAnimationView.h; sourceTree = "<group>"; };
 		1006C26EADC7E7AA5F24C56A /* UserPinAnnotationView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = UserPinAnnotationView.m; sourceTree = "<group>"; };
 		1CAEA31E944C08866695E418 /* Pods-Conrra.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Conrra.debug.xcconfig"; path = "Target Support Files/Pods-Conrra/Pods-Conrra.debug.xcconfig"; sourceTree = "<group>"; };
+		20CE1AE0F2C6472D99053ADD /* RecargasViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RecargasViewController.m; sourceTree = "<group>"; };
 		237379DFF884A86F4F2133D5 /* RadarAnimationView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RadarAnimationView.m; sourceTree = "<group>"; };
+		286AB2CF366447A6947CA85D /* RecargaEstilo.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RecargaEstilo.m; sourceTree = "<group>"; };
+		30ACBF88F6E845E8BBAA7330 /* RecargaBotonViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RecargaBotonViewController.m; sourceTree = "<group>"; };
+		572E2802AC864CEEB245CD34 /* ConrraCarruselBanners.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraCarruselBanners.h; sourceTree = "<group>"; };
+		5C3562E51F094F46852A86A0 /* PlanesViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PlanesViewController.m; sourceTree = "<group>"; };
+		5F4F073533DA4B3FBEFC8DFF /* ConrraCatalogoDePlanes.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraCatalogoDePlanes.m; sourceTree = "<group>"; };
+		73ABD5DD30DD4FA794F04070 /* PlanesViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PlanesViewController.h; sourceTree = "<group>"; };
 		77C5D24C59784F3FA6F1CB03 /* NotoSans-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "NotoSans-Regular.ttf"; sourceTree = "<group>"; };
 		84C37645311D3C16EF70290C /* Pods-GetRide.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-GetRide.release.xcconfig"; path = "Target Support Files/Pods-GetRide/Pods-GetRide.release.xcconfig"; sourceTree = "<group>"; };
+		87C480AEF3914B05A4449118 /* RecargasViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RecargasViewController.h; sourceTree = "<group>"; };
 		8C3D0830815857F4A9265C24 /* Pods_Conrra.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Conrra.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		9081982A068C47CBA3DEE80B /* ConrraAvisoLocal.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraAvisoLocal.m; sourceTree = "<group>"; };
+		92EF1D55C55542EC95B9AEF2 /* ConrraMapaSelectorViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraMapaSelectorViewController.h; sourceTree = "<group>"; };
+		931FD0365220487C9A0D7EDB /* RecargaBotonViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RecargaBotonViewController.h; sourceTree = "<group>"; };
+		973B94A1D14F479FAF590384 /* RecargaC2PViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RecargaC2PViewController.m; sourceTree = "<group>"; };
+		9E84AA52DFF1472C8768CA0A /* ConrraDestinoDePlan.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraDestinoDePlan.h; sourceTree = "<group>"; };
 		AA11BB22CC33DD44EE55FF02 /* RequestCardCell.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RequestCardCell.h; sourceTree = "<group>"; };
 		AA11BB22CC33DD44EE55FF03 /* RequestCardCell.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RequestCardCell.m; sourceTree = "<group>"; };
 		AA11BB23CC33DD44EE55FF02 /* OfferCardCell.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = OfferCardCell.h; sourceTree = "<group>"; };
 		AA11BB23CC33DD44EE55FF03 /* OfferCardCell.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = OfferCardCell.m; sourceTree = "<group>"; };
 		CC0001CC0001CC0001CC0001 /* ConrraButton.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraButton.h; sourceTree = "<group>"; };
 		CC0002CC0002CC0002CC0002 /* ConrraButton.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraButton.m; sourceTree = "<group>"; };
+		CF13DD69C8974AC49478A9D9 /* ConrraCarruselBanners.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraCarruselBanners.m; sourceTree = "<group>"; };
+		D2BB1DFDE8DA48A684978E07 /* ConrraCatalogoDePlanes.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraCatalogoDePlanes.h; sourceTree = "<group>"; };
 		D305217928058ACA005424A7 /* AskForPassengerVC.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = AskForPassengerVC.m; sourceTree = "<group>"; };
 		D305217A28058ACA005424A7 /* AskForPassengerVC.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AskForPassengerVC.h; sourceTree = "<group>"; };
 		D305217C2805ABBC005424A7 /* DWalletTableViewCell.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DWalletTableViewCell.h; sourceTree = "<group>"; };
@@ -620,26 +637,6 @@
 		D357A84127F2F66C0086E2D4 /* UHomeViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = UHomeViewController.m; sourceTree = "<group>"; };
 		D357A84627F2F66C0086E2D4 /* SettingViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SettingViewController.h; sourceTree = "<group>"; };
 		D357A84727F2F66C0086E2D4 /* SettingViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SettingViewController.m; sourceTree = "<group>"; };
-		00B6C42AA70E4AEDA64A8857 /* RecargaEstilo.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RecargaEstilo.h; sourceTree = "<group>"; };
-		286AB2CF366447A6947CA85D /* RecargaEstilo.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RecargaEstilo.m; sourceTree = "<group>"; };
-		87C480AEF3914B05A4449118 /* RecargasViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RecargasViewController.h; sourceTree = "<group>"; };
-		20CE1AE0F2C6472D99053ADD /* RecargasViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RecargasViewController.m; sourceTree = "<group>"; };
-		D6702AD70662448C84CE048C /* RecargaC2PViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RecargaC2PViewController.h; sourceTree = "<group>"; };
-		973B94A1D14F479FAF590384 /* RecargaC2PViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RecargaC2PViewController.m; sourceTree = "<group>"; };
-		931FD0365220487C9A0D7EDB /* RecargaBotonViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RecargaBotonViewController.h; sourceTree = "<group>"; };
-		30ACBF88F6E845E8BBAA7330 /* RecargaBotonViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RecargaBotonViewController.m; sourceTree = "<group>"; };
-		92EF1D55C55542EC95B9AEF2 /* ConrraMapaSelectorViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraMapaSelectorViewController.h; sourceTree = "<group>"; };
-		E27A00F7C3BF4E9582563DAC /* ConrraMapaSelectorViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraMapaSelectorViewController.m; sourceTree = "<group>"; };
-		07A75B65E6F74203B8CD8A51 /* ConrraAvisoLocal.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraAvisoLocal.h; sourceTree = "<group>"; };
-		9081982A068C47CBA3DEE80B /* ConrraAvisoLocal.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraAvisoLocal.m; sourceTree = "<group>"; };
-		9E84AA52DFF1472C8768CA0A /* ConrraDestinoDePlan.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraDestinoDePlan.h; sourceTree = "<group>"; };
-		DB5BD24B804B4571B40CED22 /* ConrraDestinoDePlan.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraDestinoDePlan.m; sourceTree = "<group>"; };
-		D2BB1DFDE8DA48A684978E07 /* ConrraCatalogoDePlanes.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraCatalogoDePlanes.h; sourceTree = "<group>"; };
-		5F4F073533DA4B3FBEFC8DFF /* ConrraCatalogoDePlanes.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraCatalogoDePlanes.m; sourceTree = "<group>"; };
-		73ABD5DD30DD4FA794F04070 /* PlanesViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PlanesViewController.h; sourceTree = "<group>"; };
-		5C3562E51F094F46852A86A0 /* PlanesViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PlanesViewController.m; sourceTree = "<group>"; };
-		572E2802AC864CEEB245CD34 /* ConrraCarruselBanners.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraCarruselBanners.h; sourceTree = "<group>"; };
-		CF13DD69C8974AC49478A9D9 /* ConrraCarruselBanners.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraCarruselBanners.m; sourceTree = "<group>"; };
 		D357A84927F2F66C0086E2D4 /* BeginTripViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = BeginTripViewController.m; sourceTree = "<group>"; };
 		D357A84A27F2F66C0086E2D4 /* BeginTripViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = BeginTripViewController.h; sourceTree = "<group>"; };
 		D357A84C27F2F66C0086E2D4 /* UIHelper.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = UIHelper.h; sourceTree = "<group>"; };
@@ -1200,7 +1197,10 @@
 		D3D6DD102BEF692600A271FE /* HomePaymentViewModel.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = HomePaymentViewModel.h; sourceTree = "<group>"; };
 		D3D6DD112BEF692600A271FE /* HomePaymentViewModel.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = HomePaymentViewModel.m; sourceTree = "<group>"; };
 		D3E28A0D2BB447F80018C48D /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		D6702AD70662448C84CE048C /* RecargaC2PViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RecargaC2PViewController.h; sourceTree = "<group>"; };
 		D98C29E2BFA710DEE873C5BA /* Pods-GetRide.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-GetRide.debug.xcconfig"; path = "Target Support Files/Pods-GetRide/Pods-GetRide.debug.xcconfig"; sourceTree = "<group>"; };
+		DB5BD24B804B4571B40CED22 /* ConrraDestinoDePlan.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraDestinoDePlan.m; sourceTree = "<group>"; };
+		E27A00F7C3BF4E9582563DAC /* ConrraMapaSelectorViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraMapaSelectorViewController.m; sourceTree = "<group>"; };
 		E9FF4D8C121AF33CDEED7250 /* Pods-Conrra.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Conrra.release.xcconfig"; path = "Target Support Files/Pods-Conrra/Pods-Conrra.release.xcconfig"; sourceTree = "<group>"; };
 		F01F14923EB244E8B6FB3626 /* NotoSans-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "NotoSans-Bold.ttf"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -1235,6 +1235,21 @@
 				8C3D0830815857F4A9265C24 /* Pods_Conrra.framework */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		91C1748B3157464EB4778F86 /* Publicidad */ = {
+			isa = PBXGroup;
+			children = (
+				9E84AA52DFF1472C8768CA0A /* ConrraDestinoDePlan.h */,
+				DB5BD24B804B4571B40CED22 /* ConrraDestinoDePlan.m */,
+				D2BB1DFDE8DA48A684978E07 /* ConrraCatalogoDePlanes.h */,
+				5F4F073533DA4B3FBEFC8DFF /* ConrraCatalogoDePlanes.m */,
+				73ABD5DD30DD4FA794F04070 /* PlanesViewController.h */,
+				5C3562E51F094F46852A86A0 /* PlanesViewController.m */,
+				572E2802AC864CEEB245CD34 /* ConrraCarruselBanners.h */,
+				CF13DD69C8974AC49478A9D9 /* ConrraCarruselBanners.m */,
+			);
+			path = Publicidad;
 			sourceTree = "<group>";
 		};
 		D31402992A3C422400CC42EA /* ImageFullView */ = {
@@ -1691,36 +1706,6 @@
 			children = (
 			);
 			path = UNotification;
-			sourceTree = "<group>";
-		};
-		91C1748B3157464EB4778F86 /* Publicidad */ = {
-			isa = PBXGroup;
-			children = (
-				9E84AA52DFF1472C8768CA0A /* ConrraDestinoDePlan.h */,
-				DB5BD24B804B4571B40CED22 /* ConrraDestinoDePlan.m */,
-				D2BB1DFDE8DA48A684978E07 /* ConrraCatalogoDePlanes.h */,
-				5F4F073533DA4B3FBEFC8DFF /* ConrraCatalogoDePlanes.m */,
-				73ABD5DD30DD4FA794F04070 /* PlanesViewController.h */,
-				5C3562E51F094F46852A86A0 /* PlanesViewController.m */,
-				572E2802AC864CEEB245CD34 /* ConrraCarruselBanners.h */,
-				CF13DD69C8974AC49478A9D9 /* ConrraCarruselBanners.m */,
-			);
-			path = Publicidad;
-			sourceTree = "<group>";
-		};
-		E9FB8C481A084BED8F9667FA /* URecargas */ = {
-			isa = PBXGroup;
-			children = (
-				00B6C42AA70E4AEDA64A8857 /* RecargaEstilo.h */,
-				286AB2CF366447A6947CA85D /* RecargaEstilo.m */,
-				87C480AEF3914B05A4449118 /* RecargasViewController.h */,
-				20CE1AE0F2C6472D99053ADD /* RecargasViewController.m */,
-				D6702AD70662448C84CE048C /* RecargaC2PViewController.h */,
-				973B94A1D14F479FAF590384 /* RecargaC2PViewController.m */,
-				931FD0365220487C9A0D7EDB /* RecargaBotonViewController.h */,
-				30ACBF88F6E845E8BBAA7330 /* RecargaBotonViewController.m */,
-			);
-			path = URecargas;
 			sourceTree = "<group>";
 		};
 		D357A84527F2F66C0086E2D4 /* USettings */ = {
@@ -3499,6 +3484,21 @@
 			path = AskTripOTP;
 			sourceTree = "<group>";
 		};
+		E9FB8C481A084BED8F9667FA /* URecargas */ = {
+			isa = PBXGroup;
+			children = (
+				00B6C42AA70E4AEDA64A8857 /* RecargaEstilo.h */,
+				286AB2CF366447A6947CA85D /* RecargaEstilo.m */,
+				87C480AEF3914B05A4449118 /* RecargasViewController.h */,
+				20CE1AE0F2C6472D99053ADD /* RecargasViewController.m */,
+				D6702AD70662448C84CE048C /* RecargaC2PViewController.h */,
+				973B94A1D14F479FAF590384 /* RecargaC2PViewController.m */,
+				931FD0365220487C9A0D7EDB /* RecargaBotonViewController.h */,
+				30ACBF88F6E845E8BBAA7330 /* RecargaBotonViewController.m */,
+			);
+			path = URecargas;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -4293,11 +4293,12 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
-				DEVELOPMENT_TEAM = 7A86N6S2Q6;
+				DEVELOPMENT_TEAM = NR474VCKBL;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = InDriver/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Conrra;
-				INFOPLIST_KEY_LSApplicationCategoryType = "";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.travel";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Access required to upload your profile photos";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Location is needed to track your routes and for calculation of traveling distance";
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Location is needed to track your routes and for calculation of traveling distance";
@@ -4318,7 +4319,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.0.11;
 				PRODUCT_BUNDLE_IDENTIFIER = com.conrraapp.driver;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -4339,12 +4340,13 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
-				DEVELOPMENT_TEAM = 7A86N6S2Q6;
+				DEVELOPMENT_TEAM = NR474VCKBL;
 				ENABLE_BITCODE = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = InDriver/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Conrra;
-				INFOPLIST_KEY_LSApplicationCategoryType = "";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.travel";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Access required to upload your profile photos";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Location is needed to track your routes and for calculation of traveling distance";
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Location is needed to track your routes and for calculation of traveling distance";
@@ -4365,7 +4367,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.0.11;
 				PRODUCT_BUNDLE_IDENTIFIER = com.conrraapp.driver;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
