@@ -88,6 +88,8 @@
 @property (nonatomic, strong) UIButton       *btnDriverLicance;
 
 @property (nonatomic, strong) UIView         *viewMessage;
+/// El aspa del aviso de mensaje.
+@property (nonatomic, strong) UIButton       *btnCerrarAviso;
 @property (nonatomic, strong) UIImageView    *msgAvatarView;
 @property (nonatomic, strong) UILabel        *msgDriverNameLabel;
 @property (nonatomic, strong) UILabel        *msgPreviewLabel;
@@ -139,6 +141,9 @@
     BOOL isFirstLoad;
     NSTimer *mapCenterTimer;
     FirebaseUnReadChat *_firebaseUnReadChat;
+    /// Con cuantos mensajes sin leer se cerro el aviso a mano. Sirve para no volver a
+    /// sacarlo hasta que llegue uno nuevo de verdad.
+    int _avisoCerradoConNMensajes;
     NSTimer *timerBlink;
     BOOL blinkStatus;
     /** Cuantos no leidos habia la ultima vez, para avisar solo cuando sube. */
@@ -843,6 +848,39 @@
                               ?: [UIColor colorWithRed:235/255.0 green:181/255.0 blue:24/255.0 alpha:1];
     [self.btnPhone addTarget:self action:@selector(ButtonMakeCall:) forControlEvents:UIControlEventTouchUpInside];
     [self.viewMessage addSubview:self.btnPhone];
+
+    /*
+     El aspa para cerrarlo.
+
+     No la tenia: el aviso solo se iba cuando el contador de no leidos llegaba a cero, o
+     sea cuando el pasajero ABRIA el chat. Si no queria contestar en ese momento, se
+     quedaba ahi -- parpadeando -- sin manera de quitarlo.
+     */
+    self.btnCerrarAviso = [UIButton buttonWithType:UIButtonTypeSystem];
+    [self.btnCerrarAviso setImage:[[UIImage systemImageNamed:@"xmark"]
+                                   imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate]
+                         forState:UIControlStateNormal];
+    self.btnCerrarAviso.tintColor = [UIColor colorWithWhite:0.55 alpha:1];
+    [self.btnCerrarAviso addTarget:self action:@selector(cerrarAvisoDeMensaje)
+                  forControlEvents:UIControlEventTouchUpInside];
+    [self.viewMessage addSubview:self.btnCerrarAviso];
+}
+
+/**
+ Esconde el aviso sin dar los mensajes por leidos.
+
+ El numero se queda en el boton de chat: el pasajero ha dicho "ahora no", no "ya lo vi". Si
+ llega un mensaje NUEVO el aviso vuelve a salir, porque entonces hay algo que el todavia no
+ sabe.
+ */
+-(void)cerrarAvisoDeMensaje {
+    if (timerBlink) {
+        [timerBlink invalidate];
+        timerBlink = nil;
+    }
+    _viewMessage.backgroundColor = UIColor.whiteColor;
+    self.viewMessage.hidden = YES;
+    _avisoCerradoConNMensajes = [_firebaseUnReadChat messageCount];
 }
 
 -(void) setUIFiels{
@@ -2233,19 +2271,28 @@
         self.btnCancelTrip.frame = CGRectZero;
     }
 
-    // --- Aviso de mensaje (flota dentro de la hoja, oculto por defecto) ---
+    /*
+     Aviso de mensaje: flota dentro de la hoja, escondido por defecto.
+
+     Va DEBAJO del separador de la cabecera. Estaba clavado en y=27, que es justo donde vive
+     el OTP: el aviso lo tapaba entero, y como encima no se podia cerrar, el pasajero se
+     quedaba sin poder leerle el codigo al conductor.
+     */
     CGFloat bannerH = 64;
     CGFloat bannerW = cardW;
-    self.viewMessage.frame = CGRectMake(pad, 10 + 5 + 12, bannerW, bannerH);
+    CGFloat yAviso = CGRectGetMaxY(self.separadorCabecera.frame) + 10;
+    self.viewMessage.frame = CGRectMake(pad, yAviso, bannerW, bannerH);
     CGFloat msgAvatarSz = 40;
     self.msgAvatarView.frame = CGRectMake(12, (bannerH - msgAvatarSz) / 2, msgAvatarSz, msgAvatarSz);
     self.msgAvatarView.layer.cornerRadius = msgAvatarSz / 2;
     CGFloat msgTextX = 12 + msgAvatarSz + 8;
-    CGFloat msgTextW = bannerW - msgTextX - 48;
+    // 56 y no 48: el aspa de la esquina se come una parte del ancho de arriba.
+    CGFloat msgTextW = bannerW - msgTextX - 56;
     self.msgDriverNameLabel.frame = CGRectMake(msgTextX, 12, msgTextW, 18);
     self.msgPreviewLabel.frame    = CGRectMake(msgTextX, CGRectGetMaxY(self.msgDriverNameLabel.frame) + 4, msgTextW, 16);
     CGFloat phoneSz = 36;
     self.btnPhone.frame = CGRectMake(bannerW - 12 - phoneSz, (bannerH - phoneSz) / 2, phoneSz, phoneSz);
+    self.btnCerrarAviso.frame = CGRectMake(bannerW - 30, 4, 26, 26);
 
     // --- Overlays (full screen) ---
     self.viewCancelReason.frame  = self.view.bounds;
@@ -3178,6 +3225,15 @@
         int sinLeer = [_firebaseUnReadChat messageCount];
         self.btnChatConductor.badgeString = (sinLeer > 0)
             ? [NSString stringWithFormat:@"%d", sinLeer] : nil;
+        // Si lo cerro a mano, no vuelve hasta que llegue un mensaje NUEVO. Sin esto, el
+        // siguiente refresco del contador lo sacaba otra vez y el aspa no servia de nada.
+        if (sinLeer > 0 && sinLeer <= _avisoCerradoConNMensajes) {
+            // El numero del boton ya quedo puesto arriba; aqui solo se evita el aviso.
+            return;
+        }
+        if (sinLeer == 0) {
+            _avisoCerradoConNMensajes = 0;
+        }
         if(sinLeer>0) {
             [self.viewMessage setHidden:NO];
             self.lblMsgDriverName.text=[NSString stringWithFormat:@"%@ %@",self.currentTrip.driver.d_fname,self.currentTrip.driver.d_lname];
