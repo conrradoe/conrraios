@@ -430,19 +430,29 @@
     [self.btnOK setTitle:[LanguageHelper getStringWithKey:@"k_18_s4_otp_apply"] forState:UIControlStateNormal];
     self.lblCancelButtonText.text=[LanguageHelper getStringWithKey:@"k_r2_s8_cancel_ride"];
     
+    /*
+     Con el viaje en TS_ARRIVE el conductor YA dijo que va en camino, asi que el boton tiene
+     que ofrecer el paso siguiente: "He llegado!".
+
+     Estaba al reves: solo ponia "He llegado!" si DRIVER_STATUS_TEMP valia TS_PICKED, y esa
+     bandera significa lo contrario -- que el pasajero YA subio (la pone
+     ButtonAcceptPressed) --, momento en el que este boton ni se enseña, porque se esconde
+     goPopUpView y sale btnBeginTrip en su lugar.
+
+     De ahi el sintoma: el conductor tocaba "Voy en camino!", el boton cambiaba, y el primer
+     refresco de textos lo devolvia a "Voy en camino!". El segundo toque si avanzaba, porque
+     ButtonGoPressed mira driverStatus y no el rotulo. O sea que el viaje avanzaba bien y lo
+     unico roto era lo que el conductor leia, que es justo lo que le hace dudar.
+
+     El camino del sondeo -- cuando el TS_ARRIVE llega del servidor -- siempre lo tuvo bien.
+     Esto lo iguala.
+     */
     if([self->homeDataModel.trip.trip_Status isEqualToString:TS_ARRIVE]){
-        NSString *localTripStatus=defaults_object(DRIVER_STATUS_TEMP);
-        if(localTripStatus!=nil &&[localTripStatus isEqualToString:TS_PICKED])  {
-            [self.btnGoPopUP setTitle:[LanguageHelper getStringWithKey:@"k_19_s4_arrived" defaultValue:@"He llegado!"] forState:UIControlStateNormal];
-            UIImage *msgIcon = [UIImage imageNamed:@"ic_message_bubble"];
-            if (msgIcon) {
-                [self.btnGoPopUP setImage:[msgIcon imageWithRenderingMode:UIImageRenderingModeAlwaysOriginal] forState:UIControlStateNormal];
-                self.btnGoPopUP.semanticContentAttribute = UISemanticContentAttributeForceRightToLeft;
-            }
-        }else {
-            [self.btnGoPopUP setTitle:[LanguageHelper getStringWithKey:@"k_20_s4_pick" defaultValue:@"Voy en camino!"] forState:UIControlStateNormal];
-            [self.btnGoPopUP setImage:nil forState:UIControlStateNormal];
-            self.btnGoPopUP.semanticContentAttribute = UISemanticContentAttributeUnspecified;
+        [self.btnGoPopUP setTitle:[LanguageHelper getStringWithKey:@"k_19_s4_arrived" defaultValue:@"He llegado!"] forState:UIControlStateNormal];
+        UIImage *msgIcon = [UIImage imageNamed:@"ic_message_bubble"];
+        if (msgIcon) {
+            [self.btnGoPopUP setImage:[msgIcon imageWithRenderingMode:UIImageRenderingModeAlwaysOriginal] forState:UIControlStateNormal];
+            self.btnGoPopUP.semanticContentAttribute = UISemanticContentAttributeForceRightToLeft;
         }
     }else{
         [self.btnGoPopUP setTitle:[LanguageHelper getStringWithKey:@"k_20_s4_pick" defaultValue:@"Voy en camino!"] forState:UIControlStateNormal];

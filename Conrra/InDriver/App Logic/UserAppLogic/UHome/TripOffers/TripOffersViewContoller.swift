@@ -237,6 +237,23 @@ private class TripOffersRootView: UIView {
                 }
             }
         } else if trip.trip_pay_mode == HIRE_ME_WALLET_PAY {
+            /*
+             El saldo se comprueba CONTRA LA OFERTA, no contra lo que se pidio.
+
+             El agujero: el pasajero ofrecia 5$ teniendo 5$ justos, un conductor
+             contraofertaba 7$, el pasajero aceptaba y el viaje arrancaba igual. El saldo se
+             habia mirado -- si es que se miro -- contra los 5$ del principio, y nadie volvia
+             a mirarlo con el importe que de verdad se va a cobrar. El viaje terminaba con
+             una deuda.
+
+             Se avisa y NO se acepta. Dejarle aceptar y fallar al final del viaje es lo peor
+             de las dos opciones: ya hizo el trayecto.
+             */
+            let importe = Float(offer.offer_amt ?? "") ?? 0
+            if importe > 0 && importe > Self.saldoDeLaBilletera() {
+                avisarSaldoInsuficiente(importe: importe)
+                return
+            }
             if trip.is_ride_later {
                 tripOfferViewModel.assignTrip(tripOffer: offer, payment_intent_id: nil, pay_mode: HIRE_ME_WALLET_PAY)
             } else {
@@ -253,6 +270,45 @@ private class TripOffersRootView: UIView {
 
     func cardViewDidTapDecline(_ view: TripOfferCardView, offer: TripOffer) {
         tripOfferViewModel.updateTripOffer(tripOffer: offer, status: "declined")
+    }
+
+    /// El saldo del monedero del pasajero que tiene la sesion abierta.
+    private static func saldoDeLaBilletera() -> Float {
+        let defaults = UserDefaults.standard
+        let dict = (defaults.object(forKey: "user_dict_logged") as? [String: Any])
+                 ?? (defaults.object(forKey: "user_dict") as? [String: Any])
+        guard let valor = dict?["u_wallet"] else { return 0 }
+        if let n = valor as? NSNumber { return n.floatValue }
+        if let t = valor as? String { return Float(t) ?? 0 }
+        return 0
+    }
+
+    /**
+     Le dice que no le alcanza, con las dos cifras delante.
+
+     Sin los numeros el aviso no sirve de nada: lo primero que se pregunta quien lo lee es
+     cuanto le falta.
+     */
+    private func avisarSaldoInsuficiente(importe: Float) {
+        // El tipo explicito no sobra: CityModel.h vive dentro de NS_ASSUME_NONNULL pero
+        // getCityByCityId devuelve nil si la lista de ciudades no esta cargada. Sin la
+        // anotacion, Swift lo cree no-opcional y el "?." de abajo ni compila.
+        let ciudad: CityModel? = CityModel.getCityByCityId(Int(trip?.city_id ?? 0))
+        let moneda = ciudad?.city_cur ?? ""
+        let pedido = Utilities.formatAmountAndCurrency(importe, currency: moneda) ?? String(format: "%.2f", importe)
+        let tengo  = Utilities.formatAmountAndCurrency(Self.saldoDeLaBilletera(), currency: moneda)
+                     ?? String(format: "%.2f", Self.saldoDeLaBilletera())
+
+        let alerta = UIAlertController(
+            title: LanguageHelper.getStringWithKey("k_s10_saldo_corto_titulo",
+                                                  defaultValue: "Saldo insuficiente"),
+            message: String(format: "Esta oferta es de %@ y en tu billetera tienes %@. Recarga o elige otro método de pago antes de aceptarla.",
+                            pedido, tengo),
+            preferredStyle: .alert)
+        alerta.addAction(UIAlertAction(
+            title: LanguageHelper.getStringWithKey("k_18_s4_Ok", defaultValue: "Entendido"),
+            style: .default))
+        present(alerta, animated: true)
     }
 
 
@@ -523,6 +579,24 @@ private class TripOffersRootView: UIView {
             }
             self.bannerEnPantalla = banner
             self.bannerAspecto = image.size.height / image.size.width
+
+            /*
+             Con ofertas en pantalla el anuncio NO vuelve a aparecer.
+
+             applyOffersState pone a cero el alfa de todo el contenido de la espera, banner
+             incluido, pero el carrusel sigue rotando por su cuenta: en la siguiente vuelta
+             este fundido de entrada devolvia el alfa a 1 y el anuncio se dibujaba ENCIMA de
+             las tarjetas de oferta. De ahi que la pantalla se viera rota justo cuando mas
+             importa.
+
+             No se para el carrusel: si el pasajero rechaza las ofertas y vuelve a la espera,
+             los anuncios siguen su ciclo.
+             */
+            guard !self.isShowingOffers else {
+                self.bannerCard.alpha = 0
+                return
+            }
+
             self.bannerCard.isHidden = false
             self.layoutPanel(animated: false)
             // Fundido corto: pasar de una imagen a otra de golpe se lee como un parpadeo

@@ -121,7 +121,9 @@ class TripOfferViewModel: NSObject {
                         if let data =  aps["data"] as? NSDictionary {
                             let tripOffer = TripOffer.init(dict: data)
                             if isAlreadyAdded(id_request: tripOffer.trip_request_id) == false{
-                                self.tripOffer.value.append(tripOffer)
+                                if self.esDeLaCategoriaPedida(tripOffer) {
+                                    self.tripOffer.value.append(tripOffer)
+                                }
                             }else{
                                 let index = self.indexAlreadyAdded(id_request:tripOffer.trip_request_id)
                                 if index >= 0{
@@ -350,6 +352,34 @@ class TripOfferViewModel: NSObject {
     
     
     
+    /**
+     Si la oferta viene de un conductor de la categoria que el pasajero pidio.
+
+     Quien pide un coche no deberia ver ofertas de motos: son otro precio, otro tiempo y
+     otra cosa. El reparto correcto es del servidor -- la solicitud solo deberia llegarle a
+     los conductores de esa categoria --, pero esto es lo que ve el pasajero, y aqui es
+     barato comprobarlo.
+
+     SE DEJA PASAR LO QUE NO SE PUEDE COMPROBAR. Si el viaje no trae categoria, o si el
+     conductor de la oferta llega sin ella en el payload, la oferta se enseña. Esconder una
+     oferta legitima por un campo que el servidor no mando seria peor que enseñar una de
+     mas: el pasajero se queda esperando sin saber que alguien le ofrecio.
+     */
+    private func esDeLaCategoriaPedida(_ oferta: TripOffer) -> Bool {
+        let pedida = Int(trip?.category_id ?? "") ?? 0
+        if pedida <= 0 {
+            return true
+        }
+        guard let conductor = oferta.driver else {
+            return true
+        }
+        let suya = Int(conductor.category_id)
+        if suya <= 0 {
+            return true
+        }
+        return suya == pedida
+    }
+
     func isAlreadyAddedWithTrip(trip_id:String)->Bool{
         for offer in self.tripOffer.value {
             if trip_id == offer.trip?.trip_Id {
@@ -487,7 +517,9 @@ class TripOfferViewModel: NSObject {
                         if let offerDict = offer as? NSDictionary{
                             let off = TripOffer.init(dict: offerDict)
                             if isAlreadyAdded(id_request: off.trip_request_id) ==  false{
-                                self.tripOffer.value.append(off)
+                                if self.esDeLaCategoriaPedida(off) {
+                                    self.tripOffer.value.append(off)
+                                }
                             }else{
                                 if off.status == "expired"{
                                     self.tripOffer.value.removeAll { t in

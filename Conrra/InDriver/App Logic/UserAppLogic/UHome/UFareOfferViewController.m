@@ -897,9 +897,28 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
     self.caraEscribirCupon.hidden = YES;
     [self.filaCupon addSubview:self.caraEscribirCupon];
 
+    /*
+     Salir del cupon sin usarlo.
+
+     La cara de escribir no tenia salida: quien tocaba "Añadir código promocional" por
+     curiosidad se quedaba dentro, y "Aplicar" con el campo vacio solo saca un aviso. O sea
+     que para volver a pedir el taxi habia que inventarse un codigo o cerrar la pantalla
+     entera. La cara del cupon YA aplicado si tenia su aspa; a esta le faltaba.
+     */
     CGFloat anchoBoton = 92.0;
+
+    UIButton *cancelarCupon = [UIButton buttonWithType:UIButtonTypeSystem];
+    cancelarCupon.frame = CGRectMake(12, 14, 24, 24);
+    [cancelarCupon setImage:[[UIImage systemImageNamed:@"xmark.circle.fill"]
+                             imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate]
+                   forState:UIControlStateNormal];
+    cancelarCupon.tintColor = grayText;
+    [cancelarCupon addTarget:self action:@selector(cerrarCupon)
+            forControlEvents:UIControlEventTouchUpInside];
+    [self.caraEscribirCupon addSubview:cancelarCupon];
+
     self.txtCupon = [[UITextField alloc] initWithFrame:
-        CGRectMake(16, 0, ancho - anchoBoton - 28, alto)];
+        CGRectMake(44, 0, ancho - anchoBoton - 60, alto)];
     self.txtCupon.placeholder = [LanguageHelper getStringWithKey:@"k_r49_s3_enter_valid_promo_code"
                                                     defaultValue:@"Escribe tu código"];
     self.txtCupon.font = [UIFont fontWithName:@"NotoSans-Regular" size:15] ?: [UIFont systemFontOfSize:15];
@@ -960,6 +979,22 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
     self.caraPedirCupon.hidden    = YES;
     self.caraEscribirCupon.hidden = NO;
     [self.txtCupon becomeFirstResponder];
+}
+
+/**
+ Cierra la cara de escribir y vuelve a "Añadir código promocional".
+
+ Ademas de esconder la cara, olvida lo tecleado y lo intentado: si no se olvidara, un
+ codigo a medio escribir seguiria contando como "intento" y la proxima estimacion lo daria
+ por rechazado por el servidor.
+ */
+- (void)cerrarCupon {
+    [self.txtCupon resignFirstResponder];
+    self.txtCupon.text = @"";
+    _cuponIntentado = nil;
+    self.caraEscribirCupon.hidden = YES;
+    self.caraCuponAplicado.hidden = YES;
+    self.caraPedirCupon.hidden    = NO;
 }
 
 /**
