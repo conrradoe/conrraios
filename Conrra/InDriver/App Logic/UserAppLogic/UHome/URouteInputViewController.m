@@ -9,6 +9,7 @@
 #import "URouteInputViewController.h"
 #import "SuggestedLocationDataSource.h"
 #import "SuggestedLocationCell.h"
+#import "ConrraDestinosRecientes.h"
 #import "UIViewController+LGSideMenuController.h"
 #import "AppDelegate.h"
 #import "Utilities.h"
@@ -16,7 +17,7 @@
 #import "UIImageView+WebCache.h"
 #import "ConrraMapaSelectorViewController.h"
 
-@interface URouteInputViewController () <SuggestedLocationDataSourceDelegate, ConrraMapaSelectorDelegate>
+@interface URouteInputViewController () <SuggestedLocationDataSourceDelegate, ConrraMapaSelectorDelegate, UITableViewDataSource, UITableViewDelegate>
 {
     SuggestedLocationDataSource *locationDataSourcePickup;
     SuggestedLocationDataSource *locationDataSourceDrop;
@@ -27,6 +28,9 @@
 @property (strong, nonatomic) UITableView *pickupTableView;
 @property (strong, nonatomic) UITableView *destinationTableView;
 @property (strong, nonatomic) UIView      *destContainer; // for border styling
+/// Los ultimos destinos, debajo de los campos mientras no haya sugerencias.
+@property (strong, nonatomic) UITableView *tablaRecientes;
+@property (strong, nonatomic) NSArray<ConrraDestinoReciente *> *recientes;
 
 @end
 
@@ -42,6 +46,7 @@
 }
 
 - (void)viewWillAppear:(BOOL)animated {
+    [self refrescarRecientes];
     [super viewWillAppear:animated];
     [self.navigationController setNavigationBarHidden:YES animated:NO];
 }
@@ -229,6 +234,23 @@
     self.destinationTableView.separatorStyle = UITableViewCellSeparatorStyleNone;
     self.destinationTableView.backgroundColor = [UIColor whiteColor];
     [self.view addSubview:self.destinationTableView];
+
+    /*
+     Los ultimos destinos van en el MISMO hueco que las sugerencias, no debajo.
+
+     Es un hueco que solo se llena mientras se escribe; el resto del tiempo estaba vacio, y
+     es justo donde el pasajero esta mirando cuando entra a poner un destino. Se turnan: si
+     hay sugerencias mandan ellas, y si no, los recientes.
+     */
+    self.tablaRecientes = [[UITableView alloc] initWithFrame:CGRectMake(0, currentY, sw, tableH)
+                                                       style:UITableViewStylePlain];
+    self.tablaRecientes.hidden = YES;
+    self.tablaRecientes.separatorStyle = UITableViewCellSeparatorStyleNone;
+    self.tablaRecientes.backgroundColor = [UIColor whiteColor];
+    self.tablaRecientes.dataSource = self;
+    self.tablaRecientes.delegate = self;
+    self.tablaRecientes.rowHeight = 56;
+    [self.view addSubview:self.tablaRecientes];
 
     // Register suggestion cell XIB for both tables
     UINib *cellNib = [UINib nibWithNibName:@"SuggestedLocationCell" bundle:nil];
@@ -418,6 +440,119 @@
     [self.sideMenuController showLeftViewAnimated:YES completionHandler:nil];
 }
 
+#pragma mark - Ultimos destinos
+
+/**
+ Decide si se enseñan y con que.
+
+ El refresco va con un retardo de cero desde los avisos de las sugerencias, o sea en la
+ siguiente vuelta del bucle: esos avisos llegan ANTES de que se aplique el hidden de las
+ tablas, y mirandolo en el momento se leeria el estado viejo.
+ */
+- (void)refrescarRecientes {
+    self.recientes = [ConrraDestinosRecientes todos];
+    BOOL hayHueco = self.pickupTableView.hidden && self.destinationTableView.hidden;
+    self.tablaRecientes.hidden = !(hayHueco && self.recientes.count > 0);
+    [self.tablaRecientes reloadData];
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
+    return (NSInteger)self.recientes.count;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForHeaderInSection:(NSInteger)section {
+    return 34;
+}
+
+- (UIView *)tableView:(UITableView *)tableView viewForHeaderInSection:(NSInteger)section {
+    UIView *cabecera = [[UIView alloc] initWithFrame:CGRectMake(0, 0, tableView.bounds.size.width, 34)];
+    cabecera.backgroundColor = [UIColor whiteColor];
+    UILabel *titulo = [[UILabel alloc] initWithFrame:CGRectMake(16, 8, tableView.bounds.size.width - 32, 20)];
+    titulo.text = [LanguageHelper getStringWithKey:@"k_s10_ultimos_destinos"
+                                      defaultValue:@"Últimos destinos"];
+    titulo.font = [UIFont fontWithName:@"NotoSans-Bold" size:13] ?: [UIFont boldSystemFontOfSize:13];
+    titulo.textColor = [UIColor colorWithWhite:0.45f alpha:1.0f];
+    [cabecera addSubview:titulo];
+    return cabecera;
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+    static NSString *reuso = @"ConrraDestinoReciente";
+    UITableViewCell *celda = [tableView dequeueReusableCellWithIdentifier:reuso];
+    if (celda == nil) {
+        celda = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:reuso];
+        celda.selectionStyle = UITableViewCellSelectionStyleDefault;
+
+        UIImageView *reloj = [[UIImageView alloc] initWithFrame:CGRectMake(16, 18, 20, 20)];
+        reloj.tag = 801;
+        reloj.image = [[UIImage systemImageNamed:@"clock.arrow.circlepath"]
+                       imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+        reloj.tintColor = [UIColor colorWithWhite:0.45f alpha:1.0f];
+        reloj.contentMode = UIViewContentModeScaleAspectFit;
+        [celda.contentView addSubview:reloj];
+
+        UILabel *texto = [[UILabel alloc] init];
+        texto.tag = 802;
+        texto.font = [UIFont fontWithName:@"NotoSans-Regular" size:15] ?: [UIFont systemFontOfSize:15];
+        texto.textColor = [UIColor colorWithRed:0.157f green:0.157f blue:0.157f alpha:1.0f];
+        texto.numberOfLines = 2;
+        [celda.contentView addSubview:texto];
+
+        UIButton *olvidar = [UIButton buttonWithType:UIButtonTypeSystem];
+        olvidar.tag = 803;
+        [olvidar setImage:[[UIImage systemImageNamed:@"xmark"]
+                           imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate]
+                 forState:UIControlStateNormal];
+        olvidar.tintColor = [UIColor colorWithWhite:0.6f alpha:1.0f];
+        [olvidar addTarget:self action:@selector(olvidarReciente:)
+          forControlEvents:UIControlEventTouchUpInside];
+        [celda.contentView addSubview:olvidar];
+    }
+
+    CGFloat ancho = tableView.bounds.size.width;
+    UILabel *texto = (UILabel *)[celda.contentView viewWithTag:802];
+    texto.frame = CGRectMake(48, 8, ancho - 48 - 52, 40);
+    UIButton *olvidar = (UIButton *)[celda.contentView viewWithTag:803];
+    olvidar.frame = CGRectMake(ancho - 48, 16, 32, 24);
+    // El indice viaja en el tag del boton: la celda se recicla y guardar el objeto en una
+    // propiedad daria la direccion de otra fila.
+    olvidar.tag = 803;
+    [olvidar setAccessibilityValue:[NSString stringWithFormat:@"%ld", (long)indexPath.row]];
+
+    ConrraDestinoReciente *destino = [self.recientes objectAtIndex:(NSUInteger)indexPath.row];
+    texto.text = destino.direccion;
+    return celda;
+}
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
+    [tableView deselectRowAtIndexPath:indexPath animated:YES];
+    if (indexPath.row >= (NSInteger)self.recientes.count) {
+        return;
+    }
+    ConrraDestinoReciente *destino = [self.recientes objectAtIndex:(NSUInteger)indexPath.row];
+    CLLocationCoordinate2D punto = CLLocationCoordinate2DMake(destino.lat, destino.lng);
+
+    self.destinationField.text = destino.direccion;
+    [self.view endEditing:YES];
+
+    // El mismo camino que el selector de mapa: coordenada y direccion, sin tener que
+    // preguntarle a Google por un place_id que aqui no existe.
+    if ([self.delegate respondsToSelector:@selector(routeInputVC:eligioDestinoEn:direccion:)]) {
+        [self.delegate routeInputVC:self eligioDestinoEn:punto direccion:destino.direccion];
+    }
+    [self.navigationController popViewControllerAnimated:YES];
+}
+
+- (void)olvidarReciente:(UIButton *)boton {
+    NSInteger fila = [boton.accessibilityValue integerValue];
+    if (fila < 0 || fila >= (NSInteger)self.recientes.count) {
+        return;
+    }
+    ConrraDestinoReciente *destino = [self.recientes objectAtIndex:(NSUInteger)fila];
+    [ConrraDestinosRecientes olvidarDireccion:destino.direccion];
+    [self refrescarRecientes];
+}
+
 #pragma mark - SuggestedLocationDataSourceDelegate
 
 - (void)source:(SuggestedLocationDataSource *)soure onSelectLocation:(NSDictionary *)dictLocation {
@@ -441,6 +576,7 @@
 }
 
 - (void)onAddressStartEditingsource:(SuggestedLocationDataSource *)soure {
+    [self performSelector:@selector(refrescarRecientes) withObject:nil afterDelay:0];
     if (soure == locationDataSourcePickup) {
         self.pickupTableView.hidden      = NO;
         self.destinationTableView.hidden = YES;
@@ -457,6 +593,7 @@
 }
 
 - (void)onAddressEndEditingsource:(SuggestedLocationDataSource *)soure {
+    [self performSelector:@selector(refrescarRecientes) withObject:nil afterDelay:0];
     if (soure == locationDataSourcePickup) {
         self.pickupTableView.hidden = YES;
     } else {
@@ -468,6 +605,7 @@
 }
 
 - (void)onAddressShouldClear:(SuggestedLocationDataSource *)soure {
+    [self performSelector:@selector(refrescarRecientes) withObject:nil afterDelay:0];
     if (soure == locationDataSourcePickup) {
         if (self.direction) self.direction.pickAddress = @"";
         self.pickupTableView.hidden = YES;
@@ -477,6 +615,7 @@
 }
 
 - (void)onAddressEmptyShouldClear:(SuggestedLocationDataSource *)soure {
+    [self performSelector:@selector(refrescarRecientes) withObject:nil afterDelay:0];
     if (soure == locationDataSourcePickup) {
         self.pickupTableView.hidden = YES;
     } else {

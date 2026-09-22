@@ -85,6 +85,7 @@
 		D357A9A027F2F66C0086E2D4 /* CategoryCell.xib in Resources */ = {isa = PBXBuildFile; fileRef = D357A84027F2F66C0086E2D4 /* CategoryCell.xib */; };
 		D357A9A127F2F66C0086E2D4 /* UHomeViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = D357A84127F2F66C0086E2D4 /* UHomeViewController.m */; };
 		D357A9A327F2F66C0086E2D4 /* SettingViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = D357A84727F2F66C0086E2D4 /* SettingViewController.m */; };
+		74FB5B4BFB8C438C93F25D8B /* ConrraDestinosRecientes.m in Sources */ = {isa = PBXBuildFile; fileRef = 2724F4AF91D6427793A05F9B /* ConrraDestinosRecientes.m */; };
 		1E96403CF1C54CF884BA53A4 /* ConrraChatDeSoporte.m in Sources */ = {isa = PBXBuildFile; fileRef = 5AEF8FF16871432F8CBFA559 /* ConrraChatDeSoporte.m */; };
 		D357A9A427F2F66C0086E2D4 /* BeginTripViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = D357A84927F2F66C0086E2D4 /* BeginTripViewController.m */; };
 		D357A9A527F2F66C0086E2D4 /* UIHelper.m in Sources */ = {isa = PBXBuildFile; fileRef = D357A84D27F2F66C0086E2D4 /* UIHelper.m */; };
@@ -638,6 +639,8 @@
 		D357A84127F2F66C0086E2D4 /* UHomeViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = UHomeViewController.m; sourceTree = "<group>"; };
 		D357A84627F2F66C0086E2D4 /* SettingViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SettingViewController.h; sourceTree = "<group>"; };
 		D357A84727F2F66C0086E2D4 /* SettingViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SettingViewController.m; sourceTree = "<group>"; };
+		E96A9438B83C405FAB903C60 /* ConrraDestinosRecientes.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraDestinosRecientes.h; sourceTree = "<group>"; };
+		2724F4AF91D6427793A05F9B /* ConrraDestinosRecientes.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraDestinosRecientes.m; sourceTree = "<group>"; };
 		82B1330689B545DB9475B7AE /* ConrraChatDeSoporte.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraChatDeSoporte.h; sourceTree = "<group>"; };
 		5AEF8FF16871432F8CBFA559 /* ConrraChatDeSoporte.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraChatDeSoporte.m; sourceTree = "<group>"; };
 		D357A84927F2F66C0086E2D4 /* BeginTripViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = BeginTripViewController.m; sourceTree = "<group>"; };
@@ -1599,6 +1602,8 @@
 		D357A81827F2F66C0086E2D4 /* UHome */ = {
 			isa = PBXGroup;
 			children = (
+				E96A9438B83C405FAB903C60 /* ConrraDestinosRecientes.h */,
+				2724F4AF91D6427793A05F9B /* ConrraDestinosRecientes.m */,
 				92EF1D55C55542EC95B9AEF2 /* ConrraMapaSelectorViewController.h */,
 				E27A00F7C3BF4E9582563DAC /* ConrraMapaSelectorViewController.m */,
 				D350F6EA2A270A7F00283AFD /* FareInfo */,
@@ -3742,6 +3747,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				74FB5B4BFB8C438C93F25D8B /* ConrraDestinosRecientes.m in Sources */,
 				1E96403CF1C54CF884BA53A4 /* ConrraChatDeSoporte.m in Sources */,
 				89B2CC384CA440E9B192AD2B /* RecargaEstilo.m in Sources */,
 				1EF7D8AE4D584A61A57B40E3 /* RecargasViewController.m in Sources */,

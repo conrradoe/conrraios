@@ -59,6 +59,7 @@
 #import <ReactiveObjC/ReactiveObjC.h>
 #import "UWalletViewController.h"
 #import "RecargasViewController.h"
+#import "ConrraDestinosRecientes.h"
 #import "UTripHistoryViewController.h"
 #import <MessageUI/MFMailComposeViewController.h>
 #import "URouteInputViewController.h"
@@ -3339,6 +3340,16 @@
 
 
 -(void) createTripWith:(NSDate *)tripdate passengerDetail:(NSString *)passengerDetail{
+    /*
+     Se apunta el destino en los ultimos destinos.
+
+     Aqui y no al elegirlo en el buscador: la lista se llama "ultimos destinos", no "ultimas
+     cosas que escribiste". Un sitio que se tecleo y luego se descarto no fue a ninguna
+     parte. Es el mismo punto donde lo hace Android, justo antes de callTripApi.
+     */
+    [ConrraDestinosRecientes guardarDireccion:direction.dropAddress
+                                   coordenada:direction.destination.coordinate];
+
     CategoryModel *catModel=[self getSelectectCategoryByRider];
     NSDictionary *dict1 = [[NSUserDefaults standardUserDefaults]objectForKey:P_USER_DICT];
     NSMutableDictionary  *dict=[[NSMutableDictionary alloc] init];
@@ -3663,6 +3674,16 @@
 
 
 -(void) createTripWith:(NSString *) passengerDetail{
+    /*
+     Se apunta el destino en los ultimos destinos.
+
+     Aqui y no al elegirlo en el buscador: la lista se llama "ultimos destinos", no "ultimas
+     cosas que escribiste". Un sitio que se tecleo y luego se descarto no fue a ninguna
+     parte. Es el mismo punto donde lo hace Android, justo antes de callTripApi.
+     */
+    [ConrraDestinosRecientes guardarDireccion:direction.dropAddress
+                                   coordenada:direction.destination.coordinate];
+
     
     [UtilityClass setLH:NO wt:[LanguageHelper getStringWithKey:@"k_r16_s3_plz_wait"]];
     CategoryModel *catModel=[self getSelectectCategoryByRider];
