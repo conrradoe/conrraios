@@ -1410,6 +1410,68 @@
 
 
 
+/**
+ La ruta del icono de mapa que el servidor publica para una categoria.
+
+ Devuelve cadena vacia si la categoria no esta en la lista descargada, y entonces quien
+ llama se queda con el coche local. Es mejor un coche que un hueco en el mapa.
+ */
+-(NSString *)rutaDelIconoDeCategoria:(int)categoryId {
+    if (categoryId <= 0) {
+        return @"";
+    }
+    CategoryModel *categoria = [CategoryModel getCategoryByid:categoryId];
+    return isEmpty(categoria.cat_map_icon_path);
+}
+
+/**
+ Pinta el vehiculo de un conductor con el icono de su categoria.
+
+ El home dibujaba SIEMPRE map_car_icon, asi que una moto aparecia como coche. El mapa del
+ viaje ya lo hacia bien (BeginTripViewController baja cat_map_icon_path); esto lo iguala.
+
+ Se pone el coche local ANTES de pedir nada y se sustituye cuando llega la imagen buena.
+ Dejar la vista sin imagen mientras baja -- que es lo que hace la pantalla del viaje --
+ parpadea con cada refresco de conductores cercanos, y aqui hay varios a la vez.
+
+ SDWebImage guarda en cache, asi que a partir del primero es instantaneo.
+ */
+-(void)ponerIconoDeVehiculoEn:(MKAnnotationView *)pinView desde:(CustomPointAnnotation *)anno {
+    pinView.image = [UIHelper imageForMapWithImage:[UIImage imageNamed:@"map_car_icon"]];
+
+    NSString *ruta = isEmpty(anno.iconPath);
+    if (ruta.length == 0) {
+        return;
+    }
+    // El servidor manda unas veces la URL entera y otras solo la ruta, igual que en Android
+    // (TripRequestActivity antepone la base cuando no empieza por http).
+    if (![[ruta lowercaseString] hasPrefix:@"http"]) {
+        ruta = [NSString stringWithFormat:@"%@%@", url_base_images, ruta];
+    }
+    NSURL *url = [NSURL URLWithString:ruta];
+    if (url == nil) {
+        return;
+    }
+
+    [[SDWebImageManager sharedManager] loadImageWithURL:url
+                                                options:0
+                                               progress:nil
+                                              completed:^(UIImage *imagen, NSData *d, NSError *e,
+                                                          SDImageCacheType ct, BOOL fin, NSURL *u) {
+        if (imagen == nil) {
+            return;
+        }
+        dispatch_async(dispatch_get_main_queue(), ^{
+            // La vista se recicla: si mientras bajaba paso a representar otra anotacion, esta
+            // imagen ya no es la suya y ponerla dibujaria una moto encima de un coche.
+            if (pinView.annotation != anno) {
+                return;
+            }
+            pinView.image = [UIHelper imageForMapWithImage:imagen];
+        });
+    }];
+}
+
 -(void)showAllDrivers:(NSArray *)arrDrivers
 {
     if (arrDrivers.count==0) {
@@ -1425,6 +1487,10 @@
         CLLocationCoordinate2D coordinate = CLLocationCoordinate2DMake(driver.lat, driver.lng);
         CustomPointAnnotation * driverpin=[[CustomPointAnnotation alloc]  initWithType:@"driver-pin"];
         driverpin.degree = driver.d_degree;
+        // El icono sale de la categoria DEL CONDUCTOR, no de la que el pasajero tenga
+        // elegida. La lista ya viene filtrada por categoria, asi que casi siempre coinciden,
+        // pero si algun dia deja de filtrarse, una moto no aparecera dibujada como coche.
+        driverpin.iconPath = [self rutaDelIconoDeCategoria:driver.category_id];
         driverpin.coordinate = coordinate;
         [self.mapView addAnnotation:driverpin];
         
@@ -1637,10 +1703,10 @@
                 pinView.layer.anchorPoint = CGPointMake(0.5f, 0.5f);
             }
             else if ([mAnno.type isEqualToString:@"driver-pin"]){
-                pinView.image = [UIHelper imageForMapWithImage:[UIImage imageNamed:@"map_car_icon"]];
+                [self ponerIconoDeVehiculoEn:pinView desde:mAnno];
                 pinView.transform = CGAffineTransformMakeRotation([self DegreesToRadians:mAnno.degree] + M_PI);
             } else if ([mAnno.type isEqualToString:@"driver-pin-fake"]){
-                pinView.image = [UIHelper imageForMapWithImage:[UIImage imageNamed:@"map_car_icon"]];
+                [self ponerIconoDeVehiculoEn:pinView desde:mAnno];
                 pinView.transform = CGAffineTransformMakeRotation([self DegreesToRadians:mAnno.degree] + M_PI);
                 pinView.layer.anchorPoint = CGPointMake(0.5f, 0.5f);
             }
@@ -1816,7 +1882,7 @@
         CustomPointAnnotation * driverpin=[[CustomPointAnnotation alloc]  initWithType:@"driver-pin-fake"];
         driverpin.degree = [self randomFloatBetween:0 and:360];
         CategoryModel * cModel = [self getSelectectCategoryByRider];
-        driverpin.iconPath = cModel.cat_map_icon_path;
+        driverpin.iconPath = isEmpty(cModel.cat_map_icon_path);
         driverpin.coordinate = coordinate;
         [self.mapView addAnnotation:driverpin];
         [arrayFakeDriversAnnotation addObject:driverpin];

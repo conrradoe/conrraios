@@ -26,6 +26,7 @@
 #import "CityModel.h"
 #import "Utilities.h"
 #import "RecargasViewController.h"
+#import "ConrraChatDeSoporte.h"
 
 @interface LeftViewController ()<MFMailComposeViewControllerDelegate> {
     UILabel *_ratingLabel;
@@ -564,7 +565,8 @@
     if (constantModel.enable_contactus) {
         [self.arrSideMenu addObject:@{
             @"title": [LanguageHelper getStringWithKey:@"k_11_s4_a1_contact_us" defaultValue:@"Contáctanos"],
-            @"icon":  @"menu_icon_contact",
+            // El icono del chat, no el del sobre: esta fila ya no abre el correo.
+            @"icon":  @"menu_icon_chat",
             @"identifier": SIDE_MENU_SUPPORT
         }];
     }
@@ -798,14 +800,18 @@
         [navVC pushViewController:[[RecargasViewController alloc] init] animated:YES];
         [mainViewController hideLeftViewAnimated:YES completionHandler:nil];
 
-    } else if ([sideOption isEqualToString:@"chat_with_us"]) {
-        AboutUsViewController *viewController = [self.storyboard instantiateViewControllerWithIdentifier:@"AboutUsViewController"];
-        viewController.isCustomUrl = YES;
-        viewController.customTitle = [LanguageHelper getStringWithKey:@"k_11_s4_chat_us"];
-        viewController.customUrl   = isEmpty([SettingsModel getSettignsObject].enable_chat);
+    /*
+     Contactanos y Chatea con Nosotros abren LA MISMA hoja, la que usa el conductor cuando
+     no recibe el pago. Antes una abria el compositor de correo y la otra una web: dos
+     canales distintos para "necesito ayuda", y ninguno decia de parte de quien llegaba el
+     mensaje. Lo unico que cambia entre un sitio y otro es el motivo.
+
+     Ver ConrraChatDeSoporte, que es el mismo reparto que hace Android.
+     */
+    } else if ([sideOption isEqualToString:SIDE_MENU_SUPPORT] ||
+               [sideOption isEqualToString:@"chat_with_us"]) {
+        [ConrraChatDeSoporte abrirEn:self motivo:ConrraMotivoAyudaGeneral];
         MainViewController *mainViewController = (MainViewController *)self.sideMenuController;
-        UINavigationController *navigationController = (UINavigationController *)mainViewController.rootViewController;
-        [navigationController pushViewController:viewController animated:YES];
         [mainViewController hideLeftViewAnimated:YES completionHandler:nil];
 
     } else if ([sideOption isEqualToString:SIDE_MENU_SHARE]) {
@@ -813,9 +819,6 @@
 
     } else if ([sideOption isEqualToString:SIDE_MENU_DEACTIVATE]) {
         [self LogoutPressed_isLogout:NO];
-
-    } else if ([sideOption isEqualToString:SIDE_MENU_SUPPORT]) {
-        [self openMailComposer];
 
     } else {
         [self setViewControllers:sideOption

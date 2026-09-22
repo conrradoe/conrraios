@@ -25,6 +25,7 @@
 #import "PlanesViewController.h"
 #import "Utilities.h"
 #import "RecargasViewController.h"
+#import "ConrraChatDeSoporte.h"
 #import "NSString+URLEncoding.h"
 #import <Conrra-Swift.h>
 #import "UHomeViewController.h"
@@ -567,7 +568,8 @@
     if (constantModel.enable_contactus) {
         [self.arrSideMenu addObject:@{
             @"title": [LanguageHelper getStringWithKey:@"k_11_s4_a1_contact_us" defaultValue:@"Contáctanos"],
-            @"icon":  @"menu_icon_contact",
+            // El icono del chat, no el del sobre: esta fila ya no abre el correo.
+            @"icon":  @"menu_icon_chat",
             @"identifier": SIDE_MENU_SUPPORT
         }];
     }
@@ -826,18 +828,22 @@
     } else if ([sideOption isEqualToString:@"planes_sitios"]) {
         [self empujar:[[PlanesViewController alloc] init]];
 
-    } else if ([sideOption isEqualToString:@"chat_with_us"]) {
-        AboutUsViewController *vc = [self.storyboard instantiateViewControllerWithIdentifier:@"AboutUsViewController"];
-        vc.isCustomUrl  = YES;
-        vc.customTitle  = [LanguageHelper getStringWithKey:@"k_11_s4_chat_us" defaultValue:@"Chatea con nosotros"];
-        vc.customUrl    = isEmpty([SettingsModel getSettignsObject].enable_chat);
-        [self empujar:vc];
+    /*
+     Contactanos y Chatea con Nosotros abren LA MISMA hoja, la que usa el conductor cuando
+     no recibe el pago. Antes una abria el compositor de correo y la otra una web: dos
+     canales distintos para "necesito ayuda", y ninguno decia de parte de quien llegaba el
+     mensaje. Lo unico que cambia entre un sitio y otro es el motivo.
+
+     Ver ConrraChatDeSoporte, que es el mismo reparto que hace Android.
+     */
+    } else if ([sideOption isEqualToString:SIDE_MENU_SUPPORT] ||
+               [sideOption isEqualToString:@"chat_with_us"]) {
+        [ConrraChatDeSoporte abrirEn:self motivo:ConrraMotivoAyudaGeneral];
+        MainViewController *mainVC = (MainViewController *)self.sideMenuController;
+        [mainVC hideLeftViewAnimated:YES completionHandler:nil];
 
     } else if ([sideOption isEqualToString:SIDE_MENU_DEACTIVATE]) {
         [self LogoutPressed_isLogout:NO];
-
-    } else if ([sideOption isEqualToString:SIDE_MENU_SUPPORT]) {
-        [self openMailComposer];
 
     } else {
         [self setViewControllers:sideOption

@@ -85,6 +85,7 @@
 		D357A9A027F2F66C0086E2D4 /* CategoryCell.xib in Resources */ = {isa = PBXBuildFile; fileRef = D357A84027F2F66C0086E2D4 /* CategoryCell.xib */; };
 		D357A9A127F2F66C0086E2D4 /* UHomeViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = D357A84127F2F66C0086E2D4 /* UHomeViewController.m */; };
 		D357A9A327F2F66C0086E2D4 /* SettingViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = D357A84727F2F66C0086E2D4 /* SettingViewController.m */; };
+		1E96403CF1C54CF884BA53A4 /* ConrraChatDeSoporte.m in Sources */ = {isa = PBXBuildFile; fileRef = 5AEF8FF16871432F8CBFA559 /* ConrraChatDeSoporte.m */; };
 		D357A9A427F2F66C0086E2D4 /* BeginTripViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = D357A84927F2F66C0086E2D4 /* BeginTripViewController.m */; };
 		D357A9A527F2F66C0086E2D4 /* UIHelper.m in Sources */ = {isa = PBXBuildFile; fileRef = D357A84D27F2F66C0086E2D4 /* UIHelper.m */; };
 		D357A9A627F2F66C0086E2D4 /* FareReviewViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = D357A85027F2F66C0086E2D4 /* FareReviewViewController.m */; };
@@ -637,6 +638,8 @@
 		D357A84127F2F66C0086E2D4 /* UHomeViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = UHomeViewController.m; sourceTree = "<group>"; };
 		D357A84627F2F66C0086E2D4 /* SettingViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SettingViewController.h; sourceTree = "<group>"; };
 		D357A84727F2F66C0086E2D4 /* SettingViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SettingViewController.m; sourceTree = "<group>"; };
+		82B1330689B545DB9475B7AE /* ConrraChatDeSoporte.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraChatDeSoporte.h; sourceTree = "<group>"; };
+		5AEF8FF16871432F8CBFA559 /* ConrraChatDeSoporte.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraChatDeSoporte.m; sourceTree = "<group>"; };
 		D357A84927F2F66C0086E2D4 /* BeginTripViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = BeginTripViewController.m; sourceTree = "<group>"; };
 		D357A84A27F2F66C0086E2D4 /* BeginTripViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = BeginTripViewController.h; sourceTree = "<group>"; };
 		D357A84C27F2F66C0086E2D4 /* UIHelper.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = UIHelper.h; sourceTree = "<group>"; };
@@ -1426,6 +1429,7 @@
 		D357A7DB27F2F66C0086E2D4 /* UserAppLogic */ = {
 			isa = PBXGroup;
 			children = (
+				37EDA6A8A68546AC919C110E /* USoporte */,
 				E9FB8C481A084BED8F9667FA /* URecargas */,
 				91C1748B3157464EB4778F86 /* Publicidad */,
 				D357A7DF27F2F66C0086E2D4 /* FareSummeryVC */,
@@ -1706,6 +1710,15 @@
 			children = (
 			);
 			path = UNotification;
+			sourceTree = "<group>";
+		};
+		37EDA6A8A68546AC919C110E /* USoporte */ = {
+			isa = PBXGroup;
+			children = (
+				82B1330689B545DB9475B7AE /* ConrraChatDeSoporte.h */,
+				5AEF8FF16871432F8CBFA559 /* ConrraChatDeSoporte.m */,
+			);
+			path = USoporte;
 			sourceTree = "<group>";
 		};
 		D357A84527F2F66C0086E2D4 /* USettings */ = {
@@ -3729,6 +3742,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1E96403CF1C54CF884BA53A4 /* ConrraChatDeSoporte.m in Sources */,
 				89B2CC384CA440E9B192AD2B /* RecargaEstilo.m in Sources */,
 				1EF7D8AE4D584A61A57B40E3 /* RecargasViewController.m in Sources */,
 				05C616BCD06F4F7E9B3F5EA3 /* RecargaC2PViewController.m in Sources */,
