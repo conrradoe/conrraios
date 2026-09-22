@@ -25,6 +25,8 @@
 #import "UIView+UpdateAutoLayoutConstraints.h"
 #import "TripTransactionManager.h"
 #import "TripModel+Helper.h"
+#import "ConrraChatDeSoporte.h"
+#import "CityModel.h"
 @interface FareAmmountViewController ()<TripTransactionManagerDelegate>
 {
     double driverComm;
@@ -663,6 +665,7 @@
                                actionWithTitle:[LanguageHelper getStringWithKey:@"k_22_s4_no"]
                                style:UIAlertActionStyleDefault
                                handler:^(UIAlertAction * action) {
+        [self abrirSoportePorPagoNoRecibido];
     }];
     [alert addAction:yesButton];
     [alert addAction:noButton];
@@ -690,6 +693,7 @@
                                actionWithTitle:[LanguageHelper getStringWithKey:@"k_22_s4_no"]
                                style:UIAlertActionStyleDefault
                                handler:^(UIAlertAction * action) {
+        [self abrirSoportePorPagoNoRecibido];
     }];
     [alert addAction:yesButton];
     [alert addAction:noButton];
@@ -697,6 +701,38 @@
     [self presentViewController:alert animated:YES completion:nil];
     
 }
+/**
+ El conductor dice que NO recibio el efectivo.
+
+ Los dos dialogos que le preguntan si cobro tenian el "No" VACIO: el conductor decia que no
+ le habian pagado y no pasaba nada de nada. Cerraba el aviso y se quedaba igual, sin cobrar
+ y sin a quien decirselo. Es el peor momento posible para un boton que no hace nada.
+
+ La hoja no se monta aqui: es la misma que abren "Contactanos" y "Chatea con Nosotros" desde
+ los menus laterales, con otro motivo. Tener tres copias de lo mismo es garantia de que el
+ dia que alguien arregle una, las otras dos se queden atras. Ver ConrraChatDeSoporte.
+
+ Se le pasan el viaje y el importe para que el mensaje los lleve escritos: soporte no puede
+ buscar nada con un "no me pagaron" a secas.
+ */
+-(void)abrirSoportePorPagoNoRecibido {
+    NSString *viajeId = isEmpty(self.curr_trip.trip_Id);
+
+    NSString *monto = @"";
+    NSString *crudo = isEmpty(self.curr_trip.trip_fare);
+    if (crudo.length > 0) {
+        CityModel *ciudad = [CityModel getCityByCityId:self.curr_trip.city_id];
+        NSString *conMoneda = [Utilities formatAmountAndCurrency:[crudo floatValue]
+                                                        currency:ciudad.city_cur];
+        monto = conMoneda.length > 0 ? conMoneda : crudo;
+    }
+
+    [ConrraChatDeSoporte abrirEn:self
+                          motivo:ConrraMotivoPagoNoRecibido
+                           viaje:viajeId
+                           monto:monto];
+}
+
 -(void)markTripAsRiderCancelForPayment
 {
     NSMutableDictionary *dict=[[NSMutableDictionary alloc]  init];
