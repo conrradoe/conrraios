@@ -44,6 +44,8 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
 {
     float _currentAmount;
     BOOL  _configExpanded;
+    /// Si la tarjeta esta apartada ahora mismo porque hay un dedo en el mapa.
+    BOOL  _apartadaPorElMapa;
     BOOL  _didBuildLayout;
     /// La fila de la cabecera: boton de volver, titulo y chip de categoria.
     CGRect _filaDeCabecera;
@@ -682,6 +684,60 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
 }
 
 #pragma mark - Accordion toggle
+
+/**
+ Aparta la tarjeta mientras el pasajero manipula el mapa.
+
+ Es lo que hace Android en apartarPanelPorMapa: baja, encoge un poco y se desvanece
+ mientras hay un dedo encima, y vuelve de golpe al soltar. Sin esto, en esta pantalla el
+ mapa se puede mover pero no se ve: la tarjeta ocupa de la mitad para abajo, que es justo
+ donde suele estar la ruta.
+
+ Las dos animaciones NO son simetricas a proposito, igual que en Android: se va acelerando
+ -- como un muelle al que se le hace fuerza -- y vuelve con rebote. Ese rebote es lo que
+ hace que se lea como "se aparto" y no como "se cerro".
+
+ La sombra viaja con el panel: son dos vistas distintas y dejarla quieta dibujaria un
+ rectangulo gris flotando sobre el mapa.
+ */
+- (void)apartarPorElMapa:(BOOL)apartada {
+    if (_apartadaPorElMapa == apartada || self.sheetPanel == nil) {
+        return;
+    }
+    _apartadaPorElMapa = apartada;
+
+    NSArray<UIView *> *piezas = @[self.sheetPanel, self.shadowPanel];
+    CGFloat alto = self.sheetPanel.frame.size.height;
+
+    if (apartada) {
+        [UIView animateWithDuration:0.43
+                              delay:0
+                            options:(UIViewAnimationOptionCurveEaseIn |
+                                     UIViewAnimationOptionBeginFromCurrentState)
+                         animations:^{
+            for (UIView *pieza in piezas) {
+                if (pieza == nil) continue;
+                pieza.transform = CGAffineTransformConcat(CGAffineTransformMakeScale(1.0, 0.88),
+                                                          CGAffineTransformMakeTranslation(0, alto * 0.65));
+                pieza.alpha = 0;
+            }
+        } completion:nil];
+        return;
+    }
+
+    [UIView animateWithDuration:0.52
+                          delay:0
+         usingSpringWithDamping:0.62
+          initialSpringVelocity:0.4
+                        options:UIViewAnimationOptionBeginFromCurrentState
+                     animations:^{
+        for (UIView *pieza in piezas) {
+            if (pieza == nil) continue;
+            pieza.transform = CGAffineTransformIdentity;
+            pieza.alpha = 1;
+        }
+    } completion:nil];
+}
 
 - (void)configTapped {
     _configExpanded = !_configExpanded;

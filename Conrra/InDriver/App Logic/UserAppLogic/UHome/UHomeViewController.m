@@ -167,6 +167,8 @@
     NSInteger selectedVehicleIndex;
     UILabel  *homeAvailabilityLabel;
     UFareOfferViewController *currentFareOfferVC;
+    /// Avisa de cuando hay un dedo en el mapa, sin robarle el gesto.
+    UILongPressGestureRecognizer *dedoEnElMapa;
 }
 
 //@property (nonatomic, strong) DateTimePickerView *dateTimePicker;
@@ -752,9 +754,61 @@
 
 
 
+//
+// Un reconocedor que NO roba el gesto: solo avisa de cuando hay un dedo encima.
+//
+// Es el equivalente del MapaConToque de Android, que escucha en dispatchTouchEvent y
+// siempre llama a super. Aqui se consigue con una pulsacion larga de duracion cero y
+// cancelsTouchesInView en NO: el mapa recibe el gesto igual que antes, y de paso se sabe
+// cuando empieza y cuando termina.
+//
+// Un pan no vale: solo avisa si el dedo se MUEVE, y apoyarlo para mirar ya deberia apartar
+// la tarjeta. Los avisos de camara tampoco, porque cuentan el movimiento pero no el momento
+// en que se levanta el dedo.
+//
+// OJO: esto NO va en addUserInteractionChangeHandlerOnMap. Ese metodo entero esta dentro de
+// un comentario de bloque -- "DRAG-TO-SELECT LOCATION DISABLED" -- y no se compila.
+- (void)escucharElDedoEnElMapa {
+    if (dedoEnElMapa != nil || self.mapView == nil) {
+        return;
+    }
+    dedoEnElMapa = [[UILongPressGestureRecognizer alloc] initWithTarget:self
+                                                                action:@selector(cambioElDedoEnElMapa:)];
+    dedoEnElMapa.minimumPressDuration = 0;
+    dedoEnElMapa.cancelsTouchesInView = NO;
+    dedoEnElMapa.delaysTouchesBegan   = NO;
+    dedoEnElMapa.delaysTouchesEnded   = NO;
+    [dedoEnElMapa setDelegate:self];
+    [self.mapView addGestureRecognizer:dedoEnElMapa];
+}
+
+//
+// Le cuenta a la pantalla de tarifa que hay (o ya no hay) un dedo en el mapa.
+//
+// Solo con esa pantalla delante: en el home la hoja ES la pantalla, y esconderla dejaria al
+// pasajero mirando un mapa sin nada que hacer. Es la misma condicion que pone Android.
+- (void)cambioElDedoEnElMapa:(UIGestureRecognizer *)gesto {
+    if (currentFareOfferVC == nil) {
+        return;
+    }
+    switch (gesto.state) {
+        case UIGestureRecognizerStateBegan:
+            [currentFareOfferVC apartarPorElMapa:YES];
+            break;
+        case UIGestureRecognizerStateEnded:
+        case UIGestureRecognizerStateCancelled:
+        case UIGestureRecognizerStateFailed:
+            [currentFareOfferVC apartarPorElMapa:NO];
+            break;
+        default:
+            break;
+    }
+}
+
 -(void)initMapView
 {
     self.mapView.delegate = self;
+    [self escucharElDedoEnElMapa];
     AppDelegate *appdelegate =APP_DELEGATE;
     NSDictionary *lastloc = defaults_object(@"curr_loc");
     CLLocationCoordinate2D coordinate ;

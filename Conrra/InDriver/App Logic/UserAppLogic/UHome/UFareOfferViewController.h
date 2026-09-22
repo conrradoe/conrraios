@@ -87,6 +87,14 @@
 @property (assign, nonatomic, readonly) BOOL configPetsAllowed;
 @property (assign, nonatomic, readonly) BOOL configIsDelivery;
 
+/**
+ Aparta la tarjeta mientras hay un dedo en el mapa, y la devuelve al soltar.
+
+ Lo llama el home, que es quien tiene el mapa: los toques de la zona del mapa atraviesan
+ esta pantalla (ver UFareRootView.hitTest) y nunca llegan aqui.
+ */
+- (void)apartarPorElMapa:(BOOL)apartada;
+
 /// Cuantos viajan, contando al que pide. Entre 1 y el tope de la categoria.
 @property (assign, nonatomic, readonly) NSInteger numeroDePasajeros;
 /**
