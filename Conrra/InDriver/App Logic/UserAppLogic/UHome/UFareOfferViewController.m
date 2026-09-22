@@ -97,6 +97,14 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
 @property (strong, nonatomic) NSMutableArray<UIView *> *filasCategoria;
 /// Las etiquetas de precio, en el mismo orden que filasCategoria.
 @property (strong, nonatomic) NSMutableArray<UILabel *> *preciosCategoria;
+/// La flecha de la cabecera de "Elige tu viaje".
+@property (strong, nonatomic) UIImageView *chevronCategorias;
+/// Lo que se lee a la derecha del titulo cuando la lista esta plegada.
+@property (strong, nonatomic) UILabel *lblResumenCategoria;
+/// Lo que ocupan las filas juntas, para saber cuanto desplazar lo de abajo.
+@property (assign, nonatomic) CGFloat altoDeLasFilasCategoria;
+/// Si la lista esta desplegada. Arranca abierta: hay que elegir.
+@property (assign, nonatomic) BOOL categoriasDesplegadas;
 // Config toggle switches
 @property (strong, nonatomic) UISwitch     *switchPets;
 @property (strong, nonatomic) UISwitch     *switchDelivery;
@@ -1150,13 +1158,15 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
 #pragma mark - Elige tu viaje
 
 /**
- La lista de categorias con su precio.
+ La lista de categorias con su precio, plegable.
 
- SE ENSEÑA SIEMPRE ABIERTA, a diferencia de Android, que la pliega con un resumen. Son
- dos o tres filas y es la eleccion principal de esta pantalla: plegarla obliga a un toque
- de mas para ver lo unico que el pasajero viene a comparar. Ademas, el acordeon de abajo
- mueve las vistas por deltas y meter un segundo plegable encima complica ese calculo sin
- ganar nada.
+ ARRANCA ABIERTA Y SE PLIEGA AL ELEGIR, como Android. Antes se quedaba siempre abierta, y
+ con tres categorias empujaba la tarifa, la configuracion y el boton de pedir fuera de lo
+ que se ve: el pasajero elegia su coche y tenia que buscar a ciegas el boton. Plegarla al
+ elegir deja a la vista justo lo que queda por decidir.
+
+ La cabecera lleva a la derecha el resumen de lo elegido -- nombre y precio -- para que
+ plegada siga diciendo lo que hay elegido sin tener que abrirla.
 
  El precio de cada una sale de estimacionesPorCategoria, el diccionario que BookingModel
  ya tenia: tripapi/estimatetripfare devuelve una estimacion por CADA categoria en una
@@ -1180,12 +1190,45 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
     CGFloat alto0 = y;
     CGFloat filaH = 64.0;
 
-    UILabel *titulo = [[UILabel alloc] initWithFrame:CGRectMake(16, y, sw - 32, 22)];
+    self.categoriasDesplegadas = YES;
+
+    // La cabecera entera es el area de toque, no solo la flecha: un objetivo de 24 puntos
+    // en una esquina es incomodo, y el titulo ya invita a tocarlo.
+    UIView *cabecera = [[UIView alloc] initWithFrame:CGRectMake(16, y, sw - 32, 26)];
+    cabecera.userInteractionEnabled = YES;
+    [cabecera addGestureRecognizer:[[UITapGestureRecognizer alloc]
+        initWithTarget:self action:@selector(alternarCategorias)]];
+    [cv addSubview:cabecera];
+
+    UILabel *titulo = [[UILabel alloc] initWithFrame:CGRectMake(0, 2, 160, 22)];
     titulo.text = [LanguageHelper getStringWithKey:@"k_s10_elige_tu_viaje" defaultValue:@"Elige tu viaje"];
     titulo.font = [UIFont fontWithName:@"NotoSans-Bold" size:16] ?: [UIFont boldSystemFontOfSize:16];
     titulo.textColor = darkText;
-    [cv addSubview:titulo];
-    y += 22 + 10;
+    [cabecera addSubview:titulo];
+
+    self.chevronCategorias = [[UIImageView alloc] initWithFrame:
+        CGRectMake(cabecera.frame.size.width - 20, 4, 18, 18)];
+    self.chevronCategorias.image = [[UIImage systemImageNamed:@"chevron.down"]
+                                    imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+    self.chevronCategorias.tintColor = grayText;
+    self.chevronCategorias.contentMode = UIViewContentModeScaleAspectFit;
+    // Desplegada = flecha hacia arriba, que es la direccion en la que plegaria.
+    self.chevronCategorias.transform = CGAffineTransformMakeRotation(M_PI);
+    [cabecera addSubview:self.chevronCategorias];
+
+    self.lblResumenCategoria = [[UILabel alloc] initWithFrame:
+        CGRectMake(168, 2, cabecera.frame.size.width - 168 - 26, 22)];
+    self.lblResumenCategoria.font = [UIFont fontWithName:@"NotoSans-Regular" size:14]
+                                    ?: [UIFont systemFontOfSize:14];
+    self.lblResumenCategoria.textColor = grayText;
+    self.lblResumenCategoria.textAlignment = NSTextAlignmentRight;
+    self.lblResumenCategoria.adjustsFontSizeToFitWidth = YES;
+    self.lblResumenCategoria.minimumScaleFactor = 0.8f;
+    self.lblResumenCategoria.alpha = 0;   // solo se lee cuando esta plegada
+    [cabecera addSubview:self.lblResumenCategoria];
+
+    y += 26 + 10;
+    CGFloat yPrimeraFila = y;
 
     for (NSInteger i = 0; i < (NSInteger)self.categorias.count; i++) {
         CategoryModel *cat = [self.categorias objectAtIndex:(NSUInteger)i];
@@ -1250,7 +1293,84 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
         y += filaH + 8;
     }
 
+    self.altoDeLasFilasCategoria = y - yPrimeraFila;
+    [self actualizarResumenDeCategoria];
+
     return (y - alto0) + 6;
+}
+
+/** El nombre y el precio de lo elegido, que es lo que se lee con la lista plegada. */
+- (void)actualizarResumenDeCategoria {
+    if (self.categoriaElegida == nil) {
+        self.lblResumenCategoria.text = @"";
+        return;
+    }
+    NSString *precio = [self formattedAmount:[self precioDeCategoria:self.categoriaElegida]];
+    NSString *nombre = isEmpty(self.categoriaElegida.cat_name);
+    self.lblResumenCategoria.text = precio.length > 0
+        ? [NSString stringWithFormat:@"%@ · %@", nombre, precio]
+        : nombre;
+}
+
+/**
+ Pliega o despliega la lista.
+
+ El desplazamiento se hace por delta, igual que el acordeon de configuracion, pero aqui
+ hay que mover TAMBIEN ese acordeon, porque queda debajo. Esa es la unica diferencia entre
+ los dos, y por eso el reparto vive en desplazarBloquesTrasCategorias:.
+ */
+- (void)alternarCategorias {
+    if (self.filasCategoria.count == 0 || self.altoDeLasFilasCategoria <= 0) {
+        return;
+    }
+    self.categoriasDesplegadas = !self.categoriasDesplegadas;
+    CGFloat delta = self.categoriasDesplegadas ? self.altoDeLasFilasCategoria
+                                               : -self.altoDeLasFilasCategoria;
+
+    if (self.categoriasDesplegadas) {
+        // Se enseñan ANTES de animar, o aparecerian de golpe al final.
+        for (UIView *fila in self.filasCategoria) {
+            fila.hidden = NO;
+        }
+    }
+
+    [UIView animateWithDuration:0.30
+                          delay:0
+                        options:UIViewAnimationOptionCurveEaseInOut
+                     animations:^{
+        for (UIView *fila in self.filasCategoria) {
+            fila.alpha = self.categoriasDesplegadas ? 1 : 0;
+        }
+        self.lblResumenCategoria.alpha = self.categoriasDesplegadas ? 0 : 1;
+        self.chevronCategorias.transform = self.categoriasDesplegadas
+            ? CGAffineTransformMakeRotation(M_PI)
+            : CGAffineTransformIdentity;
+        [self desplazarBloquesTrasCategorias:delta];
+    } completion:^(BOOL terminado) {
+        if (!self.categoriasDesplegadas) {
+            // Escondidas de verdad: con alfa 0 seguirian recibiendo toques.
+            for (UIView *fila in self.filasCategoria) {
+                fila.hidden = YES;
+            }
+        }
+    }];
+}
+
+/** Baja o sube todo lo que va detras de la lista de categorias. */
+- (void)desplazarBloquesTrasCategorias:(CGFloat)delta {
+    for (UIView *bloque in @[self.configContainer, self.filaCupon, self.payRow, self.pedirBtn]) {
+        if (bloque == nil) {
+            continue;
+        }
+        CGRect f = bloque.frame;
+        f.origin.y += delta;
+        bloque.frame = f;
+    }
+
+    CGRect cvf = self.contentCV.frame;
+    cvf.size.height += delta;
+    self.contentCV.frame = cvf;
+    self.sheetScroll.contentSize = CGSizeMake(cvf.size.width, cvf.size.height);
 }
 
 /** El precio estimado de una categoria, o 0 si el servidor no lo mando. */
@@ -1290,6 +1410,13 @@ static const CGFloat kConfigContentH = 231.0f; // 1(top-sep) + 3×76 + 2×1(seps
         fila.backgroundColor = esta
             ? [UIColor colorWithRed:1.0f green:0.984f blue:0.918f alpha:1.0f]
             : [UIColor whiteColor];
+    }
+
+    // Elegida la categoria, la lista se pliega: es lo que pedia Android y lo que deja a la
+    // vista la tarifa, la configuracion y el boton de pedir sin tener que buscarlos.
+    [self actualizarResumenDeCategoria];
+    if (self.categoriasDesplegadas) {
+        [self alternarCategorias];
     }
 
     // El recargo por pasajeros era de la categoria anterior, y ademas la nueva puede
