@@ -156,6 +156,9 @@
     UIView   *homeTopBar;
     CGFloat   sheetCollapsedY;
     CGFloat   sheetExpandedY;
+    /// El bloque de ultimos destinos dentro de la hoja, y donde empieza.
+    UIView   *vistaRecientesHome;
+    CGFloat   yTrasElBuscador;
     /** Fila de categorias del servidor. Antes eran dos tarjetas fijas. */
     UIScrollView *vehicleCardsScroll;
     /** "2,6 km - 9 min" sobre el mapa mientras se elige la tarifa. */
@@ -4711,7 +4714,14 @@
 -(void)setupHomeLayout {
     CGFloat sh = self.view.bounds.size.height;
     CGFloat statusH = self.view.safeAreaInsets.top;
-    sheetCollapsedY = sh - 300.0; // content bottom = 266pt + 34pt safe area padding
+    /*
+     La hoja plegada media 300 justos: el buscador terminaba en 266 y el resto era el
+     margen de seguridad. No sobraba ni un punto, asi que los ultimos destinos no cabian.
+
+     Ahora la hoja crece lo que ocupen. Crece SOLO lo necesario y con tope, porque cada
+     punto que gana la hoja lo pierde el mapa, y el mapa es donde el pasajero se situa.
+     */
+    sheetCollapsedY = sh - 300.0 - [self alturaDeRecientesEnHome];
     sheetExpandedY  = statusH + 52.0 + 8.0;
 
     [self buildFullScreenMap];
@@ -4858,6 +4868,131 @@
     [self.view addSubview:gpsBtn];
 }
 
+/// Cuantos ultimos destinos caben en el home. En el buscador se ven los cinco.
+static const NSInteger kRecientesEnElHome = 3;
+static const CGFloat   kAltoFilaReciente  = 44.0;
+static const CGFloat   kAltoRotuloRecientes = 26.0;
+
+/**
+ Lo que van a ocupar los ultimos destinos en la hoja, o 0 si no hay ninguno.
+
+ Con tope doble: como mucho tres filas, y nunca tanto como para que la hoja plegada pase
+ de la mitad de la pantalla. En un telefono pequeño, cinco filas dejarian el mapa en una
+ rendija, y el mapa es donde el pasajero comprueba que la recogida esta bien puesta.
+ */
+-(CGFloat)alturaDeRecientesEnHome {
+    NSInteger cuantos = MIN((NSInteger)[ConrraDestinosRecientes todos].count, kRecientesEnElHome);
+    if (cuantos <= 0) {
+        return 0;
+    }
+    CGFloat alto = 12.0 + kAltoRotuloRecientes + cuantos * kAltoFilaReciente + 8.0;
+    CGFloat tope = MAX(0, self.view.bounds.size.height * 0.52f - 300.0);
+    return MIN(alto, tope);
+}
+
+/**
+ Pinta los ultimos destinos debajo del buscador.
+
+ Se rehace entero cada vez en vez de actualizar filas: son tres como mucho, y una lista
+ que cambia de tamaño con vistas recicladas es mas facil de equivocar que de mantener.
+ */
+-(void)montarRecientesEnLaHoja {
+    [vistaRecientesHome removeFromSuperview];
+    vistaRecientesHome = nil;
+
+    NSArray<ConrraDestinoReciente *> *lista = [ConrraDestinosRecientes todos];
+    NSInteger cuantos = MIN((NSInteger)lista.count, kRecientesEnElHome);
+    CGFloat alto = [self alturaDeRecientesEnHome];
+    if (cuantos <= 0 || alto <= 0 || homeBottomSheet == nil) {
+        return;
+    }
+
+    CGFloat sw = homeBottomSheet.bounds.size.width;
+    vistaRecientesHome = [[UIView alloc] initWithFrame:
+        CGRectMake(0, yTrasElBuscador + 12.0, sw, alto - 12.0)];
+    [homeBottomSheet addSubview:vistaRecientesHome];
+
+    UILabel *rotulo = [[UILabel alloc] initWithFrame:CGRectMake(16, 0, sw - 32, kAltoRotuloRecientes)];
+    rotulo.text = [LanguageHelper getStringWithKey:@"k_s10_ultimos_destinos"
+                                      defaultValue:@"Últimos destinos"];
+    rotulo.font = [UIFont fontWithName:@"NotoSans-Bold" size:13] ?: [UIFont boldSystemFontOfSize:13];
+    rotulo.textColor = [UIColor colorWithWhite:0.45f alpha:1.0f];
+    [vistaRecientesHome addSubview:rotulo];
+
+    CGFloat y = kAltoRotuloRecientes;
+    for (NSInteger i = 0; i < cuantos; i++) {
+        ConrraDestinoReciente *destino = [lista objectAtIndex:(NSUInteger)i];
+
+        UIButton *fila = [UIButton buttonWithType:UIButtonTypeCustom];
+        fila.frame = CGRectMake(0, y, sw, kAltoFilaReciente);
+        fila.tag = i;
+        [fila addTarget:self action:@selector(tocarRecienteDelHome:)
+       forControlEvents:UIControlEventTouchUpInside];
+        [vistaRecientesHome addSubview:fila];
+
+        UIImageView *reloj = [[UIImageView alloc] initWithFrame:CGRectMake(16, 12, 20, 20)];
+        reloj.image = [[UIImage systemImageNamed:@"clock.arrow.circlepath"]
+                       imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+        reloj.tintColor = [UIColor colorWithWhite:0.45f alpha:1.0f];
+        reloj.contentMode = UIViewContentModeScaleAspectFit;
+        reloj.userInteractionEnabled = NO;
+        [fila addSubview:reloj];
+
+        UILabel *texto = [[UILabel alloc] initWithFrame:CGRectMake(48, 0, sw - 48 - 16, kAltoFilaReciente)];
+        texto.text = destino.direccion;
+        texto.font = [UIFont fontWithName:@"NotoSans-Regular" size:15] ?: [UIFont systemFontOfSize:15];
+        texto.textColor = [UIColor colorWithRed:0.157f green:0.157f blue:0.157f alpha:1.0f];
+        texto.userInteractionEnabled = NO;
+        [fila addSubview:texto];
+
+        y += kAltoFilaReciente;
+    }
+}
+
+/**
+ Rehace el bloque y recoloca la hoja.
+
+ Hace falta porque la lista cambia DESPUES de montar la pantalla: al volver de un viaje hay
+ un destino mas, y si la hoja no vuelve a medirse, o tapa el nuevo o deja un hueco blanco.
+ */
+-(void)refrescarRecientesDelHome {
+    if (!isSheetSetup || homeBottomSheet == nil) {
+        return;
+    }
+    CGFloat sh = self.view.bounds.size.height;
+    CGFloat nuevoPlegado = sh - 300.0 - [self alturaDeRecientesEnHome];
+
+    [self montarRecientesEnLaHoja];
+
+    if (fabs(nuevoPlegado - sheetCollapsedY) < 0.5f) {
+        return;
+    }
+    // Solo se mueve si esta plegada: si el pasajero la tiene subida, moverla bajo sus dedos
+    // seria peor que dejar el hueco hasta que la suelte.
+    BOOL estabaPlegada = fabs(homeBottomSheet.frame.origin.y - sheetCollapsedY) < 1.0f;
+    sheetCollapsedY = nuevoPlegado;
+    if (estabaPlegada) {
+        CGRect f = homeBottomSheet.frame;
+        f.origin.y = sheetCollapsedY;
+        homeBottomSheet.frame = f;
+    }
+}
+
+/** Un ultimo destino del home: mismo efecto que elegirlo en el buscador. */
+-(void)tocarRecienteDelHome:(UIButton *)boton {
+    NSArray<ConrraDestinoReciente *> *lista = [ConrraDestinosRecientes todos];
+    if (boton.tag < 0 || boton.tag >= (NSInteger)lista.count) {
+        return;
+    }
+    ConrraDestinoReciente *destino = [lista objectAtIndex:(NSUInteger)boton.tag];
+    // Directo a fijarDestinoEn: y no por el metodo del delegado, aunque haga lo mismo. Ese
+    // ademas pone isReturningFromRouteInput, que sirve para que el home no se reinicie al
+    // REAPARECER; aqui el home nunca se fue, y dejar esa bandera encendida se comeria el
+    // siguiente reinicio legitimo.
+    [self fijarDestinoEn:CLLocationCoordinate2DMake(destino.lat, destino.lng)
+                  nombre:destino.direccion];
+}
+
 -(void)buildBottomSheet {
     CGFloat sw = self.view.bounds.size.width;
     CGFloat sh = self.view.bounds.size.height;
@@ -4920,6 +5055,9 @@
     [adondeBtn addTarget:self action:@selector(showRouteInputScreen)
        forControlEvents:UIControlEventTouchUpInside];
     [homeBottomSheet addSubview:adondeBtn];
+
+    yTrasElBuscador = searchY + 56.0;
+    [self montarRecientesEnLaHoja];
 
     NSArray *hiddenViews = @[
         self.viewPickup,
@@ -5334,6 +5472,7 @@
     [self ocultarPildoraDeRuta];
     [self ocultarRestosDelDisenoViejo];
     [self asegurarDireccionDeRecogida];
+    [self refrescarRecientesDelHome];
 }
 
 /**
