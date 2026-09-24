@@ -53,6 +53,12 @@
     self.mapa.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     self.mapa.delegate = self;
     self.mapa.showsUserLocation = YES;
+    // Con detalle, como el resto de los mapas: aqui el pasajero esta buscando una esquina
+    // concreta y necesita los comercios y las plazas para reconocerla.
+    self.mapa.mapType = MKMapTypeStandard;
+    if (@available(iOS 13.0, *)) {
+        self.mapa.pointOfInterestFilter = nil;
+    }
     [self.view addSubview:self.mapa];
 
     CGFloat safeTop = self.view.safeAreaInsets.top;
@@ -97,14 +103,29 @@
     self.cargando.hidesWhenStopped = YES;
     [tarjeta addSubview:self.cargando];
 
-    // --- El pin, clavado en el centro de la pantalla ---
-    UIImage *imgPin = [UIImage imageNamed:@"map_pin_drop"]
+    /*
+     El pin, clavado en el centro de la pantalla.
+
+     Antes usaba map_pin_drop, que no es un pin: es ic_dropoff, un icono cuadrado de 112x112
+     que al encajarlo en un hueco de 40x48 quedaba como un circulito diminuto. Ahora usa
+     pin-red, que si es la gota roja de toda la vida, y el hueco respeta su proporcion
+     (28x37 -> 3 a 4) para que no salga aplastada.
+     */
+    UIImage *imgPin = [UIImage imageNamed:@"pin-red"]
         ?: ([UIImage imageNamed:@"ic_location_pin"] ?: [UIImage imageNamed:@"PIN"]);
     self.pin = [[UIImageView alloc] initWithImage:imgPin];
     self.pin.contentMode = UIViewContentModeScaleAspectFit;
+    // Una sombra suave lo despega del mapa: un pin plano sobre una calle clara se pierde.
+    self.pin.layer.shadowColor = [UIColor blackColor].CGColor;
+    self.pin.layer.shadowOpacity = 0.35f;
+    self.pin.layer.shadowRadius = 3;
+    self.pin.layer.shadowOffset = CGSizeMake(0, 2);
     // La punta del pin es la que marca el sitio, asi que el centro de la imagen va medio
     // alto por encima del centro del mapa.
-    self.pin.frame = CGRectMake((sw - 40) / 2.0, sh / 2.0 - 48, 40, 48);
+    // 36 x 48 es la proporcion del PNG. La PUNTA queda en el centro exacto de la pantalla,
+    // que es el punto que se va a devolver: centrar la imagen entera dejaria el sitio
+    // marcado medio pin mas abajo de donde el pasajero cree.
+    self.pin.frame = CGRectMake((sw - 36) / 2.0, sh / 2.0 - 48, 36, 48);
     self.pin.userInteractionEnabled = NO;
     [self.view addSubview:self.pin];
 

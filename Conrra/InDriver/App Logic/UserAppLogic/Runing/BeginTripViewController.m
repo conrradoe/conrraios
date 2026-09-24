@@ -279,7 +279,21 @@
 
 - (void)setupMapView {
     self.mapView = [[MKMapView alloc] initWithFrame:self.view.bounds];
-    self.mapView.mapType = MKMapTypeMutedStandard;
+    /*
+     Mapa NORMAL, no el apagado.
+
+     Estaba en MKMapTypeMutedStandard -- el estilo que Apple hizo para que el mapa se quite
+     de en medio y luzcan tus capas -- y ademas con TODOS los puntos de interes
+     desactivados. De ahi que se viera palido y sin nada: ni comercios, ni plazas, ni
+     referencias. Justo lo que un pasajero usa para reconocer donde esta.
+
+     Android usa Google Maps con sus POIs puestos. Esto es lo mas cerca que llega MapKit:
+     el estilo estandar y sin filtro de puntos de interes.
+     */
+    self.mapView.mapType = MKMapTypeStandard;
+    if (@available(iOS 13.0, *)) {
+        self.mapView.pointOfInterestFilter = nil;
+    }
     self.mapView.showsUserLocation = NO;
     self.mapView.delegate = self;
     self.mapView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;

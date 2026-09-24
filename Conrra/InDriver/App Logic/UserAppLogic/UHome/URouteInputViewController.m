@@ -173,7 +173,11 @@
 
     // Pickup text field
     CGFloat fieldX = 52.0;
-    self.pickupField = [[UITextField alloc] initWithFrame:CGRectMake(fieldX, 0, sw - 32 - fieldX - 8, 52)];
+    // 40 puntos reservados a la derecha para el boton de mapa, que va DENTRO del contenedor
+    // y no como rightView del campo: el rightView y el boton de borrar se disputan el mismo
+    // hueco y solo se ve uno de los dos.
+    CGFloat huecoMapa = 40.0;
+    self.pickupField = [[UITextField alloc] initWithFrame:CGRectMake(fieldX, 0, sw - 32 - fieldX - 8 - huecoMapa, 52)];
     self.pickupField.text = self.direction.pickAddress ?: @"";
     self.pickupField.placeholder = [LanguageHelper getStringWithKey:@"k_s10_your_location" defaultValue:@"Tu ubicación"];
     self.pickupField.font = [UIFont fontWithName:@"NotoSans-Regular" size:15]
@@ -184,6 +188,8 @@
     self.pickupField.backgroundColor = [UIColor clearColor];
     self.pickupField.returnKeyType = UIReturnKeySearch;
     [pickupContainer addSubview:self.pickupField];
+    [pickupContainer addSubview:[self botonDeMapaEnX:(sw - 32 - huecoMapa)
+                                              accion:@selector(irAlMapaDesdeLaRecogida)]];
 
     currentY += 52.0 + 12.0;
 
@@ -204,7 +210,7 @@
     searchIcon.contentMode = UIViewContentModeScaleAspectFit;
     [iconContainer addSubview:searchIcon];
 
-    self.destinationField = [[UITextField alloc] initWithFrame:CGRectMake(0, 0, sw - 32, 52)];
+    self.destinationField = [[UITextField alloc] initWithFrame:CGRectMake(0, 0, sw - 32 - huecoMapa, 52)];
     self.destinationField.leftView = iconContainer;
     self.destinationField.leftViewMode = UITextFieldViewModeAlways;
     self.destinationField.placeholder = @"Hacia:";
@@ -216,6 +222,8 @@
     self.destinationField.backgroundColor = [UIColor clearColor];
     self.destinationField.returnKeyType = UIReturnKeySearch;
     [self.destContainer addSubview:self.destinationField];
+    [self.destContainer addSubview:[self botonDeMapaEnX:(sw - 32 - huecoMapa)
+                                                 accion:@selector(irAlMapaDesdeElDestino)]];
 
     currentY += 52.0 + 8.0;
 
@@ -306,6 +314,73 @@
     [boton addSubview:texto];
 
     return alto;
+}
+
+/**
+ El boton que lleva al mapa con lo que la caja tenga escrito.
+
+ Va junto al aspa de borrar, no en su lugar: son dos cosas distintas -- una vacia la caja y
+ la otra lleva a afinar el punto -- y quitar una para poner la otra obligaria a borrar y
+ reescribir para cambiar la esquina.
+ */
+- (UIButton *)botonDeMapaEnX:(CGFloat)x accion:(SEL)accion {
+    UIButton *boton = [UIButton buttonWithType:UIButtonTypeSystem];
+    boton.frame = CGRectMake(x, 0, 40, 52);
+    [boton setImage:[[UIImage systemImageNamed:@"map"]
+                     imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate]
+           forState:UIControlStateNormal];
+    boton.tintColor = [UIColor colorWithRed:0.18f green:0.65f blue:0.27f alpha:1.0f];
+    [boton addTarget:self action:accion forControlEvents:UIControlEventTouchUpInside];
+    return boton;
+}
+
+- (void)irAlMapaDesdeLaRecogida {
+    [self irAlMapaConElTextoDe:self.pickupField modo:ConrraModoSeleccionRecogida];
+}
+
+- (void)irAlMapaDesdeElDestino {
+    [self irAlMapaConElTextoDe:self.destinationField modo:ConrraModoSeleccionDestino];
+}
+
+/**
+ Abre el mapa centrado en la direccion escrita en la caja.
+
+ Se geocodifica con CLGeocoder y no con el camino de Google que usan las sugerencias,
+ porque aqui NO hay place_id: lo que hay es texto suelto, puede que a medio escribir o
+ corregido a mano despues de elegir.
+
+ Si no se puede resolver -- texto vacio, sin red, direccion que no existe -- el mapa se abre
+ igual donde este el pasajero. Es mejor que un boton que no responde: desde ahi puede
+ arrastrar hasta el sitio, que es justo para lo que sirve esta pantalla.
+ */
+- (void)irAlMapaConElTextoDe:(UITextField *)campo modo:(ConrraModoSeleccionMapa)modo {
+    [self.view endEditing:YES];
+    self.pickupTableView.hidden      = YES;
+    self.destinationTableView.hidden = YES;
+
+    NSString *texto = [campo.text stringByTrimmingCharactersInSet:
+                       [NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    CLLocationCoordinate2D respaldo = self.direction.source.coordinate;
+    if (respaldo.latitude == 0 && respaldo.longitude == 0) {
+        respaldo = [APP_DELEGATE currLoc].coordinate;
+    }
+
+    if (texto.length == 0) {
+        [self abrirMapaEn:respaldo texto:@"" modo:modo];
+        return;
+    }
+
+    [UtilityClass setLH:NO wt:[LanguageHelper getStringWithKey:@"k_r30_s3_loading"]];
+    [[[CLGeocoder alloc] init] geocodeAddressString:texto
+                                  completionHandler:^(NSArray<CLPlacemark *> *sitios, NSError *error) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [UtilityClass setLH:YES wt:[LanguageHelper getStringWithKey:@"k_r30_s3_loading"]];
+            CLLocation *encontrado = [[sitios firstObject] location];
+            [self abrirMapaEn:(encontrado ? encontrado.coordinate : respaldo)
+                        texto:texto
+                         modo:modo];
+        });
+    }];
 }
 
 /**
