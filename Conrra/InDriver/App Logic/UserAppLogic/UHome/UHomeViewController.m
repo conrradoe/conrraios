@@ -2666,7 +2666,11 @@
             }
             return;
         }
-        if (!pendingScreen3Presentation) self.showButtonOnView.hidden = NO;
+        // Tambien con la hoja delante: showFareInfoForCategory lo volveria a esconder, pero
+        // entre una linea y otra hay un fotograma en el que la franja amarilla asoma.
+        if (!pendingScreen3Presentation && currentFareOfferVC == nil) {
+            self.showButtonOnView.hidden = NO;
+        }
         [self showFareInfoForCategory];
         if(callFromPromocode){
             //            PromoCode *cc=[self->_bookingModel poromCodeApplied];
@@ -2700,6 +2704,27 @@
         isFareCalculated = YES;
         pendingScreen3Presentation = NO;
         [self presentScreen3];
+        return;
+    }
+    /*
+     Con la pantalla de tarifa DELANTE no se pinta nada del diseño viejo.
+
+     Esa franja amarilla que asomaba por arriba -- "tu Oferta", el precio recomendado, el
+     peaje y los minutos -- son las vistas de informacion de tarifa del home antiguo, y las
+     encendia la linea de abajo, categoryFareInformationIsHidden:NO.
+
+     El guardia de arriba no bastaba: pendingScreen3Presentation se apaga en cuanto la hoja
+     se presenta la PRIMERA vez, asi que cualquier estimacion posterior -- aplicar un cupon,
+     quitarlo, reintentar tras un fallo del API -- caia por el camino viejo con la hoja ya
+     puesta. Y como la pantalla de tarifa es transparente por encima de su hoja, lo que se
+     encendia detras se veia.
+
+     Aqui no se pierde nada: la hoja no lee ninguna de estas vistas, sus precios salen de
+     _bookingModel por estimacionesPorCategoria.
+     */
+    if (currentFareOfferVC != nil) {
+        isFareCalculated = YES;
+        [self ocultarRestosDelDisenoViejo];
         return;
     }
     [self categoryFareInformationIsHidden:NO];
