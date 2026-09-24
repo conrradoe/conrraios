@@ -326,7 +326,9 @@
 - (UIButton *)botonDeMapaEnX:(CGFloat)x accion:(SEL)accion {
     UIButton *boton = [UIButton buttonWithType:UIButtonTypeSystem];
     boton.frame = CGRectMake(x, 0, 40, 52);
-    [boton setImage:[[UIImage systemImageNamed:@"map"]
+    // El mismo pin que el boton de "Seleccionar en el mapa" de arriba: los dos llevan al
+    // mismo sitio, y con dos iconos distintos pareceria que hacen cosas distintas.
+    [boton setImage:[[UIImage systemImageNamed:@"mappin.and.ellipse"]
                      imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate]
            forState:UIControlStateNormal];
     boton.tintColor = [UIColor colorWithRed:0.18f green:0.65f blue:0.27f alpha:1.0f];
