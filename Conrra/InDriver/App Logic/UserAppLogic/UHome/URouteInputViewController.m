@@ -348,7 +348,18 @@
         if ([self.delegate respondsToSelector:@selector(routeInputVC:eligioRecogidaEn:direccion:)]) {
             [self.delegate routeInputVC:self eligioRecogidaEn:coordenada direccion:direccion];
         }
-        // La recogida no cierra la pantalla: todavia falta el destino.
+        /*
+         La recogida no cierra la pantalla: todavia falta el destino, y el foco se va solo a
+         su caja. Es el paso que encadena los dos puntos sin que el pasajero tenga que
+         buscar donde tocar.
+
+         Con retardo: se vuelve de una animacion de navegacion, y pedir el teclado mientras
+         la transicion corre lo deja a medias o no lo saca.
+         */
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.35 * NSEC_PER_SEC)),
+                       dispatch_get_main_queue(), ^{
+            [self.destinationField becomeFirstResponder];
+        });
         return;
     }
 
@@ -443,17 +454,38 @@
 #pragma mark - Ultimos destinos
 
 /**
- Decide si se enseñan y con que.
+ Decide si se enseñan los ultimos destinos.
 
- El refresco va con un retardo de cero desde los avisos de las sugerencias, o sea en la
- siguiente vuelta del bucle: esos avisos llegan ANTES de que se aplique el hidden de las
- tablas, y mirandolo en el momento se leeria el estado viejo.
+ LA VERSION ANTERIOR LOS DEJABA TAPANDO LA BUSQUEDA, y era culpa mia. Miraba el `hidden` de
+ las tablas de sugerencias para saber si el hueco estaba libre, pero ese `hidden` se apaga
+ de forma ASINCRONA: SuggestedLocationDataSource solo enseña su tabla cuando CONTESTA
+ Google. Al empezar a escribir, la tabla de sugerencias seguia escondida, asi que esto
+ decidia "hueco libre" y sacaba los recientes; cuando llegaba la respuesta de Google, la
+ tabla de sugerencias se enseñaba DEBAJO de los recientes y nadie volvia a mirar. Resultado:
+ se escribia una direccion nueva y no habia forma de elegirla.
+
+ Ahora la regla no depende de ninguna respuesta de red: los recientes se enseñan cuando NO
+ se esta escribiendo. En cuanto el pasajero toca un campo desaparecen, y vuelven si lo
+ vacia. Ademas se mandan al fondo, para que ni con un estado raro puedan quedar por encima
+ de las sugerencias.
  */
 - (void)refrescarRecientes {
     self.recientes = [ConrraDestinosRecientes todos];
-    BOOL hayHueco = self.pickupTableView.hidden && self.destinationTableView.hidden;
-    self.tablaRecientes.hidden = !(hayHueco && self.recientes.count > 0);
+    // La regla es el CONTENIDO de la caja de destino, no quien tiene el foco: la pantalla
+    // enfoca el destino nada mas abrirse, y atar los recientes al foco los dejaria sin
+    // salir nunca, que era justo lo contrario de lo que hacen falta.
+    BOOL hayQueBuscar = (self.destinationField.text.length == 0);
+    self.tablaRecientes.hidden = !(hayQueBuscar && self.recientes.count > 0);
+    // Al fondo SIEMPRE: las tablas de sugerencias ocupan este mismo hueco y son opacas, asi
+    // que en cuanto Google conteste tapan los recientes sin que haga falta coordinarlos.
+    // Esa coordinacion es justo lo que estaba roto antes.
+    [self.view sendSubviewToBack:self.tablaRecientes];
     [self.tablaRecientes reloadData];
+}
+
+/** Esconde los recientes ya, sin esperar a nada. */
+- (void)esconderRecientes {
+    self.tablaRecientes.hidden = YES;
 }
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
@@ -555,36 +587,91 @@
 
 #pragma mark - SuggestedLocationDataSourceDelegate
 
+/**
+ Elegida una sugerencia, se va al mapa a confirmarla.
+
+ ES EL CAMBIO DE METODOLOGIA. Antes, tocar una sugerencia de destino cerraba la pantalla y
+ daba el punto por bueno; el de recogida ni siquiera abria nada. Ahora los dos siguen el
+ mismo camino: se rellena la caja, se abre el mapa centrado en esa direccion con el pin
+ encima, y solo al CONFIRMAR se da el punto por elegido.
+
+ El mapa no sobra aunque la direccion sea correcta: Google devuelve el centro del portal o
+ de la manzana, y quien pide un taxi suele querer la esquina, la entrada de atras o el lado
+ bueno de una avenida. Esos metros son la diferencia entre que el conductor te encuentre o
+ te llame.
+
+ La caja se rellena ANTES de ir al mapa, no al volver: si el geocodificado tarda o falla, el
+ pasajero ya ve escrito lo que eligio en vez de una caja que no reacciona.
+ */
 - (void)source:(SuggestedLocationDataSource *)soure onSelectLocation:(NSDictionary *)dictLocation {
-    if (soure == locationDataSourcePickup) {
-        // Pickup changed — update direction locally and notify parent
+    BOOL esRecogida = (soure == locationDataSourcePickup);
+    NSString *direccion = [dictLocation objectForKey:@"description"] ?: @"";
+    NSString *placeId   = [dictLocation objectForKey:@"place_id"] ?: @"";
+
+    if (esRecogida) {
+        self.pickupField.text = direccion;
         if (self.direction) {
-            self.direction.pickAddress = [dictLocation objectForKey:@"description"] ?: @"";
-        }
-        self.pickupTableView.hidden = YES;
-        if ([self.delegate respondsToSelector:@selector(routeInputVC:didSelectPickup:)]) {
-            [self.delegate routeInputVC:self didSelectPickup:dictLocation];
+            self.direction.pickAddress = direccion;
         }
     } else {
-        // Destination selected.
-        // Call delegate FIRST so it can set isReturningFromRouteInput = YES
-        // on UHomeViewController before the pop triggers viewWillAppear: (which
-        // would otherwise reset `direction` to a new empty object).
-        [self.delegate routeInputVC:self didSelectDestination:dictLocation];
-        [self.navigationController popViewControllerAnimated:YES];
+        self.destinationField.text = direccion;
     }
+    [self.view endEditing:YES];
+    self.pickupTableView.hidden      = YES;
+    self.destinationTableView.hidden = YES;
+    [self esconderRecientes];
+
+    if (placeId.length == 0) {
+        return;
+    }
+
+    [UtilityClass setLH:NO wt:[LanguageHelper getStringWithKey:@"k_r30_s3_loading"]];
+    [Utilities getLocationFromAddressStringPlaceId:placeId
+                             withcompletionHandler:^(CLLocationCoordinate2D punto) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [UtilityClass setLH:YES wt:[LanguageHelper getStringWithKey:@"k_r30_s3_loading"]];
+            [self abrirMapaEn:punto
+                        texto:direccion
+                         modo:(esRecogida ? ConrraModoSeleccionRecogida : ConrraModoSeleccionDestino)];
+        });
+    }];
+}
+
+/**
+ Abre el mapa centrado en un punto concreto.
+
+ Si el punto no sirve -- Google no contesto, o devolvio (0,0) -- se abre igual y el selector
+ se centra donde este el pasajero. Es peor no abrir nada: quedaria un toque que no hace
+ nada y sin explicacion.
+ */
+- (void)abrirMapaEn:(CLLocationCoordinate2D)punto
+              texto:(NSString *)direccion
+               modo:(ConrraModoSeleccionMapa)modo {
+    ConrraMapaSelectorViewController *vc = [[ConrraMapaSelectorViewController alloc] init];
+    vc.delegado = self;
+    vc.modo = modo;
+    if (!(punto.latitude == 0 && punto.longitude == 0)) {
+        vc.centroInicial = punto;
+    }
+    [self.navigationController pushViewController:vc animated:YES];
 }
 
 - (void)onAddressStartEditingsource:(SuggestedLocationDataSource *)soure {
-    [self performSelector:@selector(refrescarRecientes) withObject:nil afterDelay:0];
+    [self refrescarRecientes];
+    /*
+     La tabla del campo activo NO se enseña aqui.
+
+     Se hacia, y lo que se enseñaba era una tabla VACIA: blanca, del alto de la pantalla y
+     tapando todo lo que hubiera debajo. La enseña sola SuggestedLocationDataSource cuando
+     llegan resultados de Google, que es cuando hay algo que enseñar. Asi, con la caja
+     vacia, el hueco lo ocupan los ultimos destinos.
+     */
     if (soure == locationDataSourcePickup) {
-        self.pickupTableView.hidden      = NO;
         self.destinationTableView.hidden = YES;
         // Highlight destination border to inactive style while pickup is active
         self.destContainer.layer.borderColor =
             [UIColor colorWithRed:0.878f green:0.878f blue:0.878f alpha:1.0f].CGColor;
     } else {
-        self.destinationTableView.hidden = NO;
         self.pickupTableView.hidden      = YES;
         // Active border on destination container
         self.destContainer.layer.borderColor =
@@ -593,7 +680,7 @@
 }
 
 - (void)onAddressEndEditingsource:(SuggestedLocationDataSource *)soure {
-    [self performSelector:@selector(refrescarRecientes) withObject:nil afterDelay:0];
+    [self performSelector:@selector(refrescarRecientes) withObject:nil afterDelay:0.05];
     if (soure == locationDataSourcePickup) {
         self.pickupTableView.hidden = YES;
     } else {
@@ -605,7 +692,7 @@
 }
 
 - (void)onAddressShouldClear:(SuggestedLocationDataSource *)soure {
-    [self performSelector:@selector(refrescarRecientes) withObject:nil afterDelay:0];
+    [self performSelector:@selector(refrescarRecientes) withObject:nil afterDelay:0.05];
     if (soure == locationDataSourcePickup) {
         if (self.direction) self.direction.pickAddress = @"";
         self.pickupTableView.hidden = YES;
@@ -615,7 +702,7 @@
 }
 
 - (void)onAddressEmptyShouldClear:(SuggestedLocationDataSource *)soure {
-    [self performSelector:@selector(refrescarRecientes) withObject:nil afterDelay:0];
+    [self performSelector:@selector(refrescarRecientes) withObject:nil afterDelay:0.05];
     if (soure == locationDataSourcePickup) {
         self.pickupTableView.hidden = YES;
     } else {
