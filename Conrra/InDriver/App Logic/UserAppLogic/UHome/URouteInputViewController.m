@@ -566,13 +566,20 @@
 
     self.destinationField.text = destino.direccion;
     [self.view endEditing:YES];
+    [self esconderRecientes];
 
-    // El mismo camino que el selector de mapa: coordenada y direccion, sin tener que
-    // preguntarle a Google por un place_id que aqui no existe.
-    if ([self.delegate respondsToSelector:@selector(routeInputVC:eligioDestinoEn:direccion:)]) {
-        [self.delegate routeInputVC:self eligioDestinoEn:punto direccion:destino.direccion];
-    }
-    [self.navigationController popViewControllerAnimated:YES];
+    /*
+     Un reciente pasa por el mapa igual que una sugerencia.
+
+     Podria ir directo -- ya trae coordenada y no hace falta preguntarle nada a Google --,
+     pero entonces habria dos maneras de elegir destino en la MISMA pantalla: una que
+     enseña el mapa y otra que no. Y la parada exacta no se hereda de la vez anterior: hoy
+     quiero la puerta de atras del mismo edificio al que fui ayer.
+
+     Ademas, sin mapa este camino se saltaria el paso de confirmar, que es donde el pasajero
+     comprueba lo que va a pedir.
+     */
+    [self abrirMapaEn:punto texto:destino.direccion modo:ConrraModoSeleccionDestino];
 }
 
 - (void)olvidarReciente:(UIButton *)boton {
