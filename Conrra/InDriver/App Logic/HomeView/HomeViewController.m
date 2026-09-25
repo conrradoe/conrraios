@@ -54,6 +54,7 @@
 #import "FirebaseUnReadChat.h"
 #import "ConrraRadioDeReparto.h"
 #import "ConrraVoyEnCamino.h"
+#import "ConrraSolicitudesPersistentes.h"
 #import "HomeDataModel.h"
 #import "LocationDataHelper.h"
 #import "SingleRequestView.h"
@@ -1303,6 +1304,8 @@
     // La marca del aviso se guarda por viaje, asi que no se arrastra al siguiente. Se borra
     // igual al cerrar, para no dejar una clave por cada viaje en los defaults.
     [ConrraVoyEnCamino olvidarElViaje:isEmpty(homeDataModel.trip.trip_Id)];
+    // Y las solicitudes que se estaban aguantando: son de antes de este viaje.
+    [ConrraSolicitudesPersistentes olvidarTodas];
 
     ispickFirst =NO;
     [self removeTripDetailsTimer];
@@ -3855,7 +3858,18 @@
                     [APP_DELEGATE stopRequestSound];
                 }
             }
-            self->arrPendingTrips = [NSMutableArray arrayWithArray:dentroDelRadio];
+            /*
+             Las que el servidor no trajo esta vez se aguantan unos ciclos.
+
+             La respuesta parpadea: la misma solicitud desaparece en un sondeo y vuelve en el
+             siguiente, porque el filtro de distancia se evalua contra la posicion del
+             conductor -- que cambia mientras conduce -- y en el borde del radio entra y sale
+             sola. Sin esto la tarjeta se borra y reaparece, y si el conductor iba a tocarla ya
+             no esta. Ver ConrraSolicitudesPersistentes.
+             */
+            NSArray *conLasQueAguantan = [ConrraSolicitudesPersistentes fusionar:dentroDelRadio
+                                                                     conPantalla:self->arrPendingTrips];
+            self->arrPendingTrips = [NSMutableArray arrayWithArray:conLasQueAguantan];
             [self invalidatePendingTripTimer];
             [self resetPendingTripTimer];
             [self updateRquestCounter];
@@ -4200,6 +4214,9 @@
     [GIC mkwu:trip_reject d:dict cb:^(id results, NSError *error) {
         [UtilityClass setLH:YES wt:[LanguageHelper getStringWithKey:@"k_r30_s3_loading"]];
         if ([[results objectForKey:P_STATUS] isEqualToString:@"OK"]) {
+            // El conductor ya decidio: la solicitud no se aguanta ni un ciclo mas. Sin esto
+            // una rechazada seguiria en la lista hasta un minuto.
+            [ConrraSolicitudesPersistentes olvidar:trip.trip_Id];
             [self getAllPendingTrips:YES];
             for (TripModel *tripModelTemp in self->arrPendingTrips) {
                 if(tripModelTemp.trip_Id==trip.trip_Id)   {
