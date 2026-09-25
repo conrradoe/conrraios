@@ -16,7 +16,6 @@
 #import "Utilities.h"
 #import "HomeViewController.h"
 #import "ConrraViajesCerrados.h"
-#import "TripNotificationHelper.h"
 #import "ConrraCierreDeViaje.h"
 #import "StarRatingView.h"
 #import "NSString+URLEncoding.h"
@@ -750,7 +749,7 @@
                                handler:^(UIAlertAction * action) {
         // Se abre soporte y, al cerrarse esa hoja, se cierra el viaje igual. Decir que no te
         // pagaron no puede costarte quedarte encerrado: el viaje termino de todas formas.
-        [self abrirSoportePorPagoNoRecibidoYLuegoCerrar:YES];
+        [self terminarElViaje];
     }];
     [alert addAction:yesButton];
     [alert addAction:noButton];
@@ -778,7 +777,7 @@
                                actionWithTitle:[LanguageHelper getStringWithKey:@"k_22_s4_no"]
                                style:UIAlertActionStyleDefault
                                handler:^(UIAlertAction * action) {
-        [self abrirSoportePorPagoNoRecibidoYLuegoCerrar:YES];
+        [self terminarElViaje];
     }];
     [alert addAction:yesButton];
     [alert addAction:noButton];
@@ -799,56 +798,6 @@
 
  Se le pasan el viaje y el importe para que el mensaje los lleve escritos: soporte no puede
  buscar nada con un "no me pagaron" a secas.
- */
-/**
- Soporte por pago no recibido y, si se pide, cierre del viaje al salir de esa hoja.
-
- @param cerrarDespues YES cuando esto viene de la pregunta del pago: el viaje termina igual
- */
--(void)abrirSoportePorPagoNoRecibidoYLuegoCerrar:(BOOL)cerrarDespues {
-    /*
-     EL VIAJE SE LIQUIDA AQUI, NO SOLO EN EL TELEFONO DEL CONDUCTOR.
-
-     Decir "no me pagaron" cerraba el recibo del conductor y dejaba el viaje en el servidor
-     como completado y sin liquidar. Y el pasajero se quedaba mirando SU recibo para siempre,
-     esperando un desenlace que no iba a llegar. Soltar a uno y atrapar al otro no es cerrar
-     el viaje.
-
-     Se marca paid_cancel, que es lo que usa Android para "el pasajero no pago"
-     (markTripPaidCancel) y lo que las dos apps entienden como viaje cerrado sin cobro. El
-     mensaje a soporte sale igual: lo que se discute es el dinero, no si el viaje termino.
-
-     Se manda y no se espera. Si la llamada falla, el conductor ya esta fuera y el viaje se
-     reclama por soporte, que es justo la hoja que se acaba de abrir.
-     */
-    if (cerrarDespues) {
-        [self marcarViajeComoNoPagado];
-    }
-
-    NSString *viajeId = isEmpty(self.curr_trip.trip_Id);
-    NSString *monto = @"";
-    NSString *crudo = isEmpty(self.curr_trip.trip_fare);
-    if (crudo.length > 0) {
-        CityModel *ciudad = [CityModel getCityByCityId:self.curr_trip.city_id];
-        NSString *conMoneda = [Utilities formatAmountAndCurrency:[crudo floatValue]
-                                                        currency:ciudad.city_cur];
-        monto = conMoneda.length > 0 ? conMoneda : crudo;
-    }
-    __weak typeof(self) yo = self;
-    [ConrraChatDeSoporte abrirEn:self
-                          motivo:ConrraMotivoPagoNoRecibido
-                           viaje:viajeId
-                           monto:monto
-                        alCerrar:cerrarDespues ? ^{ [yo cerrarElViajeYVolver]; } : nil];
-}
-
-/**
- Cierra el viaje y devuelve al conductor a su mapa. Pase lo que pase.
-
- Aqui NO se comprueba nada ni se espera a ninguna respuesta. El viaje ya termino: lo que
- quede pendiente -- registrar el cobro, marcar el estado, volver a estar disponible -- se
- intenta por su cuenta y, si falla, se reintenta desde el mapa o se reclama por soporte.
- Ninguna de esas cosas justifica tener al conductor mirando un recibio del que no puede salir.
  */
 -(void)cerrarElViajeYVolver {
     if (yaSeCerroElViaje) {
@@ -918,33 +867,6 @@
                            monto:monto];
 }
 
-
-/**
- Deja el viaje cerrado como "no pagado" en el servidor, sin esperar respuesta.
-
- Es lo mismo que markTripAsRiderCancelForPayment pero sin tocar la pantalla: cuando esto corre,
- el conductor ya se esta yendo. Lo que importa es que el estado salga hacia el servidor, porque
- de eso depende que el PASAJERO pueda cerrar su recibo.
- */
--(void)marcarViajeComoNoPagado {
-    NSString *viajeId = isEmpty(self.curr_trip.trip_Id);
-    if (viajeId.length == 0) {
-        return;
-    }
-    NSMutableDictionary *dict = [NSMutableDictionary dictionaryWithDictionary:@{
-        @"trip_id"  : viajeId,
-        TRIP_STATUS : TS_RIDER_CANCEL_CANCEL,
-    }];
-    [GIC mkwu:TRIP_UPDATE d:dict isa:NO cb:^(id results, NSError *error) {
-        BOOL ok = [[[results objectForKey:P_STATUS] uppercaseString] isEqualToString:@"OK"];
-        NSLog(@"[Recibo] viaje %@ marcado como no pagado: %@", viajeId, ok ? @"si" : @"FALLO");
-        if (ok) {
-            // El pasajero tiene que enterarse de que el viaje se cerro, o su recibo se queda
-            // puesto igual que estaba el del conductor.
-            [TripNotificationHelper sendNotification:TS_RIDER_CANCEL_CANCEL trip:self.curr_trip];
-        }
-    }];
-}
 
 -(void)markTripAsRiderCancelForPayment
 {

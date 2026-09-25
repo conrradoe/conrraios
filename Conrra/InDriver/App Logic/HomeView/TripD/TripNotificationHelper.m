@@ -43,6 +43,15 @@
         message = [LanguageHelper getStringWithKey:@" "];
     }
     NSString * tripid = [NSString stringWithFormat:@"%@",trip.trip_Id];
+    /*
+     Sin esto, un estado que no este en la cadena de arriba deja el mensaje en nil y el
+     diccionario literal revienta al construirse, no al usarse: "attempt to insert nil object
+     from objects[0]". Es una trampa para cualquiera que llame con un estado nuevo, y ya
+     costo un cierre de la app en el camino de "no me pagaron".
+     */
+    if (message == nil) {
+        message = @" ";
+    }
     NSMutableDictionary *dict = [NSMutableDictionary dictionaryWithDictionary:@{ @"message" :message, TRIP_STATUS  :status,TRIP_ID :tripid, /*@"content-available":@"1"*/}];
     if([status isEqualToString:TS_ARRIVE]){
         [ dict  setObject:@"cab_arrive.caf" forKey:@"sound"];
@@ -116,6 +125,15 @@
     }
     else if ([status isEqualToString:TS_REJECT])  {
         message = [self getValueForKey:@"k_10_s14_trip_request_rerject" lang:trip.driver.d_lang];
+    }
+    /*
+     Sin esto, un estado que no este en la cadena de arriba deja el mensaje en nil y el
+     diccionario literal revienta al construirse, no al usarse: "attempt to insert nil object
+     from objects[0]". Es una trampa para cualquiera que llame con un estado nuevo, y ya
+     costo un cierre de la app en el camino de "no me pagaron".
+     */
+    if (message == nil) {
+        message = @" ";
     }
     NSMutableDictionary *dict = [NSMutableDictionary dictionaryWithDictionary:@{ @"message" :message, TRIP_STATUS  :status,TRIP_ID :trip.trip_Id, /*@"content-available":@"1"*/}];
     if([status isEqualToString:TS_ARRIVE]){

@@ -86,8 +86,43 @@ static NSMutableArray *gCobrosEnVuelo = nil;
         BOOL ok = [[[results objectForKey:P_STATUS] uppercaseString] isEqualToString:@"OK"];
         NSLog(@"[CierreDeViaje] viaje %@ cerrado como NO pagado: %@", id_, ok ? @"si" : @"FALLO");
         if (ok) {
-            [TripNotificationHelper sendNotification:TS_RIDER_CANCEL_CANCEL trip:viaje];
+            [self avisarAlPasajeroDelCierre:viaje];
         }
+    }];
+}
+
+/**
+ Le dice al PASAJERO que el viaje se cerro sin cobro.
+
+ No se usa TripNotificationHelper a proposito, y la razon es doble:
+
+   1. Su mensaje sale de una cadena de if/else por estado que NO contempla paid_cancel, asi
+      que quedaba nil y el diccionario literal reventaba al construirse:
+      "attempt to insert nil object from objects[0]". Ese objects[0] era el mensaje.
+   2. Aunque no reventara, ese helper manda al CONDUCTOR -- pone "to" en driver y usa el
+      token del conductor -- y aqui hace falta avisar al pasajero, que es quien se queda
+      mirando su recibo sin saber que el viaje ya termino.
+
+ El texto va escrito aqui y no por clave de idioma porque no existe ninguna para este caso;
+ cuando la haya, se cambia esta linea.
+ */
++ (void)avisarAlPasajeroDelCierre:(TripModel *)viaje {
+    NSString *token = isEmpty(viaje.user.deviceToken);
+    if (token.length == 0) {
+        NSLog(@"[CierreDeViaje] el pasajero no tiene token: no se le puede avisar del cierre");
+        return;
+    }
+    NSMutableDictionary *dict = [NSMutableDictionary dictionaryWithDictionary:@{
+        @"message"           : @"El conductor cerró el viaje como no pagado. Si ya pagaste, escríbenos.",
+        TRIP_STATUS          : TS_RIDER_CANCEL_CANCEL,
+        TRIP_ID              : isEmpty(viaje.trip_Id),
+        @"to"                : @"user",
+        @"content-available" : @"1",
+    }];
+    [dict setObject:token forKey:([viaje.user.deviceType isEqualToString:IOS] ? IOS_TOKEN : ANDROID_TOKEN)];
+    [GIC mk:url_notification to:send_user_notification d:dict isa:NO cb:^(id results, NSError *error) {
+        BOOL ok = [[[results objectForKey:P_STATUS] uppercaseString] isEqualToString:@"OK"];
+        NSLog(@"[CierreDeViaje] aviso de cierre al pasajero: %@", ok ? @"enviado" : @"FALLO");
     }];
 }
 
