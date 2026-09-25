@@ -627,11 +627,31 @@
     [details didMoveToParentViewController:self];
 }
 
+/**
+ Cierra el viaje y devuelve al conductor a su pantalla.
+
+ LA SALIDA NO PUEDE DEPENDER DE UNA LLAMADA. Antes la navegacion estaba DENTRO del
+ `if(error==nil)` de updateDriverAvailablity: si esa llamada fallaba -- red mala, servidor
+ lento, la cuenta sin verificar, cualquier cosa -- el conductor tocaba y no pasaba nada. Se
+ quedaba encerrado en el recibo, con los tres botones (la X, Aceptar y Omitir) llevando todos
+ al mismo sitio y ninguno funcionando. Su unica esperanza era que el pasajero pagara y
+ calificara, que no depende de el.
+
+ Ahora se sale SIEMPRE. La disponibilidad se manda igual, pero no manda sobre la navegacion:
+ si falla, el conductor ya esta en su pantalla y desde ahi puede volver a ponerse en linea,
+ que es una accion que tiene delante y entiende. Quedarse atrapado en un recibo no.
+
+ El estado local se limpia tambien siempre: si no, la app arrancaria creyendo que sigue en un
+ viaje que ya termino.
+ */
 - (IBAction)ButtonHome:(id)sender {
     [UtilityClass setLH:NO wt:[LanguageHelper getStringWithKey:@"k_r30_s3_loading"]];
     [[UpdateUserCurrentLocation sharedInstance]  updateDriverAvailablity:@"1" completionBlock:^(id results, NSError *error) {
         [UtilityClass setLH:YES wt:[LanguageHelper getStringWithKey:@"k_r30_s3_loading"]];
-        if(error==nil)
+        if (error != nil) {
+            NSLog(@"[Recibo] no se pudo poner al conductor disponible, pero se sale igual: %@",
+                  error.localizedDescription);
+        }
         {
             defaults_set_object(DRIVER_STATUS, TS_WAITING);
             defaults_remove(DRIVER_STATUS_TEMP);
@@ -1028,16 +1048,44 @@
 
     y += ty + 32;
 
+    /*
+     "Terminar viaje", no "Aceptar".
+
+     Es el boton que cierra el ciclo, como el de Android. "Aceptar" no dice que hace -- parece
+     un simple enterado -- y el conductor que quiere volver a trabajar no sabe donde tocar.
+
+     Sigue llevando a la hoja de calificacion, que es opcional y tiene su "Omitir". Debajo va
+     una salida directa para el que no quiera pasar ni por ahi.
+     */
     UIButton *aceptarBtn = [UIButton buttonWithType:UIButtonTypeCustom];
     aceptarBtn.frame = CGRectMake(pad, y, tickW, 56);
     aceptarBtn.backgroundColor = yellow;
     aceptarBtn.layer.cornerRadius = 16;
     aceptarBtn.titleLabel.font = [UIFont fontWithName:@"NotoSans-Bold" size:17] ?: [UIFont boldSystemFontOfSize:17];
-    [aceptarBtn setTitle:@"Aceptar" forState:UIControlStateNormal];
+    [aceptarBtn setTitle:[LanguageHelper getStringWithKey:@"k_s10_terminar_viaje" defaultValue:@"Terminar viaje"]
+                forState:UIControlStateNormal];
     [aceptarBtn setTitleColor:UIColor.blackColor forState:UIControlStateNormal];
     [aceptarBtn addTarget:self action:@selector(ndFareAceptarTapped) forControlEvents:UIControlEventTouchUpInside];
     [content addSubview:aceptarBtn];
-    y += 56 + 48;
+    y += 56 + 12;
+
+    /*
+     La salida sin calificar, siempre visible.
+
+     El conductor puede tener al siguiente pasajero esperando. Obligarle a pasar por la hoja de
+     calificacion para volver al mapa es tiempo que pierde, y si algo falla en esa hoja se
+     queda encerrado otra vez. Este boton va directo.
+     */
+    UIButton *salirBtn = [UIButton buttonWithType:UIButtonTypeCustom];
+    salirBtn.frame = CGRectMake(pad, y, tickW, 44);
+    salirBtn.backgroundColor = [UIColor clearColor];
+    salirBtn.titleLabel.font = [UIFont fontWithName:@"NotoSans-Regular" size:15] ?: [UIFont systemFontOfSize:15];
+    [salirBtn setTitle:[LanguageHelper getStringWithKey:@"k_s10_volver_al_mapa" defaultValue:@"Volver al mapa sin calificar"]
+              forState:UIControlStateNormal];
+    [salirBtn setTitleColor:[UIColor colorWithWhite:0.45 alpha:1] forState:UIControlStateNormal];
+    [salirBtn addTarget:self action:@selector(ndFareSkipRatingTapped) forControlEvents:UIControlEventTouchUpInside];
+    [content addSubview:salirBtn];
+    y += 44 + 40;
 
     content.frame = CGRectMake(0, 0, w, y);
     scroll.contentSize = CGSizeMake(w, y);
