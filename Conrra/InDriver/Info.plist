@@ -35,6 +35,7 @@
 		<string>waze</string>
 		<string>comgooglemaps</string>
 		<string>googlegmail</string>
+		<string>whatsapp</string>
 	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>

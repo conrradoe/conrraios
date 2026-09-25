@@ -20,6 +20,8 @@
 + (BOOL)esPasajero;
 + (NSString *)nombreDeQuienEscribe;
 + (void)abrirWhatsAppDesde:(UIViewController *)vc mensaje:(NSString *)mensaje;
++ (void)abrir:(NSURL *)url luegoSiFalla:(NSURL *)reserva desde:(UIViewController *)vc numero:(NSString *)digitos;
++ (void)noSePudoAbrirDesde:(UIViewController *)vc numero:(NSString *)digitos;
 @end
 
 
@@ -430,18 +432,77 @@
     NSCharacterSet *permitidos = [NSCharacterSet characterSetWithCharactersInString:
         @"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~"];
     NSString *texto = [mensaje stringByAddingPercentEncodingWithAllowedCharacters:permitidos] ?: @"";
-    NSURL *url = [NSURL URLWithString:[NSString stringWithFormat:@"https://wa.me/%@?text=%@",
-                                       digitos, texto]];
+
+    /*
+     El esquema propio primero, wa.me solo de reserva.
+
+     Android abre https://wa.me/... y le vale, porque alli la resolucion de intents casa ese
+     host con el filtro que declara WhatsApp. En iOS ese mismo enlace es un universal link, y
+     un universal link solo llega a la app si la asociacion resuelve en ese momento: si no
+     -- WhatsApp no instalado, el usuario eligio una vez "abrir en Safari" desde la miga de
+     pan de wa.me, o la asociacion esta en cache vieja tras reinstalar -- iOS abre Safari y
+     enseña la pagina "Continue to Chat". Que es justo lo que se ve: no abre WhatsApp.
+
+     whatsapp://send no depende de nada de eso: va directo a la app. Para poder preguntar por
+     el con canOpenURL hay que declarar el esquema en LSApplicationQueriesSchemes del
+     Info.plist; sin esa linea canOpenURL devuelve NO aunque WhatsApp este instalado.
+     */
+    NSURL *directo = [NSURL URLWithString:[NSString stringWithFormat:
+                        @"whatsapp://send?phone=%@&text=%@", digitos, texto]];
+    NSURL *porWeb  = [NSURL URLWithString:[NSString stringWithFormat:
+                        @"https://wa.me/%@?text=%@", digitos, texto]];
+
+    UIApplication *app = [UIApplication sharedApplication];
+    NSURL *primera = (directo != nil && [app canOpenURL:directo]) ? directo : porWeb;
+    NSURL *segunda = (primera == directo) ? porWeb : nil;
+
+    [self abrir:primera luegoSiFalla:segunda desde:vc numero:digitos];
+}
+
+/**
+ Abre la primera direccion y, si no se puede, prueba la segunda.
+
+ Lo importante no es el orden sino que NUNCA se acabe sin hacer nada: antes, si openURL
+ devolvia NO, el boton se quedaba mudo y no habia forma de saber por que. Un boton que no
+ responde parece la app rota.
+ */
++ (void)abrir:(NSURL *)url
+  luegoSiFalla:(NSURL *)reserva
+        desde:(UIViewController *)vc
+       numero:(NSString *)digitos {
     if (url == nil) {
+        [self noSePudoAbrirDesde:vc numero:digitos];
         return;
     }
     [[UIApplication sharedApplication] openURL:url options:@{} completionHandler:^(BOOL abierto) {
         dispatch_async(dispatch_get_main_queue(), ^{
             if (abierto) {
                 [vc dismissViewControllerAnimated:YES completion:nil];
+                return;
             }
+            NSLog(@"[Soporte] no se pudo abrir %@", url.scheme);
+            if (reserva != nil) {
+                [self abrir:reserva luegoSiFalla:nil desde:vc numero:digitos];
+                return;
+            }
+            [self noSePudoAbrirDesde:vc numero:digitos];
         });
     }];
+}
+
+/// Ni la app ni la web: se le da el numero para que escriba a mano.
++ (void)noSePudoAbrirDesde:(UIViewController *)vc numero:(NSString *)digitos {
+    // El texto traducible NO se usa como formato: si una traduccion cambiara el %@ por otro
+    // especificador, stringWithFormat leeria un argumento que no existe y reventaria.
+    NSString *base = [LanguageHelper getStringWithKey:@"k_s10_soporte_sin_whatsapp"
+                                         defaultValue:@"No se pudo abrir WhatsApp. Escríbenos al"];
+    NSString *aviso = [NSString stringWithFormat:@"%@ +%@", base, digitos];
+    UIAlertController *d = [UIAlertController alertControllerWithTitle:nil
+                                                               message:aviso
+                                                        preferredStyle:UIAlertControllerStyleAlert];
+    [d addAction:[UIAlertAction actionWithTitle:[LanguageHelper getStringWithKey:@"k_18_s4_Ok" defaultValue:@"OK"]
+                                          style:UIAlertActionStyleDefault handler:nil]];
+    [vc presentViewController:d animated:YES completion:nil];
 }
 
 @end
