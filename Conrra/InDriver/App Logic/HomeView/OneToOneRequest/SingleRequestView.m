@@ -821,35 +821,100 @@ static const float kPasoDeOfertaRapida = 0.50f;
             }
         }];
     }else{
+        /*
+         LOS PINES VAN PRIMERO, pase lo que pase con la ruta.
+
+         Aqui se pedia la ruta GUARDADA del viaje (GET_ROUTE) y, si no venia, se salia por
+         uno de los tres `return` sin dibujar absolutamente nada: ni linea ni pines. Y en una
+         solicitud recien creada esa ruta casi nunca esta todavia -- la sube la app del
+         pasajero despues, con saveCoverRouteOnServerForTripId. De ahi que el conductor viera
+         un mapa gris y vacio justo cuando tiene que decidir por donde va el viaje.
+
+         Ahora los dos pines se ponen siempre, con las coordenadas del propio viaje, y la
+         linea se busca en dos sitios: la guardada si existe y, si no, se le pide a Google.
+         */
+        [self ndPonerPinesDeLaRuta];
+
         NSMutableDictionary * dict=[[NSMutableDictionary alloc] init];
         [dict setObject:self.trip.trip_Id forKey:@"trip_id"];
         [dict setObject:@"1" forKey:@"is_route_needed"];
         [GIC mkwu:GET_ROUTE   d:dict isa:NO  cb:^(id results, NSError *error) {
-            if(![[results objectForKey:P_RESPONSE] isKindOfClass:[NSArray class]]){
-                return;
-            }
-            NSArray *tripData=[results objectForKey:P_RESPONSE];
-            if(tripData.count==0){
-                return;
-            }
-            NSArray *arrayPath=  [self decodePoints:[[tripData  objectAtIndex:0] objectForKey:@"req_route_data"]]; 
-            if(arrayPath.count>0){
-                MKPolyline *polyline=[self getPolyline:arrayPath];
+            NSArray *tripData = [[results objectForKey:P_RESPONSE] isKindOfClass:[NSArray class]]
+                ? [results objectForKey:P_RESPONSE] : @[];
+            NSArray *arrayPath = tripData.count > 0
+                ? [self decodePoints:[[tripData objectAtIndex:0] objectForKey:@"req_route_data"]]
+                : @[];
+            if (arrayPath.count > 0) {
+                MKPolyline *polyline = [self getPolyline:arrayPath];
                 [self.mapView addOverlay:polyline];
-                [self.mapView setVisibleMapRect:[polyline boundingMapRect] edgePadding:UIEdgeInsetsMake(40.0, 60.0, 40.0, 60.0) animated:YES];
+                [self.mapView setVisibleMapRect:[polyline boundingMapRect]
+                                    edgePadding:UIEdgeInsetsMake(50.0, 40.0, 40.0, 40.0)
+                                       animated:YES];
+            } else {
+                [self ndDibujarRutaConGoogle];
             }
-            MKPointAnnotation *point1 = [[MKPointAnnotation alloc]init];
-            point1.coordinate = self->sourcePoint.coordinate;
-            MKPointAnnotation *point2 = [[MKPointAnnotation alloc]init];
-            point2.coordinate = self->destPoint.coordinate;
-            //            NSMutableArray *arrAnn = [[NSMutableArray alloc]initWithObjects:point1,point2, nil];
-            //            [self zoomToFitMapAnnotations:arrAnn];
         }];
     }
   
 }
 
 
+
+/**
+ Los dos pines del viaje, puestos desde las coordenadas del propio viaje.
+
+ No dependen de que exista ninguna ruta: son el punto A y el punto B, y el conductor tiene
+ que verlos aunque la linea no llegue nunca.
+ */
+- (void)ndPonerPinesDeLaRuta {
+    if (pickUpPin) { [self.mapView removeAnnotation:pickUpPin]; }
+    if (dropPin)   { [self.mapView removeAnnotation:dropPin]; }
+
+    pickUpPin = [[CustomPointAnnotation alloc] initWithType:PIN_START];
+    pickUpPin.coordinate = sourcePoint.coordinate;
+    dropPin = [[CustomPointAnnotation alloc] initWithType:PIN_DROP];
+    dropPin.coordinate = destPoint.coordinate;
+
+    if ([Utilities isValidLocation:pickUpPin.coordinate]) {
+        [self.mapView addAnnotation:pickUpPin];
+    }
+    if ([Utilities isValidLocation:dropPin.coordinate]) {
+        [self.mapView addAnnotation:dropPin];
+    }
+    arrayAnotations = @[pickUpPin, dropPin];
+    [self zoomToFitMapAnnotations:[NSMutableArray arrayWithArray:arrayAnotations]];
+}
+
+/**
+ La linea del viaje pedida a Google, cuando el servidor no tiene ninguna guardada.
+
+ Es lo que hace Android en getTripRoute: no espera a que exista una ruta almacenada, la pide.
+ Sin esto, en una solicitud nueva el mapa se queda sin trazado.
+ */
+- (void)ndDibujarRutaConGoogle {
+    if (![Utilities isValidLocation:sourcePoint.coordinate] ||
+        ![Utilities isValidLocation:destPoint.coordinate]) {
+        return;
+    }
+    GoogleDirectionSource *ruta = [[GoogleDirectionSource alloc] initWithSource:sourcePoint
+                                                                   destination:destPoint];
+    [ruta findDirection_isInTrip:NO WithCompletionBlock:^(id results, NSError *error) {
+        if (![results isKindOfClass:[DirectionModel class]]) {
+            return;
+        }
+        DirectionModel *dModel = (DirectionModel *)results;
+        MKPolyline *linea = [dModel getPolyline];
+        if (linea == nil) {
+            return;
+        }
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self.mapView addOverlay:linea];
+            [self.mapView setVisibleMapRect:[linea boundingMapRect]
+                                edgePadding:UIEdgeInsetsMake(50.0, 40.0, 40.0, 40.0)
+                                   animated:YES];
+        });
+    }];
+}
 
 -( NSArray *) decodePoints:(NSString *) encoded
 {
@@ -1371,6 +1436,28 @@ static const float kPasoDeOfertaRapida = 0.50f;
 #pragma mark - New Design
 
 
+/**
+ La pantalla de solicitud, calcada de activity_trip_request_detail.xml.
+
+ LO QUE ESTABA MAL, comparando las dos capturas lado a lado:
+
+   - El mapa se estiraba hasta la barra inferior y la hoja lo tapaba casi entero, asi que
+     quedaba una franja gris sin nada. En Android ocupa del borde SUPERIOR al 45% de la
+     pantalla, sin banda blanca encima: el titulo flota sobre el mapa.
+   - Las etiquetas iban en una tarjeta blanca ENCIMA de la del pasajero. En Android son
+     chips amarillos DEBAJO.
+   - Habia un acordeon "Negociar Tarifa" con paso, mas un boton "Enviar Oferta" que quedaba
+     cortado por la barra inferior. En Android todo eso es vestigial: en el XML esos
+     elementos estan a 0dp y visibility="gone". Lo que se ve es el rotulo "OFRECER OTRA
+     TARIFA" y tres botones amarillos.
+   - Abajo habia dos botones, "Quitar" y "Aceptar", pequeños y de colores palidos. En
+     Android hay UNO, verde y ancho, con su tilde: "ACEPTAR $X". Para rechazar esta la X.
+   - Los extremos de la ruta eran iconos de pin. En Android son circulos con A y B.
+
+ El contenido de la hoja va en un scroll a proposito: en pantallas cortas no cabe entero, y
+ sin scroll lo ultimo queda debajo de la barra -- que es exactamente lo que le pasaba al
+ boton de enviar oferta.
+ */
 - (void)setupNewDesign {
     // Pull out loading overlay before hiding everything
     UIView *loadingOverlay = self.viewLoadingReequestData;
@@ -1379,7 +1466,6 @@ static const float kPasoDeOfertaRapida = 0.50f;
     for (UIView *v in self.subviews) { v.hidden = YES; }
     self.backgroundColor = [UIColor colorWithRed:0.95f green:0.95f blue:0.95f alpha:1.0f];
 
-    // Safe area
     CGFloat topSafe = 0, bottomSafe = 0;
     if (@available(iOS 11.0, *)) {
         UIWindow *win = UIApplication.sharedApplication.windows.firstObject;
@@ -1389,155 +1475,119 @@ static const float kPasoDeOfertaRapida = 0.50f;
     CGFloat W = SCREEN_WIDTH;
     CGFloat H = SCREEN_HEIGHT;
 
-    CGFloat headerH = topSafe + 56.0f;
-    UIView *hdr = [[UIView alloc] initWithFrame:CGRectMake(0, 0, W, headerH)];
-    hdr.backgroundColor = [UIColor whiteColor];
-    [self addSubview:hdr];
+    UIColor *amarillo = [UIColor colorWithRed:0.98f green:0.75f blue:0.10f alpha:1.0f];
+    UIColor *oscuro   = [UIColor colorWithRed:0.10f green:0.10f blue:0.10f alpha:1.0f];
+    UIColor *gris     = [UIColor colorWithRed:0.50f green:0.50f blue:0.50f alpha:1.0f];
+    UIColor *verde    = [UIColor colorWithRed:0.16f green:0.74f blue:0.31f alpha:1.0f];
 
-    UILabel *titleLbl = [[UILabel alloc] init];
-    titleLbl.translatesAutoresizingMaskIntoConstraints = NO;
-    titleLbl.text = @"Solicitud de Viaje";
-    titleLbl.font = [UIFont fontWithName:@"NotoSans-Bold" size:18] ?: [UIFont boldSystemFontOfSize:18];
-    titleLbl.textColor = [UIColor colorWithRed:0.1f green:0.1f blue:0.1f alpha:1.0f];
-    titleLbl.textAlignment = NSTextAlignmentCenter;
-    [hdr addSubview:titleLbl];
-
-    UIButton *closeBtn = [UIButton buttonWithType:UIButtonTypeSystem];
-    closeBtn.translatesAutoresizingMaskIntoConstraints = NO;
-    if (@available(iOS 13.0, *)) {
-        [closeBtn setImage:[UIImage systemImageNamed:@"xmark"] forState:UIControlStateNormal];
-        closeBtn.tintColor = [UIColor colorWithRed:0.35f green:0.35f blue:0.35f alpha:1.0f];
-    } else {
-        [closeBtn setTitle:@"✕" forState:UIControlStateNormal];
-        closeBtn.titleLabel.font = [UIFont systemFontOfSize:18];
-        [closeBtn setTitleColor:[UIColor colorWithRed:0.35f green:0.35f blue:0.35f alpha:1.0f] forState:UIControlStateNormal];
-    }
-    [closeBtn addTarget:self action:@selector(onRejectButtonTap:) forControlEvents:UIControlEventTouchUpInside];
-    [hdr addSubview:closeBtn];
-
-    [NSLayoutConstraint activateConstraints:@[
-        [titleLbl.centerXAnchor constraintEqualToAnchor:hdr.centerXAnchor],
-        [titleLbl.bottomAnchor  constraintEqualToAnchor:hdr.bottomAnchor constant:-14],
-        [closeBtn.centerYAnchor constraintEqualToAnchor:titleLbl.centerYAnchor],
-        [closeBtn.trailingAnchor constraintEqualToAnchor:hdr.trailingAnchor constant:-16],
-        [closeBtn.widthAnchor   constraintEqualToConstant:44],
-        [closeBtn.heightAnchor  constraintEqualToConstant:44],
-    ]];
-
-    CGFloat mapH = 240.0f;
-    CGFloat mapY = headerH;
-    _ndMapView = [[MKMapView alloc] initWithFrame:CGRectMake(0, mapY, W, mapH)];
-    _ndMapView.delegate       = self;
+    // ------------------------------------------------------------- El mapa, a sangre
+    // Del borde de arriba al 45% de la pantalla, como guideline_map en Android.
+    CGFloat mapH = H * 0.45f;
+    _ndMapView = [[MKMapView alloc] initWithFrame:CGRectMake(0, 0, W, mapH)];
+    _ndMapView.delegate = self;
     _ndMapView.showsUserLocation = YES;
     _ndMapView.showsBuildings = NO;
     if (@available(iOS 11.0, *)) { _ndMapView.mapType = MKMapTypeMutedStandard; }
-    self.mapView = _ndMapView;   // reassign IBOutlet so all existing logic targets new map
+    self.mapView = _ndMapView;   // el resto de la logica ya apunta a este
     [self addSubview:_ndMapView];
 
-    /*
-     Los dos rotulos sobre el mapa, calcados de activity_trip_request_detail.xml.
-
-       arriba a la derecha  tvMapPickupBadge  "Recogida 1 min"        fondo claro, texto verde
-       abajo a la izquierda tvMapTripBadge    "Viaje 9 min - 2.95 Km" fondo amarillo, texto oscuro
-
-     Son las dos cifras que el conductor mira antes de nada: cuanto tarda en llegar a
-     recogerlo y cuanto dura el viaje. Sin ellas hay que leerse la tarjeta entera para saber
-     si el viaje compensa.
-     */
-    _ndChipRecogida = [self ndChipConFondo:[UIColor whiteColor]
-                                     texto:[UIColor colorWithRed:0.13f green:0.65f blue:0.30f alpha:1.0f]];
-    _ndChipViaje = [self ndChipConFondo:[UIColor colorWithRed:0.98f green:0.75f blue:0.10f alpha:1.0f]
-                                  texto:[UIColor colorWithRed:0.12f green:0.12f blue:0.12f alpha:1.0f]];
-    [_ndMapView addSubview:_ndChipRecogida];
-    [_ndMapView addSubview:_ndChipViaje];
-
-    // Driver pin on new map
     AppDelegate *appDel = APP_DELEGATE;
     driverPin = [[MKPointAnnotation alloc] init];
     driverPin.coordinate = appDel.currLoc.coordinate;
     [_ndMapView addAnnotation:driverPin];
-
-    // Seed the map region
     if ([Utilities isValidLocation:appDel.currLoc.coordinate]) {
-        MKCoordinateRegion region = MKCoordinateRegionMakeWithDistance(appDel.currLoc.coordinate, 1000, 1000);
+        MKCoordinateRegion region = MKCoordinateRegionMakeWithDistance(appDel.currLoc.coordinate, 1500, 1500);
         [self mapRegion:region mapView:_ndMapView];
     }
 
-    CGFloat btnH = 52.0f, btnPad = 12.0f;
-    CGFloat bottomBarH = 3.0f + 10.0f + btnH + 10.0f + bottomSafe;
-    CGFloat bbY = H - bottomBarH;
+    // El titulo y la X flotan SOBRE el mapa, sin banda blanca: es lo que hace Android.
+    UILabel *titleLbl = [[UILabel alloc] initWithFrame:CGRectMake(56, topSafe + 8, W - 112, 30)];
+    titleLbl.text = @"Solicitud de Viaje";
+    titleLbl.font = [UIFont fontWithName:@"NotoSans-Bold" size:19] ?: [UIFont boldSystemFontOfSize:19];
+    titleLbl.textColor = oscuro;
+    titleLbl.textAlignment = NSTextAlignmentCenter;
+    [self addSubview:titleLbl];
 
-    UIView *bottomBar = [[UIView alloc] initWithFrame:CGRectMake(0, bbY, W, bottomBarH)];
-    bottomBar.backgroundColor = [UIColor whiteColor];
-    bottomBar.layer.shadowColor   = [UIColor blackColor].CGColor;
-    bottomBar.layer.shadowOffset  = CGSizeMake(0, -2);
-    bottomBar.layer.shadowRadius  = 5;
-    bottomBar.layer.shadowOpacity = 0.08f;
-    [self addSubview:bottomBar];
+    UIButton *closeBtn = [UIButton buttonWithType:UIButtonTypeCustom];
+    closeBtn.frame = CGRectMake(W - 52, topSafe + 4, 40, 40);
+    if (@available(iOS 13.0, *)) {
+        [closeBtn setImage:[[UIImage systemImageNamed:@"xmark"]
+                            imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate]
+                  forState:UIControlStateNormal];
+        closeBtn.tintColor = [UIColor colorWithRed:0.35f green:0.35f blue:0.35f alpha:1.0f];
+    } else {
+        [closeBtn setTitle:@"X" forState:UIControlStateNormal];
+        [closeBtn setTitleColor:[UIColor colorWithRed:0.35f green:0.35f blue:0.35f alpha:1.0f] forState:UIControlStateNormal];
+    }
+    [closeBtn addTarget:self action:@selector(onRejectButtonTap:) forControlEvents:UIControlEventTouchUpInside];
+    [self addSubview:closeBtn];
 
-    UIView *progressTrack = [[UIView alloc] initWithFrame:CGRectMake(0, 0, W, 3)];
-    progressTrack.backgroundColor = [UIColor colorWithRed:0.88f green:0.88f blue:0.88f alpha:1.0f];
-    [bottomBar addSubview:progressTrack];
+    _ndChipRecogida = [self ndChipConFondo:[UIColor whiteColor] texto:verde];
+    _ndChipViaje    = [self ndChipConFondo:amarillo texto:oscuro];
+    [_ndMapView addSubview:_ndChipRecogida];
+    [_ndMapView addSubview:_ndChipViaje];
 
-    _ndProgressFillView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 0, 3)];
-    _ndProgressFillView.backgroundColor = [UIColor colorWithRed:0.9f green:0.2f blue:0.2f alpha:1.0f];
-    [progressTrack addSubview:_ndProgressFillView];
+    // ------------------------------------------------------------- Lo de abajo, fijo
+    CGFloat pad = 16.0f;
+    CGFloat altoAceptar = 64.0f;
+    CGFloat altoBarra = 4.0f;
+    CGFloat altoPie = altoBarra + 10.0f + altoAceptar + 12.0f + bottomSafe;
+    CGFloat pieY = H - altoPie;
 
-    CGFloat halfW = (W - btnPad * 3.0f) / 2.0f;
-    CGFloat btnY  = 3.0f + 10.0f;
+    UIView *pie = [[UIView alloc] initWithFrame:CGRectMake(0, pieY, W, altoPie)];
+    pie.backgroundColor = [UIColor whiteColor];
+    [self addSubview:pie];
 
-    _ndQuitarBtn = [UIButton buttonWithType:UIButtonTypeCustom];
-    _ndQuitarBtn.frame = CGRectMake(btnPad, btnY, halfW, btnH);
-    _ndQuitarBtn.backgroundColor = [UIColor colorWithRed:1.0f green:0.9f blue:0.9f alpha:1.0f];
-    _ndQuitarBtn.layer.cornerRadius = 10;
-    [_ndQuitarBtn setTitle:@"Quitar" forState:UIControlStateNormal];
-    [_ndQuitarBtn setTitleColor:[UIColor systemRedColor] forState:UIControlStateNormal];
-    _ndQuitarBtn.titleLabel.font = [UIFont boldSystemFontOfSize:16];
-    [_ndQuitarBtn addTarget:self action:@selector(onRejectButtonTap:) forControlEvents:UIControlEventTouchUpInside];
-    [bottomBar addSubview:_ndQuitarBtn];
+    UIView *pista = [[UIView alloc] initWithFrame:CGRectMake(0, 0, W, altoBarra)];
+    pista.backgroundColor = [UIColor colorWithRed:0.90f green:0.90f blue:0.90f alpha:1.0f];
+    [pie addSubview:pista];
+
+    _ndProgressFillView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 0, altoBarra)];
+    _ndProgressFillView.backgroundColor = [UIColor colorWithRed:0.90f green:0.20f blue:0.20f alpha:1.0f];
+    [pista addSubview:_ndProgressFillView];
 
     _ndAceptarBtn = [UIButton buttonWithType:UIButtonTypeCustom];
-    _ndAceptarBtn.frame = CGRectMake(btnPad * 2 + halfW, btnY, halfW, btnH);
-    _ndAceptarBtn.backgroundColor = [UIColor colorWithRed:0.9f green:0.97f blue:0.91f alpha:1.0f];
-    _ndAceptarBtn.layer.cornerRadius = 10;
-    [_ndAceptarBtn setTitle:@"Aceptar" forState:UIControlStateNormal];
-    [_ndAceptarBtn setTitleColor:[UIColor systemGreenColor] forState:UIControlStateNormal];
-    _ndAceptarBtn.titleLabel.font = [UIFont boldSystemFontOfSize:16];
+    _ndAceptarBtn.frame = CGRectMake(pad, altoBarra + 10.0f, W - pad * 2, altoAceptar);
+    _ndAceptarBtn.backgroundColor = verde;
+    _ndAceptarBtn.layer.cornerRadius = 14;
+    [_ndAceptarBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+    _ndAceptarBtn.titleLabel.font = [UIFont fontWithName:@"NotoSans-Bold" size:18] ?: [UIFont boldSystemFontOfSize:18];
     _ndAceptarBtn.titleLabel.adjustsFontSizeToFitWidth = YES;
     _ndAceptarBtn.titleLabel.minimumScaleFactor = 0.7f;
+    if (@available(iOS 13.0, *)) {
+        [_ndAceptarBtn setImage:[[UIImage systemImageNamed:@"checkmark"]
+                                 imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate]
+                       forState:UIControlStateNormal];
+        _ndAceptarBtn.tintColor = [UIColor whiteColor];
+        _ndAceptarBtn.imageEdgeInsets = UIEdgeInsetsMake(0, 0, 0, 10);
+    }
+    [_ndAceptarBtn setTitle:@"ACEPTAR" forState:UIControlStateNormal];
     [_ndAceptarBtn addTarget:self action:@selector(onAcceptButtonTap:) forControlEvents:UIControlEventTouchUpInside];
-    [bottomBar addSubview:_ndAceptarBtn];
+    [pie addSubview:_ndAceptarBtn];
 
-    _ndMapView.frame = CGRectMake(0, mapY, W, bbY - mapY);
+    // "Quitar" desaparece: en Android se rechaza con la X de arriba, que aqui hace lo mismo.
+    _ndQuitarBtn = nil;
 
-    CGFloat availH   = bbY - headerH;
-    CGFloat sheetH   = availH * 0.70f;
-    CGFloat sheetY   = bbY - sheetH;
+    // ------------------------------------------------------------- La hoja
+    CGFloat hojaY = mapH - 18.0f;
+    UIView *sheet = [[UIView alloc] initWithFrame:CGRectMake(0, hojaY, W, pieY - hojaY)];
+    sheet.backgroundColor = [UIColor colorWithRed:0.97f green:0.97f blue:0.97f alpha:1.0f];
+    sheet.layer.cornerRadius = 22;
+    sheet.layer.maskedCorners = kCALayerMinXMinYCorner | kCALayerMaxXMinYCorner;
+    sheet.clipsToBounds = YES;
+    [self addSubview:sheet];
 
-    UIView *sheet = [[UIView alloc] initWithFrame:CGRectMake(0, sheetY, W, sheetH)];
-    sheet.backgroundColor = [UIColor whiteColor];
+    UIScrollView *lienzo = [[UIScrollView alloc] initWithFrame:sheet.bounds];
+    lienzo.showsVerticalScrollIndicator = NO;
+    [sheet addSubview:lienzo];
 
-    sheet.layer.shadowColor   = [UIColor blackColor].CGColor;
-    sheet.layer.shadowOffset  = CGSizeMake(0, -4);
-    sheet.layer.shadowRadius  = 10;
-    sheet.layer.shadowOpacity = 0.10f;
-    [self insertSubview:sheet belowSubview:bottomBar];
+    CGFloat mx = pad, cw = W - pad * 2, sp = 10.0f;
+    CGFloat y = 16.0f;
 
-    CGFloat mx = 12.0f, sp = 8.0f, cw = W - mx * 2;
-
-    CGFloat tagsCardH   = 60.0f;
-    CGFloat tagsOverlap = 20.0f;
-    _ndTagsCard = [self ndMakeCard:CGRectMake(mx, sheetY - tagsCardH + tagsOverlap - 25, cw, tagsCardH)];
-    [self insertSubview:_ndTagsCard aboveSubview:sheet];
-
-    CGFloat y = tagsOverlap + sp;   // leave room for the tags card overlap
-
-    // Rider card
-    // 96 en vez de 78: el renglon de "Recogida a X km de ti" necesita sitio propio, como en
-    // Android, en vez de ir apretado en la misma linea que las estrellas.
+    // --- Pasajero
     CGFloat riderH = 96.0f;
     UIView *riderCard = [self ndMakeCard:CGRectMake(mx, y, cw, riderH)];
-    [sheet addSubview:riderCard];
+    [lienzo addSubview:riderCard];
 
     _ndRiderAvatar = [[UIImageView alloc] initWithFrame:CGRectMake(12, 13, 52, 52)];
     _ndRiderAvatar.layer.cornerRadius = 26;
@@ -1546,37 +1596,7 @@ static const float kPasoDeOfertaRapida = 0.50f;
     _ndRiderAvatar.backgroundColor = [UIColor colorWithRed:0.88f green:0.88f blue:0.88f alpha:1.0f];
     [riderCard addSubview:_ndRiderAvatar];
 
-    _ndRiderNameLbl = [[UILabel alloc] initWithFrame:CGRectMake(76, 14, cw - 76 - 88, 22)];
-    _ndRiderNameLbl.font = [UIFont fontWithName:@"NotoSans-Bold" size:15] ?: [UIFont boldSystemFontOfSize:15];
-    _ndRiderNameLbl.textColor = [UIColor colorWithRed:0.1f green:0.1f blue:0.1f alpha:1.0f];
-    [riderCard addSubview:_ndRiderNameLbl];
-
-    _ndRiderRatingLbl = [[UILabel alloc] initWithFrame:CGRectMake(76, 38, cw - 76 - 88, 18)];
-    _ndRiderRatingLbl.font = [UIFont fontWithName:@"NotoSans-Regular" size:12] ?: [UIFont systemFontOfSize:12];
-    _ndRiderRatingLbl.textColor = [UIColor colorWithRed:0.5f green:0.5f blue:0.5f alpha:1.0f];
-    [riderCard addSubview:_ndRiderRatingLbl];
-
-    _ndFareLbl = [[UILabel alloc] initWithFrame:CGRectMake(cw - 82, 10, 76, 48)];
-    _ndFareLbl.font = [UIFont fontWithName:@"NotoSans-Bold" size:20] ?: [UIFont boldSystemFontOfSize:20];
-    _ndFareLbl.textColor = [UIColor colorWithRed:0.1f green:0.1f blue:0.1f alpha:1.0f];
-    _ndFareLbl.textAlignment = NSTextAlignmentRight;
-    _ndFareLbl.adjustsFontSizeToFitWidth = YES;
-    _ndFareLbl.minimumScaleFactor = 0.7f;
-    [riderCard addSubview:_ndFareLbl];
-
-    /*
-     El sello de verificado sobre la foto, como ivVerifiedBadge en Android.
-
-     Va DELANTE de la foto a proposito: en Android tuvieron que llamar a bringToFront() dos
-     veces porque se les quedaba detras. Aqui se añade despues del avatar, que consigue lo
-     mismo sin depender del orden de nadie.
-     */
-    CGRect marcoAvatar = _ndRiderAvatar.frame;
-    CGFloat ladoSello = 20.0f;
-    _ndSelloVerificado = [[UIImageView alloc] initWithFrame:CGRectMake(
-        CGRectGetMaxX(marcoAvatar) - ladoSello + 2,
-        CGRectGetMaxY(marcoAvatar) - ladoSello + 2,
-        ladoSello, ladoSello)];
+    _ndSelloVerificado = [[UIImageView alloc] initWithFrame:CGRectMake(48, 49, 20, 20)];
     _ndSelloVerificado.contentMode = UIViewContentModeScaleAspectFit;
     if (@available(iOS 13.0, *)) {
         _ndSelloVerificado.image = [[UIImage systemImageNamed:@"checkmark.seal.fill"]
@@ -1586,43 +1606,54 @@ static const float kPasoDeOfertaRapida = 0.50f;
     _ndSelloVerificado.hidden = YES;
     [riderCard addSubview:_ndSelloVerificado];
 
-    /*
-     "Recogida a X km de ti", en verde y debajo de la valoracion (tvDistanceToPassenger).
+    _ndRiderNameLbl = [[UILabel alloc] initWithFrame:CGRectMake(76, 12, cw - 76 - 92, 22)];
+    _ndRiderNameLbl.font = [UIFont fontWithName:@"NotoSans-Bold" size:16] ?: [UIFont boldSystemFontOfSize:16];
+    _ndRiderNameLbl.textColor = oscuro;
+    [riderCard addSubview:_ndRiderNameLbl];
 
-     Es la cifra que decide si el conductor acepta. Iba metida en la misma linea que las
-     estrellas, apretada entre otras dos cosas; en Android tiene su propio renglon y su color,
-     porque es lo que se busca con la mirada.
-     */
-    _ndDistanciaAlPasajero = [[UILabel alloc] initWithFrame:CGRectMake(
-        CGRectGetMinX(_ndRiderRatingLbl.frame),
-        CGRectGetMaxY(_ndRiderRatingLbl.frame) + 2,
-        CGRectGetWidth(_ndRiderRatingLbl.frame), 18)];
-    _ndDistanciaAlPasajero.font = [UIFont fontWithName:@"NotoSans-Bold" size:13] ?: [UIFont boldSystemFontOfSize:13];
-    _ndDistanciaAlPasajero.textColor = [UIColor colorWithRed:0.13f green:0.65f blue:0.30f alpha:1.0f];
+    _ndRiderRatingLbl = [[UILabel alloc] initWithFrame:CGRectMake(76, 36, cw - 76 - 92, 18)];
+    _ndRiderRatingLbl.font = [UIFont fontWithName:@"NotoSans-Regular" size:13] ?: [UIFont systemFontOfSize:13];
+    _ndRiderRatingLbl.textColor = gris;
+    [riderCard addSubview:_ndRiderRatingLbl];
+
+    _ndDistanciaAlPasajero = [[UILabel alloc] initWithFrame:CGRectMake(76, 58, cw - 76 - 92, 20)];
+    _ndDistanciaAlPasajero.font = [UIFont fontWithName:@"NotoSans-Bold" size:14] ?: [UIFont boldSystemFontOfSize:14];
+    _ndDistanciaAlPasajero.textColor = verde;
     _ndDistanciaAlPasajero.adjustsFontSizeToFitWidth = YES;
     _ndDistanciaAlPasajero.minimumScaleFactor = 0.8f;
     [riderCard addSubview:_ndDistanciaAlPasajero];
 
+    _ndFareLbl = [[UILabel alloc] initWithFrame:CGRectMake(cw - 88, 20, 80, 34)];
+    _ndFareLbl.font = [UIFont fontWithName:@"NotoSans-Bold" size:22] ?: [UIFont boldSystemFontOfSize:22];
+    _ndFareLbl.textColor = oscuro;
+    _ndFareLbl.textAlignment = NSTextAlignmentRight;
+    _ndFareLbl.adjustsFontSizeToFitWidth = YES;
+    _ndFareLbl.minimumScaleFactor = 0.6f;
+    [riderCard addSubview:_ndFareLbl];
     y += riderH + sp;
 
-    // Route card
-    CGFloat routeH = 124.0f;
+    // --- Los chips amarillos, DEBAJO del pasajero y no encima
+    _ndTagsCard = [[UIView alloc] initWithFrame:CGRectMake(mx, y, cw, 44)];
+    _ndTagsCard.backgroundColor = [UIColor clearColor];
+    [lienzo addSubview:_ndTagsCard];
+    y += 44 + sp;
+
+    // --- Ruta, con los circulos A y B
+    CGFloat routeH = 112.0f;
     UIView *routeCard = [self ndMakeCard:CGRectMake(mx, y, cw, routeH)];
-    [sheet addSubview:routeCard];
+    [lienzo addSubview:routeCard];
 
-    CGFloat dotX = 12.0f, dotSz = 26.0f;
-    CGFloat row1CY = routeH / 4.0f;
-    CGFloat row2CY = routeH * 3.0f / 4.0f;
+    CGFloat dotX = 14.0f, dotSz = 28.0f;
+    CGFloat row1CY = routeH / 4.0f + 4;
+    CGFloat row2CY = routeH * 3.0f / 4.0f - 4;
 
-    UIImageView *pickIcon = [[UIImageView alloc] initWithFrame:CGRectMake(dotX, row1CY - dotSz/2, dotSz, dotSz)];
-    pickIcon.image = [UIImage imageNamed:@"ic_trip_pickup"];
-    pickIcon.contentMode = UIViewContentModeScaleAspectFit;
-    [routeCard addSubview:pickIcon];
-
-    UIImageView *dropIcon = [[UIImageView alloc] initWithFrame:CGRectMake(dotX, row2CY - dotSz/2, dotSz, dotSz)];
-    dropIcon.image = [UIImage imageNamed:@"ic_trip_drop"];
-    dropIcon.contentMode = UIViewContentModeScaleAspectFit;
-    [routeCard addSubview:dropIcon];
+    UILabel *circuloA = [self ndCirculoConLetra:@"A"
+                                          fondo:[UIColor colorWithRed:0.13f green:0.42f blue:0.93f alpha:1.0f]
+                                          marco:CGRectMake(dotX, row1CY - dotSz/2, dotSz, dotSz)];
+    [routeCard addSubview:circuloA];
+    UILabel *circuloB = [self ndCirculoConLetra:@"B" fondo:verde
+                                          marco:CGRectMake(dotX, row2CY - dotSz/2, dotSz, dotSz)];
+    [routeCard addSubview:circuloB];
 
     CAShapeLayer *dash = [CAShapeLayer layer];
     dash.strokeColor     = [UIColor colorWithRed:0.75f green:0.75f blue:0.75f alpha:1.0f].CGColor;
@@ -1631,167 +1662,109 @@ static const float kPasoDeOfertaRapida = 0.50f;
     dash.fillColor       = [UIColor clearColor].CGColor;
     UIBezierPath *bp = [UIBezierPath bezierPath];
     CGFloat cx = dotX + dotSz / 2.0f;
-    [bp moveToPoint:CGPointMake(cx, row1CY + dotSz / 2.0f + 4)];
-    [bp addLineToPoint:CGPointMake(cx, row2CY - dotSz / 2.0f - 4)];
+    [bp moveToPoint:CGPointMake(cx, row1CY + dotSz / 2.0f + 3)];
+    [bp addLineToPoint:CGPointMake(cx, row2CY - dotSz / 2.0f - 3)];
     dash.path = bp.CGPath;
     [routeCard.layer addSublayer:dash];
 
-    /*
-     El hueco de la derecha para las dos cifras sueltas, como en Android:
+    CGFloat anchoCifra = 66.0f;
+    CGFloat textX = dotX + dotSz + 10.0f, textW = cw - textX - 10.0f - anchoCifra;
 
-        A  Paradise Towers, Av. 5C Nte...        1 min     <- tvPickupEta
-        B  Esquina de Via Brasil y Via Espa...   2.95 Km   <- tvDropDistance
+    _ndPickupPrimaryLbl = [[UILabel alloc] initWithFrame:CGRectMake(textX, row1CY - 18, textW, 19)];
+    _ndPickupPrimaryLbl.font = [UIFont fontWithName:@"NotoSans-Bold" size:14] ?: [UIFont boldSystemFontOfSize:14];
+    _ndPickupPrimaryLbl.textColor = oscuro;
+    [routeCard addSubview:_ndPickupPrimaryLbl];
 
-     Estan ademas de los chips del mapa a proposito: ahi se leen junto a la direccion a la que
-     corresponden, que es como se comprueba que el viaje cuadra.
-     */
-    CGFloat anchoCifra = 62.0f;
-    CGFloat textX = dotX + dotSz + 8.0f, textW = cw - textX - 10.0f - anchoCifra;
+    _ndPickupSecondaryLbl = [[UILabel alloc] initWithFrame:CGRectMake(textX, row1CY + 2, textW, 16)];
+    _ndPickupSecondaryLbl.font = [UIFont fontWithName:@"NotoSans-Regular" size:11] ?: [UIFont systemFontOfSize:11];
+    _ndPickupSecondaryLbl.textColor = gris;
+    [routeCard addSubview:_ndPickupSecondaryLbl];
+
+    _ndDropPrimaryLbl = [[UILabel alloc] initWithFrame:CGRectMake(textX, row2CY - 18, textW, 19)];
+    _ndDropPrimaryLbl.font = [UIFont fontWithName:@"NotoSans-Bold" size:14] ?: [UIFont boldSystemFontOfSize:14];
+    _ndDropPrimaryLbl.textColor = oscuro;
+    [routeCard addSubview:_ndDropPrimaryLbl];
+
+    _ndDropSecondaryLbl = [[UILabel alloc] initWithFrame:CGRectMake(textX, row2CY + 2, textW, 16)];
+    _ndDropSecondaryLbl.font = [UIFont fontWithName:@"NotoSans-Regular" size:11] ?: [UIFont systemFontOfSize:11];
+    _ndDropSecondaryLbl.textColor = gris;
+    [routeCard addSubview:_ndDropSecondaryLbl];
 
     _ndMinutosRecogida = [[UILabel alloc] initWithFrame:CGRectMake(cw - 10 - anchoCifra, row1CY - 9, anchoCifra, 18)];
     _ndMinutosRecogida.font = [UIFont fontWithName:@"NotoSans-Regular" size:12] ?: [UIFont systemFontOfSize:12];
-    _ndMinutosRecogida.textColor = [UIColor colorWithRed:0.45f green:0.45f blue:0.45f alpha:1.0f];
+    _ndMinutosRecogida.textColor = gris;
     _ndMinutosRecogida.textAlignment = NSTextAlignmentRight;
-    _ndMinutosRecogida.adjustsFontSizeToFitWidth = YES;
-    _ndMinutosRecogida.minimumScaleFactor = 0.8f;
     [routeCard addSubview:_ndMinutosRecogida];
 
     _ndKmDelViaje = [[UILabel alloc] initWithFrame:CGRectMake(cw - 10 - anchoCifra, row2CY - 9, anchoCifra, 18)];
     _ndKmDelViaje.font = [UIFont fontWithName:@"NotoSans-Regular" size:12] ?: [UIFont systemFontOfSize:12];
-    _ndKmDelViaje.textColor = [UIColor colorWithRed:0.45f green:0.45f blue:0.45f alpha:1.0f];
+    _ndKmDelViaje.textColor = gris;
     _ndKmDelViaje.textAlignment = NSTextAlignmentRight;
-    _ndKmDelViaje.adjustsFontSizeToFitWidth = YES;
-    _ndKmDelViaje.minimumScaleFactor = 0.8f;
     [routeCard addSubview:_ndKmDelViaje];
-
-    _ndPickupPrimaryLbl = [[UILabel alloc] initWithFrame:CGRectMake(textX, row1CY - 20, textW, 20)];
-    _ndPickupPrimaryLbl.font = [UIFont fontWithName:@"NotoSans-Bold" size:14] ?: [UIFont boldSystemFontOfSize:14];
-    _ndPickupPrimaryLbl.textColor = [UIColor colorWithRed:0.1f green:0.1f blue:0.1f alpha:1.0f];
-    [routeCard addSubview:_ndPickupPrimaryLbl];
-
-    _ndPickupSecondaryLbl = [[UILabel alloc] initWithFrame:CGRectMake(textX, row1CY + 2, textW, 15)];
-    _ndPickupSecondaryLbl.font = [UIFont fontWithName:@"NotoSans-Regular" size:11] ?: [UIFont systemFontOfSize:11];
-    _ndPickupSecondaryLbl.textColor = [UIColor colorWithRed:0.55f green:0.55f blue:0.55f alpha:1.0f];
-    _ndPickupSecondaryLbl.numberOfLines = 1;
-    [routeCard addSubview:_ndPickupSecondaryLbl];
-
-    _ndDropPrimaryLbl = [[UILabel alloc] initWithFrame:CGRectMake(textX, row2CY - 20, textW, 20)];
-    _ndDropPrimaryLbl.font = [UIFont fontWithName:@"NotoSans-Bold" size:14] ?: [UIFont boldSystemFontOfSize:14];
-    _ndDropPrimaryLbl.textColor = [UIColor colorWithRed:0.1f green:0.1f blue:0.1f alpha:1.0f];
-    [routeCard addSubview:_ndDropPrimaryLbl];
-
-    _ndDropSecondaryLbl = [[UILabel alloc] initWithFrame:CGRectMake(textX, row2CY + 2, textW, 15)];
-    _ndDropSecondaryLbl.font = [UIFont fontWithName:@"NotoSans-Regular" size:11] ?: [UIFont systemFontOfSize:11];
-    _ndDropSecondaryLbl.textColor = [UIColor colorWithRed:0.55f green:0.55f blue:0.55f alpha:1.0f];
-    _ndDropSecondaryLbl.numberOfLines = 1;
-    [routeCard addSubview:_ndDropSecondaryLbl];
     y += routeH + sp;
 
-    // Negotiate card. Crece 46 puntos respecto al original para alojar la fila de tarifas
-    // rapidas, que Android tiene y este diseño no traia: solo habia el paso y el boton.
-    CGFloat negH = 224.0f;
-    UIView *negCard = [self ndMakeCard:CGRectMake(mx, y, cw, negH)];
-    [sheet addSubview:negCard];
+    // --- "OFRECER OTRA TARIFA" y las tres tarifas
+    UILabel *rotuloOferta = [[UILabel alloc] initWithFrame:CGRectMake(mx, y, cw, 20)];
+    rotuloOferta.text = @"OFRECER OTRA TARIFA";
+    rotuloOferta.font = [UIFont fontWithName:@"NotoSans-Bold" size:12] ?: [UIFont boldSystemFontOfSize:12];
+    rotuloOferta.textColor = gris;
+    rotuloOferta.textAlignment = NSTextAlignmentCenter;
+    [lienzo addSubview:rotuloOferta];
+    y += 20 + 8;
 
-    UILabel *negTitle = [[UILabel alloc] initWithFrame:CGRectMake(14, 14, cw - 54, 24)];
-    negTitle.font = [UIFont fontWithName:@"NotoSans-Bold" size:16] ?: [UIFont boldSystemFontOfSize:16];
-    negTitle.text = @"Negociar Tarifa";
-    negTitle.textColor = [UIColor colorWithRed:0.1f green:0.1f blue:0.1f alpha:1.0f];
-    [negCard addSubview:negTitle];
-
-    UILabel *chevron = [[UILabel alloc] initWithFrame:CGRectMake(cw - 40, 14, 26, 24)];
-    chevron.text = @"∧";
-    chevron.font = [UIFont systemFontOfSize:16 weight:UIFontWeightMedium];
-    chevron.textColor = [UIColor colorWithRed:0.5f green:0.5f blue:0.5f alpha:1.0f];
-    chevron.textAlignment = NSTextAlignmentRight;
-    [negCard addSubview:chevron];
-
-    UIView *negSep = [[UIView alloc] initWithFrame:CGRectMake(0, 46, cw, 0.5f)];
-    negSep.backgroundColor = [UIColor colorWithRed:0.92f green:0.92f blue:0.92f alpha:1.0f];
-    [negCard addSubview:negSep];
-
-    CGFloat sbSz = 44.0f, stepY = 54.0f;
-
-    UIButton *minusBtn = [UIButton buttonWithType:UIButtonTypeCustom];
-    minusBtn.frame = CGRectMake(14, stepY, sbSz, sbSz);
-    minusBtn.backgroundColor = [UIColor colorWithRed:0.9f green:0.9f blue:0.92f alpha:1.0f];
-    minusBtn.layer.cornerRadius = 10.0f;
-    minusBtn.layer.borderWidth = 1.0f;
-    minusBtn.layer.borderColor = [UIColor colorWithRed:0.78f green:0.78f blue:0.80f alpha:1.0f].CGColor;
-    [minusBtn setTitle:@"−" forState:UIControlStateNormal];
-    [minusBtn setTitleColor:[UIColor colorWithRed:0.15f green:0.15f blue:0.15f alpha:1.0f] forState:UIControlStateNormal];
-    minusBtn.titleLabel.font = [UIFont systemFontOfSize:20 weight:UIFontWeightMedium];
-    [minusBtn addTarget:self action:@selector(onMinButtonTap:) forControlEvents:UIControlEventTouchUpInside];
-    [negCard addSubview:minusBtn];
-
-    UIButton *plusBtn = [UIButton buttonWithType:UIButtonTypeCustom];
-    plusBtn.frame = CGRectMake(cw - 14 - sbSz, stepY, sbSz, sbSz);
-    plusBtn.backgroundColor = [UIColor colorWithRed:0.9f green:0.9f blue:0.92f alpha:1.0f];
-    plusBtn.layer.cornerRadius = 10.0f;
-    plusBtn.layer.borderWidth = 1.0f;
-    plusBtn.layer.borderColor = [UIColor colorWithRed:0.78f green:0.78f blue:0.80f alpha:1.0f].CGColor;
-    [plusBtn setTitle:@"+" forState:UIControlStateNormal];
-    [plusBtn setTitleColor:[UIColor colorWithRed:0.15f green:0.15f blue:0.15f alpha:1.0f] forState:UIControlStateNormal];
-    plusBtn.titleLabel.font = [UIFont systemFontOfSize:20 weight:UIFontWeightMedium];
-    [plusBtn addTarget:self action:@selector(onPlusButtonTap:) forControlEvents:UIControlEventTouchUpInside];
-    [negCard addSubview:plusBtn];
-
-    _ndOfferAmountLbl = [[UILabel alloc] initWithFrame:CGRectMake(14 + sbSz + 6, stepY, cw - 2*(14+sbSz+6), sbSz)];
-    _ndOfferAmountLbl.font = [UIFont fontWithName:@"NotoSans-Bold" size:22] ?: [UIFont boldSystemFontOfSize:22];
-    _ndOfferAmountLbl.textColor = [UIColor colorWithRed:0.1f green:0.1f blue:0.1f alpha:1.0f];
-    _ndOfferAmountLbl.textAlignment = NSTextAlignmentCenter;
-    _ndOfferAmountLbl.adjustsFontSizeToFitWidth = YES;
-    [negCard addSubview:_ndOfferAmountLbl];
-
-    /*
-     Las tres tarifas rapidas, como en Android: una a la baja y dos al alza, con paso de 0,50.
-
-     Van entre el paso y el boton de enviar porque es el orden en que se decide: primero
-     miras si te vale una de las tres, y solo si no, afinas con el mas y el menos.
-
-     El rotulo se rellena en ndRefreshUI, cuando ya se conoce la tarifa del viaje: aqui
-     todavia no hay importe que poner.
-     */
-    CGFloat qy = stepY + sbSz + 12.0f;
-    CGFloat qw = (cw - 28.0f - 16.0f) / 3.0f;
+    CGFloat anchoTarifa = (cw - 16.0f) / 3.0f;
     for (NSInteger i = 1; i <= 3; i++) {
         UIButton *rapida = [UIButton buttonWithType:UIButtonTypeCustom];
         rapida.tag = i;
-        rapida.frame = CGRectMake(14 + (qw + 8.0f) * (i - 1), qy, qw, 38.0f);
-        rapida.backgroundColor = [UIColor colorWithRed:0.96f green:0.96f blue:0.97f alpha:1.0f];
-        rapida.layer.cornerRadius = 10.0f;
-        rapida.layer.borderWidth = 1.0f;
-        rapida.layer.borderColor = [UIColor colorWithRed:0.85f green:0.85f blue:0.87f alpha:1.0f].CGColor;
-        [rapida setTitleColor:[UIColor colorWithRed:0.15f green:0.15f blue:0.15f alpha:1.0f]
-                     forState:UIControlStateNormal];
-        rapida.titleLabel.font = [UIFont fontWithName:@"NotoSans-Bold" size:14] ?: [UIFont boldSystemFontOfSize:14];
+        rapida.frame = CGRectMake(mx + (anchoTarifa + 8.0f) * (i - 1), y, anchoTarifa, 56);
+        rapida.backgroundColor = amarillo;
+        rapida.layer.cornerRadius = 14;
+        [rapida setTitleColor:oscuro forState:UIControlStateNormal];
+        rapida.titleLabel.font = [UIFont fontWithName:@"NotoSans-Bold" size:17] ?: [UIFont boldSystemFontOfSize:17];
         rapida.titleLabel.adjustsFontSizeToFitWidth = YES;
-        rapida.titleLabel.minimumScaleFactor = 0.7f;
+        rapida.titleLabel.minimumScaleFactor = 0.65f;
         [rapida addTarget:self action:@selector(onNewOffer:) forControlEvents:UIControlEventTouchUpInside];
-        [negCard addSubview:rapida];
+        [lienzo addSubview:rapida];
         _ndOfertasRapidas[i - 1] = rapida;
     }
+    y += 56 + 16;
 
+    /*
+     El importe editable no se pinta, igual que en Android: alli tvOfferYourAmount,
+     tvOfferDecrease, tvOfferIncrease y tvSendOfferStepper estan a 0dp y visibility="gone".
+     Se dejan creados pero ocultos porque updateOfferAmountOnButton escribe en ellos, y
+     encontrarlos nulos seria peor que tenerlos invisibles.
+     */
+    _ndOfferAmountLbl = [[UILabel alloc] initWithFrame:CGRectZero];
+    _ndOfferAmountLbl.hidden = YES;
+    [lienzo addSubview:_ndOfferAmountLbl];
     _ndSendOfferBtn = [UIButton buttonWithType:UIButtonTypeCustom];
-    _ndSendOfferBtn.frame = CGRectMake(14, negH - 60, cw - 28, 48);
-    _ndSendOfferBtn.backgroundColor = [UIColor colorWithRed:0.98f green:0.75f blue:0.10f alpha:1.0f];
-    _ndSendOfferBtn.layer.cornerRadius = 12;
-    [_ndSendOfferBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
-    _ndSendOfferBtn.titleLabel.font = [UIFont fontWithName:@"NotoSans-Bold" size:16] ?: [UIFont boldSystemFontOfSize:16];
-    _ndSendOfferBtn.titleLabel.adjustsFontSizeToFitWidth = YES;
-    [_ndSendOfferBtn setTitle:@"Enviar Oferta" forState:UIControlStateNormal];
-    [_ndSendOfferBtn addTarget:self action:@selector(onSendOfferTap:) forControlEvents:UIControlEventTouchUpInside];
-    [negCard addSubview:_ndSendOfferBtn];
+    _ndSendOfferBtn.frame = CGRectZero;
+    _ndSendOfferBtn.hidden = YES;
+    [lienzo addSubview:_ndSendOfferBtn];
 
-    // Loading overlay on top of everything
+    lienzo.contentSize = CGSizeMake(W, y);
+
     if (loadingOverlay) {
         loadingOverlay.hidden = YES;
         loadingOverlay.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
         loadingOverlay.frame = CGRectMake(0, 0, W, H);
         [self addSubview:loadingOverlay];
     }
-
     self.viewProgress.alpha = 0;
+}
+
+/** Un circulo con una letra dentro, como bg_circle_pickup / bg_circle_drop en Android. */
+- (UILabel *)ndCirculoConLetra:(NSString *)letra fondo:(UIColor *)fondo marco:(CGRect)marco {
+    UILabel *circulo = [[UILabel alloc] initWithFrame:marco];
+    circulo.text = letra;
+    circulo.textAlignment = NSTextAlignmentCenter;
+    circulo.textColor = [UIColor whiteColor];
+    circulo.font = [UIFont fontWithName:@"NotoSans-Bold" size:13] ?: [UIFont boldSystemFontOfSize:13];
+    circulo.backgroundColor = fondo;
+    circulo.layer.cornerRadius = CGRectGetWidth(marco) / 2.0f;
+    circulo.clipsToBounds = YES;
+    return circulo;
 }
 
 - (UIView *)ndMakeCard:(CGRect)frame {
@@ -1919,7 +1892,10 @@ static const float kPasoDeOfertaRapida = 0.50f;
         _ndSelloVerificado.hidden = !user.is_verified;
 
         if (user.u_profile_image_path.length > 0) {
-            NSURL *url = [NSURL URLWithString:user.u_profile_image_path];
+            // u_profile_image_path es una ruta RELATIVA. Sin url_base_images delante, el NSURL
+            // sale invalido y la foto nunca carga: por eso salia el circulo gris vacio. Las
+            // demas pantallas ya lo hacian bien; esta no.
+            NSURL *url = [NSURL URLWithString:[NSString stringWithFormat:@"%@%@", url_base_images, user.u_profile_image_path]];
             [[SDWebImageManager sharedManager] loadImageWithURL:url options:0 progress:nil
                 completed:^(UIImage *image, NSData *data, NSError *err, SDImageCacheType ct, BOOL fin, NSURL *u) {
                     if (image) dispatch_async(dispatch_get_main_queue(), ^{ self->_ndRiderAvatar.image = image; });
@@ -1930,7 +1906,10 @@ static const float kPasoDeOfertaRapida = 0.50f;
     // Fare + accept button
     NSString *fareStr = [NSString stringWithFormat:@"%.1f%@", [self.trip.trip_fare floatValue], isEmpty(cur)];
     _ndFareLbl.text = fareStr;
-    [_ndAceptarBtn setTitle:[NSString stringWithFormat:@"Aceptar (%@)", fareStr] forState:UIControlStateNormal];
+    // "ACEPTAR $2.40", en mayusculas y con el importe, como btnAccept en Android. El
+    // conductor tiene que ver cuanto acepta sin levantar la vista al otro extremo de la
+    // tarjeta.
+    [_ndAceptarBtn setTitle:[NSString stringWithFormat:@"ACEPTAR %@", fareStr] forState:UIControlStateNormal];
 
     // Route addresses
     NSArray *pickParts = [self ndSplitAddress:isEmpty(self.trip.trip_pick_loc)];
@@ -2114,63 +2093,70 @@ static const float kPasoDeOfertaRapida = 0.50f;
             [tags addObject:@{@"icon": @"🤝", @"text": @"Viaje Compartido"}];
     }
 
-    NSUInteger count = MIN(tags.count, 4u);
-    CGFloat tagPad = 12.0f;
+    /*
+     Chips AMARILLOS en fila, como layoutPayModeBadge y layoutPassengersBadge en Android.
 
-    // Build a vertical stack of two horizontal rows
-    UIStackView *vStack = [[UIStackView alloc] init];
-    vStack.axis = UILayoutConstraintAxisVertical;
-    vStack.spacing = 8.0f;
-    vStack.distribution = UIStackViewDistributionFill;
-    vStack.translatesAutoresizingMaskIntoConstraints = NO;
-    [_ndTagsCard addSubview:vStack];
+     Eran etiquetas grises sueltas dentro de una tarjeta blanca, en dos filas de dos. En
+     Android son pastillas amarillas de 44 de alto, una al lado de otra, y se leen de un
+     vistazo: el metodo de pago es lo primero que el conductor mira despues del importe.
 
-    [NSLayoutConstraint activateConstraints:@[
-        [vStack.topAnchor constraintEqualToAnchor:_ndTagsCard.topAnchor constant:tagPad],
-        [vStack.leadingAnchor constraintEqualToAnchor:_ndTagsCard.leadingAnchor constant:tagPad],
-        [vStack.trailingAnchor constraintEqualToAnchor:_ndTagsCard.trailingAnchor constant:-tagPad],
-        [vStack.bottomAnchor constraintEqualToAnchor:_ndTagsCard.bottomAnchor constant:-tagPad],
-    ]];
+     Todos van en UNA fila repartiendo el ancho, con un tope de tres. La tarjeta mide 44
+     fijos y lo que va debajo esta colocado contando con eso: si creciera a dos filas, se
+     comeria la tarjeta de la ruta.
+     */
+    for (UIView *v in _ndTagsCard.subviews) { [v removeFromSuperview]; }
 
-    NSUInteger numRows = (count + 1) / 2;
-    for (NSUInteger row = 0; row < numRows; row++) {
-        UIStackView *hStack = [[UIStackView alloc] init];
-        hStack.axis = UILayoutConstraintAxisHorizontal;
-        hStack.spacing = 8.0f;
-        hStack.distribution = UIStackViewDistributionFillEqually;
-
-        for (NSUInteger col = 0; col < 2; col++) {
-            NSUInteger idx = row * 2 + col;
-            UILabel *lbl = [[UILabel alloc] init];
-            lbl.font = [UIFont systemFontOfSize:13];
-            lbl.textColor = [UIColor darkGrayColor];
-            if (idx < count) {
-                NSDictionary *tag = tags[idx];
-                NSString *imageName = tag[@"imageName"];
-                if (imageName.length > 0) {
-                    UIImage *img = [UIImage imageNamed:imageName];
-                    NSMutableAttributedString *attrStr = [[NSMutableAttributedString alloc] init];
-                    if (img) {
-                        NSTextAttachment *attach = [[NSTextAttachment alloc] init];
-                        attach.image = img;
-                        CGFloat sz = lbl.font.capHeight + 2;
-                        attach.bounds = CGRectMake(0, -2, sz, sz);
-                        [attrStr appendAttributedString:[NSAttributedString attributedStringWithAttachment:attach]];
-                        [attrStr appendAttributedString:[[NSAttributedString alloc] initWithString:@" "]];
-                    }
-                    [attrStr appendAttributedString:[[NSAttributedString alloc] initWithString:tag[@"text"] attributes:@{NSFontAttributeName: lbl.font, NSForegroundColorAttributeName: lbl.textColor}]];
-                    lbl.attributedText = attrStr;
-                } else {
-                    lbl.text = [NSString stringWithFormat:@"%@ %@", tag[@"icon"], tag[@"text"]];
-                }
-            }
-            lbl.adjustsFontSizeToFitWidth = YES;
-            lbl.minimumScaleFactor = 0.8f;
-            [hStack addArrangedSubview:lbl];
-        }
-        [vStack addArrangedSubview:hStack];
+    NSUInteger cuantos = MIN(tags.count, 3u);
+    if (cuantos == 0) {
+        return;
     }
 
+    UIColor *amarillo = [UIColor colorWithRed:0.98f green:0.75f blue:0.10f alpha:1.0f];
+    UIColor *oscuro   = [UIColor colorWithRed:0.10f green:0.10f blue:0.10f alpha:1.0f];
+    CGFloat anchoTotal = CGRectGetWidth(_ndTagsCard.frame);
+    CGFloat hueco = 10.0f, altoChip = 44.0f;
+    // Todos en UNA fila, repartiendo el ancho. La tarjeta mide 44 fijos y lo que va debajo
+    // esta colocado contando con eso: si creciera, se comeria la tarjeta de la ruta.
+    CGFloat anchoChip = (anchoTotal - hueco * (cuantos - 1)) / (CGFloat)cuantos;
+
+    for (NSUInteger i = 0; i < cuantos; i++) {
+        NSDictionary *tag = tags[i];
+        UIView *chip = [[UIView alloc] initWithFrame:CGRectMake(i * (anchoChip + hueco), 0,
+                                                                anchoChip, altoChip)];
+        chip.backgroundColor = amarillo;
+        chip.layer.cornerRadius = 12;
+        chip.clipsToBounds = YES;
+        [_ndTagsCard addSubview:chip];
+
+        UILabel *texto = [[UILabel alloc] initWithFrame:CGRectMake(8, 0, anchoChip - 16, altoChip)];
+        texto.font = [UIFont fontWithName:@"NotoSans-Bold" size:14] ?: [UIFont boldSystemFontOfSize:14];
+        texto.textColor = oscuro;
+        texto.textAlignment = NSTextAlignmentCenter;
+        texto.adjustsFontSizeToFitWidth = YES;
+        texto.minimumScaleFactor = 0.65f;
+
+        NSString *nombreIcono = tag[@"imageName"];
+        UIImage *icono = nombreIcono.length > 0 ? [UIImage imageNamed:nombreIcono] : nil;
+        if (icono) {
+            NSMutableAttributedString *conIcono = [[NSMutableAttributedString alloc] init];
+            NSTextAttachment *adjunto = [[NSTextAttachment alloc] init];
+            adjunto.image = icono;
+            CGFloat lado = texto.font.capHeight + 3;
+            adjunto.bounds = CGRectMake(0, -2, lado, lado);
+            [conIcono appendAttributedString:[NSAttributedString attributedStringWithAttachment:adjunto]];
+            [conIcono appendAttributedString:[[NSAttributedString alloc] initWithString:@"  "]];
+            [conIcono appendAttributedString:[[NSAttributedString alloc]
+                initWithString:tag[@"text"] ?: @""
+                    attributes:@{NSFontAttributeName: texto.font,
+                                 NSForegroundColorAttributeName: oscuro}]];
+            texto.attributedText = conIcono;
+        } else if (tag[@"icon"]) {
+            texto.text = [NSString stringWithFormat:@"%@  %@", tag[@"icon"], tag[@"text"] ?: @""];
+        } else {
+            texto.text = tag[@"text"] ?: @"";
+        }
+        [chip addSubview:texto];
+    }
 }
 
 @end
