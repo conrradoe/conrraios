@@ -43,6 +43,19 @@ typedef NS_ENUM(NSInteger, ConrraMotivoDeSoporte) {
           viaje:(nullable NSString *)viajeId
           monto:(nullable NSString *)monto;
 
+/**
+ Igual que la anterior, pero avisando cuando la hoja se cierra.
+
+ Hace falta donde el cierre de la hoja tiene que encadenar con algo mas -- por ejemplo, el
+ conductor que declara que no le pagaron y a quien hay que devolver a su mapa despues. El
+ bloque se llama SIEMPRE que la hoja desaparece: al cerrarla a mano y al volver de WhatsApp.
+ */
++ (void)abrirEn:(UIViewController *)vc
+         motivo:(ConrraMotivoDeSoporte)motivo
+          viaje:(nullable NSString *)viajeId
+          monto:(nullable NSString *)monto
+       alCerrar:(nullable void (^)(void))alCerrar;
+
 @end
 
 NS_ASSUME_NONNULL_END

@@ -22,6 +22,7 @@
 + (void)abrirWhatsAppDesde:(UIViewController *)vc mensaje:(NSString *)mensaje;
 + (void)abrir:(NSURL *)url luegoSiFalla:(NSURL *)reserva desde:(UIViewController *)vc numero:(NSString *)digitos;
 + (void)noSePudoAbrirDesde:(UIViewController *)vc numero:(NSString *)digitos;
++ (void)cerrarLaHoja:(UIViewController *)vc;
 @end
 
 
@@ -51,6 +52,8 @@
 @property (nonatomic, strong) UITextView *campo;
 @property (nonatomic, strong) UILabel *pistaDelCampo;
 @property (nonatomic, strong) NSLayoutConstraint *bordeInferior;
+/// Se llama cuando la hoja desaparece, por donde sea.
+@property (nonatomic, copy)   void (^alCerrar)(void);
 @end
 
 
@@ -229,7 +232,11 @@
 
 - (void)cerrar {
     [self.view endEditing:YES];
-    [self dismissViewControllerAnimated:YES completion:nil];
+    void (^aviso)(void) = self.alCerrar;
+    self.alCerrar = nil;
+    [self dismissViewControllerAnimated:YES completion:^{
+        if (aviso) { aviso(); }
+    }];
 }
 
 - (void)enviar {
@@ -332,7 +339,18 @@
          motivo:(ConrraMotivoDeSoporte)motivo
           viaje:(NSString *)viajeId
           monto:(NSString *)monto {
+    [self abrirEn:vc motivo:motivo viaje:viajeId monto:monto alCerrar:nil];
+}
+
++ (void)abrirEn:(UIViewController *)vc
+         motivo:(ConrraMotivoDeSoporte)motivo
+          viaje:(NSString *)viajeId
+          monto:(NSString *)monto
+       alCerrar:(void (^)(void))alCerrar {
     if (vc == nil) {
+        // Sin pantalla desde la que abrir, el aviso tiene que llegar igual: quien llama puede
+        // estar esperandolo para continuar, y dejarlo colgado es lo que encierra al conductor.
+        if (alCerrar) { alCerrar(); }
         return;
     }
     ConrraHojaDeSoporte *hoja = [[ConrraHojaDeSoporte alloc] init];
@@ -342,6 +360,7 @@
     hoja.monto   = isEmpty(monto);
     // OverFullScreen y no FullScreen: la pantalla de debajo tiene que seguir en la ventana,
     // porque al cerrar la hoja un viewWillAppear de mas reinicia cosas que no toca.
+    hoja.alCerrar = alCerrar;
     hoja.modalPresentationStyle = UIModalPresentationOverFullScreen;
     hoja.modalTransitionStyle = UIModalTransitionStyleCoverVertical;
     [vc presentViewController:hoja animated:YES completion:nil];
@@ -477,7 +496,7 @@
     [[UIApplication sharedApplication] openURL:url options:@{} completionHandler:^(BOOL abierto) {
         dispatch_async(dispatch_get_main_queue(), ^{
             if (abierto) {
-                [vc dismissViewControllerAnimated:YES completion:nil];
+                [self cerrarLaHoja:vc];
                 return;
             }
             NSLog(@"[Soporte] no se pudo abrir %@", url.scheme);
@@ -491,6 +510,19 @@
 }
 
 /// Ni la app ni la web: se le da el numero para que escriba a mano.
+/// Cierra la hoja avisando a quien la abrio. Si no es una hoja nuestra, la cierra y ya.
++ (void)cerrarLaHoja:(UIViewController *)vc {
+    void (^aviso)(void) = nil;
+    if ([vc isKindOfClass:[ConrraHojaDeSoporte class]]) {
+        ConrraHojaDeSoporte *hoja = (ConrraHojaDeSoporte *)vc;
+        aviso = hoja.alCerrar;
+        hoja.alCerrar = nil;
+    }
+    [vc dismissViewControllerAnimated:YES completion:^{
+        if (aviso) { aviso(); }
+    }];
+}
+
 + (void)noSePudoAbrirDesde:(UIViewController *)vc numero:(NSString *)digitos {
     // El texto traducible NO se usa como formato: si una traduccion cambiara el %@ por otro
     // especificador, stringWithFormat leeria un argumento que no existe y reventaria.

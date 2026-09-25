@@ -45,6 +45,9 @@
 
 @implementation FareAmmountViewController{
     TripTransactionManager * tripTransactionManager;
+    /// Para no encadenar dos cierres: la pregunta puede contestarse dos veces si el conductor
+    /// toca rapido, y dos navegaciones seguidas dejan la pila rara.
+    BOOL yaSeCerroElViaje;
 
     UIScrollView      *_ndReceiptScroll;
     UIImageView       *_ndPassengerImg;
@@ -731,14 +734,20 @@
                                 actionWithTitle:[LanguageHelper getStringWithKey:@"k_21_s4_yes"]
                                 style:UIAlertActionStyleDefault
                                 handler:^(UIAlertAction * action) {
+        // Se registra el cobro y se cierra. El registro no decide la salida: si falla, el
+        // viaje se cierra igual y el dinero se reclama por soporte, que es lo que hay. Dejar
+        // al conductor en el recibo esperando a que una llamada salga bien no arregla nada.
         [self->tripTransactionManager payWithCashDetectComssion];
+        [self cerrarElViajeYVolver];
     }];
-    
+
     UIAlertAction* noButton = [UIAlertAction
                                actionWithTitle:[LanguageHelper getStringWithKey:@"k_22_s4_no"]
                                style:UIAlertActionStyleDefault
                                handler:^(UIAlertAction * action) {
-        [self abrirSoportePorPagoNoRecibido];
+        // Se abre soporte y, al cerrarse esa hoja, se cierra el viaje igual. Decir que no te
+        // pagaron no puede costarte quedarte encerrado: el viaje termino de todas formas.
+        [self abrirSoportePorPagoNoRecibidoYLuegoCerrar:YES];
     }];
     [alert addAction:yesButton];
     [alert addAction:noButton];
@@ -758,15 +767,15 @@
                                 handler:^(UIAlertAction * action) {
         if (![self.curr_trip.trip_pay_status isEqualToString:TS_PAID]) {
             [self markTripAsRiderCancelForPayment];
-            
         }
+        [self cerrarElViajeYVolver];
     }];
-    
+
     UIAlertAction* noButton = [UIAlertAction
                                actionWithTitle:[LanguageHelper getStringWithKey:@"k_22_s4_no"]
                                style:UIAlertActionStyleDefault
                                handler:^(UIAlertAction * action) {
-        [self abrirSoportePorPagoNoRecibido];
+        [self abrirSoportePorPagoNoRecibidoYLuegoCerrar:YES];
     }];
     [alert addAction:yesButton];
     [alert addAction:noButton];
@@ -788,6 +797,78 @@
  Se le pasan el viaje y el importe para que el mensaje los lleve escritos: soporte no puede
  buscar nada con un "no me pagaron" a secas.
  */
+/**
+ Soporte por pago no recibido y, si se pide, cierre del viaje al salir de esa hoja.
+
+ @param cerrarDespues YES cuando esto viene de la pregunta del pago: el viaje termina igual
+ */
+-(void)abrirSoportePorPagoNoRecibidoYLuegoCerrar:(BOOL)cerrarDespues {
+    NSString *viajeId = isEmpty(self.curr_trip.trip_Id);
+    NSString *monto = @"";
+    NSString *crudo = isEmpty(self.curr_trip.trip_fare);
+    if (crudo.length > 0) {
+        CityModel *ciudad = [CityModel getCityByCityId:self.curr_trip.city_id];
+        NSString *conMoneda = [Utilities formatAmountAndCurrency:[crudo floatValue]
+                                                        currency:ciudad.city_cur];
+        monto = conMoneda.length > 0 ? conMoneda : crudo;
+    }
+    __weak typeof(self) yo = self;
+    [ConrraChatDeSoporte abrirEn:self
+                          motivo:ConrraMotivoPagoNoRecibido
+                           viaje:viajeId
+                           monto:monto
+                        alCerrar:cerrarDespues ? ^{ [yo cerrarElViajeYVolver]; } : nil];
+}
+
+/**
+ Cierra el viaje y devuelve al conductor a su mapa. Pase lo que pase.
+
+ Aqui NO se comprueba nada ni se espera a ninguna respuesta. El viaje ya termino: lo que
+ quede pendiente -- registrar el cobro, marcar el estado, volver a estar disponible -- se
+ intenta por su cuenta y, si falla, se reintenta desde el mapa o se reclama por soporte.
+ Ninguna de esas cosas justifica tener al conductor mirando un recibio del que no puede salir.
+ */
+-(void)cerrarElViajeYVolver {
+    if (yaSeCerroElViaje) {
+        return;
+    }
+    yaSeCerroElViaje = YES;
+    [self inavalidateTimerDetails];
+
+    /*
+     La navegacion NO pasa por ButtonHome a proposito.
+
+     ButtonHome navega dentro del bloque de respuesta de updateDriverAvailablity. Con la
+     respuesta lenta o colgada -- que es justo lo que pasa en mala cobertura, y en mala
+     cobertura es cuando el conductor mas necesita cerrar y seguir -- ese bloque tarda o no
+     llega nunca, y el conductor se queda mirando el recibo. Aqui se sale primero y se avisa
+     al servidor despues.
+     */
+    [[UpdateUserCurrentLocation sharedInstance] updateDriverAvailablity:@"1"
+                                                        completionBlock:^(id results, NSError *error) {
+        if (error != nil) {
+            NSLog(@"[Recibo] no se pudo poner al conductor disponible: %@", error.localizedDescription);
+        }
+    }];
+
+    defaults_set_object(DRIVER_STATUS, TS_WAITING);
+    defaults_remove(DRIVER_STATUS_TEMP);
+    defaults_remove(TRIP_ID);
+    defaults_remove(@"wait_time_start");
+    defaults_remove(@"cal_wait_time");
+    [self stopOldLocationUpdate];
+    [[NSUserDefaults standardUserDefaults] setObject:@(NO) forKey:P_IS_SINGLE_MODE];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [UtilityClass setLH:YES wt:[LanguageHelper getStringWithKey:@"k_r30_s3_loading"]];
+        HomeViewController *vcHome =
+            (HomeViewController *)[StoryBoardUtiles viewContollerInMainWithIdentifier:StoryBoardUtiles.HOME_VC];
+        vcHome.isRequiredToResfrehDriverProfile = YES;
+        [self.navigationController setViewControllers:@[vcHome] animated:YES];
+    });
+}
+
 -(void)abrirSoportePorPagoNoRecibido {
     NSString *viajeId = isEmpty(self.curr_trip.trip_Id);
 
@@ -805,6 +886,7 @@
                            viaje:viajeId
                            monto:monto];
 }
+
 
 -(void)markTripAsRiderCancelForPayment
 {
@@ -1375,7 +1457,7 @@
 
 // Screen 1 → X close
 -(void)ndFareCloseTapped {
-    [self ButtonHome:nil];
+    [self cerrarElViajeYVolver];
 }
 
 // Screen 1 → Aceptar → show rating sheet
@@ -1394,6 +1476,17 @@
     float rating = _ndStarRating.value;
     ratingGiven = (int)rating;
     NSString *feedback = _ndFeedbackView.text;
+    /*
+     Red de seguridad: si la calificacion tarda mas de tres segundos, se cierra igual.
+
+     updateDriverRating llama a su bloque siempre... cuando la llamada VUELVE. Si se queda
+     colgada, no vuelve nunca y el conductor se queda con la hoja de estrellas puesta. La
+     calificacion es lo menos importante de este momento; salir, lo mas.
+     */
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)),
+                   dispatch_get_main_queue(), ^{
+        [self cerrarElViajeYVolver];
+    });
     [self.curr_trip.user updateDriverRating:ratingGiven completionBlock:^(id results, NSError *error) {
         NSMutableDictionary *dict = [NSMutableDictionary dictionaryWithDictionary:@{
             @"user_rating": [NSString stringWithFormat:@"%.2f", (float)self->ratingGiven],
@@ -1403,13 +1496,13 @@
             [dict setObject:[feedback urlEncodeUsingEncoding] forKey:@"user_feedback"];
         }
         [GIC mkwu:TRIP_UPDATE d:dict isa:NO cb:^(id r, NSError *e) {}];
-        [self ButtonHome:nil];
+        [self cerrarElViajeYVolver];
     } isShowLoader:NO];
 }
 
 // Screen 2 → Omitir / close
 -(void)ndFareSkipRatingTapped {
-    [self ButtonHome:nil];
+    [self cerrarElViajeYVolver];
 }
 
 @end
