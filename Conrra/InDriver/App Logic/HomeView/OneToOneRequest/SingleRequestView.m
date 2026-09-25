@@ -21,6 +21,9 @@
 #import "TripNotificationHelper.h"
 #import "SentOfferDetailsViewController.h"
 #import "UIView+UpdateAutoLayoutConstraints.h"
+
+/// El paso de las tarifas rapidas, igual que QUICK_OFFER_STEP en Android.
+static const float kPasoDeOfertaRapida = 0.50f;
 @implementation SingleRequestView{
     MKPointAnnotation *driverPin;
     CLLocation * sourcePoint;
@@ -42,6 +45,8 @@
     UILabel      *_ndDropSecondaryLbl;
     UILabel      *_ndOfferAmountLbl;
     UIButton     *_ndSendOfferBtn;
+    /// Las tres tarifas rapidas del card de negociar.
+    UIButton     *_ndOfertasRapidas[3];
     UIView       *_ndProgressFillView;
     UIButton     *_ndQuitarBtn;
     UIButton     *_ndAceptarBtn;
@@ -1211,70 +1216,118 @@
 }
 
 
+/**
+ Las tres tarifas rapidas, calcadas de Android.
+
+ Antes eran cuatro y salian de los porcentajes: minimo, medio minimo, medio maximo y maximo.
+ Android las cambio a tres importes FIJOS con paso de 0,50 -- una a la baja y dos al alza --
+ porque el porcentaje da cifras raras que nadie quiere pulsar, mientras que "medio dolar
+ menos" es una decision inmediata. La de abajo es la que permite rebajar para ganar el viaje.
+
+ Los limites del servidor se siguen respetando: se recorta lo que se salga, y nunca queda un
+ importe de cero o negativo.
+ */
+- (float)ofertaRapidaNumero:(NSInteger)cual {
+    float minimo = 0, maximo = 0;
+    [self limitesDeLaOferta:&minimo maximo:&maximo paso:NULL];
+    float tarifa = [self.trip.base_est_amt floatValue];
+
+    float importe;
+    if (cual <= 1) {
+        importe = tarifa - kPasoDeOfertaRapida;
+        if (minimo > 0 && importe < minimo) {
+            importe = minimo;
+        }
+    } else if (cual == 2) {
+        importe = tarifa + kPasoDeOfertaRapida;
+    } else {
+        importe = tarifa + (kPasoDeOfertaRapida * 2.0f);
+    }
+    if (maximo > tarifa && importe > maximo) {
+        importe = maximo;
+    }
+    return importe < 0.01f ? 0.01f : importe;
+}
+
 - (IBAction)onNewOffer:(UIButton *)sender {
-    
-    CategoryModel *category=  [CategoryModel getCategoryByid:[self.trip.category_id intValue]];
-    if(category){
-        CityModel * cityModel=[CityModel getCityByCityId:self.trip.city_id];
-        float estmateFare = [self.trip.base_est_amt floatValue];
-        float minfare = estmateFare - (estmateFare *category.min_offer_perc)/100.0;
-        float minHalffare = estmateFare - (estmateFare *category.min_offer_perc/2.0)/100.0;
-        float maxfare = estmateFare + (estmateFare *category.max_offer_perc)/100.0;
-        float maxHalffare = estmateFare + (estmateFare *category.max_offer_perc/2.0)/100.0;
-        float offerAmt=0;
-        if (sender.tag == 1){
-            offerAmt = minfare;
-        }else if (sender.tag == 2){
-            offerAmt = minHalffare;
-        }else if (sender.tag == 3){
-            offerAmt = maxHalffare;
+    [self updateOfferForTrip:[self ofertaRapidaNumero:sender.tag]];
+}
+
+/**
+ Los limites y el paso de la oferta, calculados como en Android (setTripDetails).
+
+ EL FALLO QUE ARREGLA. min_offer_perc y max_offer_perc valen -1 POR DEFECTO en CategoryModel,
+ y aqui no se comprobaba. Con -1 las cuentas se dan la vuelta:
+
+     maximo = tarifa + (tarifa * -1)/100 = tarifa * 0,99
+     minimo = tarifa - (tarifa * -1)/100 = tarifa * 1,01
+
+ O sea el minimo por ENCIMA del maximo. El boton de mas se pasaba del maximo al primer toque
+ y el de menos bajaba del minimo: los dos saltaban con su alerta y la oferta no se movia. El
+ conductor no podia ofertar nada. Android lo comprueba explicitamente
+ (`if (minOff != -1 && maxOff != -1)`) y cae a los mismos respaldos que se usan aqui: sin
+ minimo util, y un maximo de cinco veces la tarifa.
+
+ EL PASO. Android lo lee de la constante offer_step_amount y lo divide entre diez, con 0,5
+ de respaldo -- o sea 0,05. Se calca tal cual: si el panel cambia el paso, las dos apps
+ cambian a la vez. iOS lo tenia clavado en `redondeo(tarifa * 0,05)` con suelo de 0,25, que
+ ni salia del backend ni coincidia con Android.
+ */
+- (void)limitesDeLaOferta:(float *)minimo maximo:(float *)maximo paso:(float *)paso {
+    CategoryModel *categoria = [CategoryModel getCategoryByid:[self.trip.category_id intValue]];
+    float tarifa = [self.trip.base_est_amt floatValue];
+
+    float porcMin = categoria ? categoria.min_offer_perc : -1;
+    float porcMax = categoria ? categoria.max_offer_perc : -1;
+    BOOL hayPorcentajes = (porcMin > -1 && porcMax > -1);
+
+    if (minimo) {
+        *minimo = hayPorcentajes ? (tarifa - (tarifa * porcMin) / 100.0f) : 0.0f;
+        if (*minimo < 0.01f) {
+            *minimo = 0.01f;
         }
-        else if (sender.tag == 4){
-            offerAmt = maxfare;
+    }
+    if (maximo) {
+        *maximo = hayPorcentajes ? (tarifa + (tarifa * porcMax) / 100.0f) : (tarifa * 5.0f);
+    }
+    if (paso) {
+        NSString *crudo = [[ConstantModel valorDeConstantePorClave:@"offer_step_amount"]
+                           stringByReplacingOccurrencesOfString:@"," withString:@"."];
+        float valor = [crudo floatValue];
+        if (valor <= 0) {
+            valor = 0.5f;
         }
-        [self updateOfferForTrip:offerAmt];
+        *paso = valor / 10.0f;
     }
 }
 
 - (IBAction)onPlusButtonTap:(id)sender {
-    CategoryModel *category = [CategoryModel getCategoryByid:[self.trip.category_id intValue]];
-    if (category) {
-        CityModel *cityModel = [CityModel getCityByCityId:self.trip.city_id];
-        float estmateFare = [self.trip.base_est_amt floatValue];
-        float maxfare = estmateFare + (estmateFare * category.max_offer_perc) / 100.0;
-        float step = (float)(round(estmateFare * 0.05f * 4.0) / 4.0);
-        if (step < 0.25f) step = 0.25f;
-        float enteredAmount = [self.txtOfferAmt.text floatValue];
-        float newAmount = enteredAmount + step;
-        if (newAmount <= maxfare) {
-            self.txtOfferAmt.text = [Utilities formatAmount:newAmount];
-            [self updateOfferAmountOnButton:newAmount cur:isEmpty(cityModel.city_cur)];
-        } else {
-            self.txtOfferAmt.text = [Utilities formatAmount:maxfare];
-            [self updateOfferAmountOnButton:maxfare cur:isEmpty(cityModel.city_cur)];
-            [self.delegate showAlert:[LanguageHelper getStringWithKey:@"k_33_s7_alert"] message:[LanguageHelper getStringWithKey:@"k_r1_s6_pls_ntr_amnt_less_thn_max_fare"]];
-        }
+    float minimo = 0, maximo = 0, paso = 0;
+    [self limitesDeLaOferta:&minimo maximo:&maximo paso:&paso];
+    CityModel *cityModel = [CityModel getCityByCityId:self.trip.city_id];
+    float nuevo = [self.txtOfferAmt.text floatValue] + paso;
+    if (nuevo <= maximo) {
+        self.txtOfferAmt.text = [Utilities formatAmount:nuevo];
+        [self updateOfferAmountOnButton:nuevo cur:isEmpty(cityModel.city_cur)];
+    } else {
+        self.txtOfferAmt.text = [Utilities formatAmount:maximo];
+        [self updateOfferAmountOnButton:maximo cur:isEmpty(cityModel.city_cur)];
+        [self.delegate showAlert:[LanguageHelper getStringWithKey:@"k_33_s7_alert"] message:[LanguageHelper getStringWithKey:@"k_r1_s6_pls_ntr_amnt_less_thn_max_fare"]];
     }
 }
 
 - (IBAction)onMinButtonTap:(id)sender {
-    CategoryModel *category = [CategoryModel getCategoryByid:[self.trip.category_id intValue]];
-    if (category) {
-        CityModel *cityModel = [CityModel getCityByCityId:self.trip.city_id];
-        float estmateFare = [self.trip.base_est_amt floatValue];
-        float minfare = estmateFare - (estmateFare * category.min_offer_perc) / 100.0;
-        float step = (float)(round(estmateFare * 0.05f * 4.0) / 4.0);
-        if (step < 0.25f) step = 0.25f;
-        float enteredAmount = [self.txtOfferAmt.text floatValue];
-        float newAmount = enteredAmount - step;
-        if (newAmount >= minfare) {
-            self.txtOfferAmt.text = [Utilities formatAmount:newAmount];
-            [self updateOfferAmountOnButton:newAmount cur:isEmpty(cityModel.city_cur)];
-        } else {
-            self.txtOfferAmt.text = [Utilities formatAmount:minfare];
-            [self updateOfferAmountOnButton:minfare cur:isEmpty(cityModel.city_cur)];
-            [self.delegate showAlert:[LanguageHelper getStringWithKey:@"k_33_s7_alert"] message:[LanguageHelper getStringWithKey:@"k_r1_s6_pls_ntr_amnt_grtr_thn_min_fare"]];
-        }
+    float minimo = 0, maximo = 0, paso = 0;
+    [self limitesDeLaOferta:&minimo maximo:&maximo paso:&paso];
+    CityModel *cityModel = [CityModel getCityByCityId:self.trip.city_id];
+    float nuevo = [self.txtOfferAmt.text floatValue] - paso;
+    if (nuevo >= minimo) {
+        self.txtOfferAmt.text = [Utilities formatAmount:nuevo];
+        [self updateOfferAmountOnButton:nuevo cur:isEmpty(cityModel.city_cur)];
+    } else {
+        self.txtOfferAmt.text = [Utilities formatAmount:minimo];
+        [self updateOfferAmountOnButton:minimo cur:isEmpty(cityModel.city_cur)];
+        [self.delegate showAlert:[LanguageHelper getStringWithKey:@"k_33_s7_alert"] message:[LanguageHelper getStringWithKey:@"k_r1_s6_pls_ntr_amnt_grtr_thn_min_fare"]];
     }
 }
 
@@ -1532,8 +1585,9 @@
     [routeCard addSubview:_ndDropSecondaryLbl];
     y += routeH + sp;
 
-    // Negotiate card
-    CGFloat negH = 178.0f;
+    // Negotiate card. Crece 46 puntos respecto al original para alojar la fila de tarifas
+    // rapidas, que Android tiene y este diseño no traia: solo habia el paso y el boton.
+    CGFloat negH = 224.0f;
     UIView *negCard = [self ndMakeCard:CGRectMake(mx, y, cw, negH)];
     [sheet addSubview:negCard];
 
@@ -1587,6 +1641,35 @@
     _ndOfferAmountLbl.adjustsFontSizeToFitWidth = YES;
     [negCard addSubview:_ndOfferAmountLbl];
 
+    /*
+     Las tres tarifas rapidas, como en Android: una a la baja y dos al alza, con paso de 0,50.
+
+     Van entre el paso y el boton de enviar porque es el orden en que se decide: primero
+     miras si te vale una de las tres, y solo si no, afinas con el mas y el menos.
+
+     El rotulo se rellena en ndRefreshUI, cuando ya se conoce la tarifa del viaje: aqui
+     todavia no hay importe que poner.
+     */
+    CGFloat qy = stepY + sbSz + 12.0f;
+    CGFloat qw = (cw - 28.0f - 16.0f) / 3.0f;
+    for (NSInteger i = 1; i <= 3; i++) {
+        UIButton *rapida = [UIButton buttonWithType:UIButtonTypeCustom];
+        rapida.tag = i;
+        rapida.frame = CGRectMake(14 + (qw + 8.0f) * (i - 1), qy, qw, 38.0f);
+        rapida.backgroundColor = [UIColor colorWithRed:0.96f green:0.96f blue:0.97f alpha:1.0f];
+        rapida.layer.cornerRadius = 10.0f;
+        rapida.layer.borderWidth = 1.0f;
+        rapida.layer.borderColor = [UIColor colorWithRed:0.85f green:0.85f blue:0.87f alpha:1.0f].CGColor;
+        [rapida setTitleColor:[UIColor colorWithRed:0.15f green:0.15f blue:0.15f alpha:1.0f]
+                     forState:UIControlStateNormal];
+        rapida.titleLabel.font = [UIFont fontWithName:@"NotoSans-Bold" size:14] ?: [UIFont boldSystemFontOfSize:14];
+        rapida.titleLabel.adjustsFontSizeToFitWidth = YES;
+        rapida.titleLabel.minimumScaleFactor = 0.7f;
+        [rapida addTarget:self action:@selector(onNewOffer:) forControlEvents:UIControlEventTouchUpInside];
+        [negCard addSubview:rapida];
+        _ndOfertasRapidas[i - 1] = rapida;
+    }
+
     _ndSendOfferBtn = [UIButton buttonWithType:UIButtonTypeCustom];
     _ndSendOfferBtn.frame = CGRectMake(14, negH - 60, cw - 28, 48);
     _ndSendOfferBtn.backgroundColor = [UIColor colorWithRed:0.98f green:0.75f blue:0.10f alpha:1.0f];
@@ -1629,6 +1712,23 @@
     if (!self.trip || !_ndMapView) return;
     CityModel *city = [CityModel getCityByCityId:self.trip.city_id];
     NSString  *cur  = isEmpty(city.city_cur);
+
+    // Los rotulos de las tres tarifas rapidas, que solo se pueden poner una vez se sabe la
+    // tarifa del viaje. Si dos salen iguales -- pasa cuando el tope del servidor recorta las
+    // dos de arriba al mismo numero -- la repetida se apaga en vez de ofrecer lo mismo dos
+    // veces, que confunde y no aporta.
+    float anterior = -1;
+    for (NSInteger i = 1; i <= 3; i++) {
+        UIButton *rapida = _ndOfertasRapidas[i - 1];
+        if (rapida == nil) continue;
+        float importe = [self ofertaRapidaNumero:i];
+        BOOL repetida = (i > 1 && fabsf(importe - anterior) < 0.005f);
+        [rapida setTitle:[Utilities formatAmountAndCurrency:importe currency:cur]
+                forState:UIControlStateNormal];
+        rapida.hidden  = repetida;
+        rapida.enabled = !repetida;
+        anterior = importe;
+    }
 
     // Rider info
     UserModel *user = self.trip.user;
