@@ -72,23 +72,98 @@ static NSMutableArray *gCobrosEnVuelo = nil;
     });
 }
 
-/** El pasajero no pago: el viaje se cierra como paid_cancel, igual que en Android. */
+/** Los viajes que hay que cerrar y todavia no se ha podido. Sobrevive a cerrar la app. */
+static NSString *const kClavePendientes = @"conrra_cierres_pendientes";
+
+/**
+ El pasajero no pago: el viaje se cierra como paid_cancel, igual que en Android.
+
+ SE INSISTE. Este es el unico aviso que libera al PASAJERO de su recibo: si se pierde, el se
+ queda mirando una pantalla que no avanza aunque el conductor ya este en otro viaje. Un fallo
+ de red de dos segundos no puede costar eso.
+
+ Asi que el viaje se apunta como pendiente ANTES de mandar nada, se quita solo cuando el
+ servidor confirma, y mientras tanto se reintenta: tres veces seguidas con espera creciente y,
+ si aun asi no entra, en cuanto la app vuelva a primer plano.
+ */
 + (void)noCobrado:(TripModel *)viaje {
     NSString *id_ = [self limpio:viaje.trip_Id];
     if (id_.length == 0) {
         return;
     }
+    [self apuntarPendiente:id_];
+    [self intentarCierre:id_ viaje:viaje intento:1];
+}
+
++ (void)intentarCierre:(NSString *)tripId viaje:(TripModel *)viaje intento:(NSInteger)intento {
     NSMutableDictionary *dict = [NSMutableDictionary dictionaryWithDictionary:@{
-        @"trip_id"  : id_,
+        @"trip_id"  : tripId,
         TRIP_STATUS : TS_RIDER_CANCEL_CANCEL,
     }];
     [GIC mkwu:TRIP_UPDATE d:dict isa:NO cb:^(id results, NSError *error) {
         BOOL ok = [[[results objectForKey:P_STATUS] uppercaseString] isEqualToString:@"OK"];
-        NSLog(@"[CierreDeViaje] viaje %@ cerrado como NO pagado: %@", id_, ok ? @"si" : @"FALLO");
         if (ok) {
-            [self avisarAlPasajeroDelCierre:viaje];
+            [self olvidarPendiente:tripId];
+            NSLog(@"[CierreDeViaje] viaje %@ cerrado como NO pagado (intento %ld)",
+                  tripId, (long)intento);
+            if (viaje != nil) {
+                [self avisarAlPasajeroDelCierre:viaje];
+            }
+            return;
+        }
+        // El motivo del servidor, escrito entero: es lo unico que distingue "no llego la
+        // peticion" de "llego y la rechazo", y sin eso se diagnostica a ciegas.
+        NSLog(@"[CierreDeViaje] FALLO al cerrar el viaje %@ (intento %ld). error=%@ respuesta=%@",
+              tripId, (long)intento, error.localizedDescription, results);
+        if (intento < 3) {
+            NSTimeInterval espera = intento * 2.0;
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(espera * NSEC_PER_SEC)),
+                           dispatch_get_main_queue(), ^{
+                [self intentarCierre:tripId viaje:viaje intento:intento + 1];
+            });
+        } else {
+            NSLog(@"[CierreDeViaje] el viaje %@ queda PENDIENTE: se reintentara al volver a la app",
+                  tripId);
         }
     }];
+}
+
+#pragma mark - Los que quedaron pendientes
+
++ (void)apuntarPendiente:(NSString *)tripId {
+    id guardado = defaults_object(kClavePendientes);
+    NSMutableArray *lista = [guardado isKindOfClass:[NSArray class]]
+        ? [NSMutableArray arrayWithArray:guardado] : [NSMutableArray array];
+    if (![lista containsObject:tripId]) {
+        [lista addObject:tripId];
+        defaults_set_object(kClavePendientes, lista);
+    }
+}
+
++ (void)olvidarPendiente:(NSString *)tripId {
+    id guardado = defaults_object(kClavePendientes);
+    if (![guardado isKindOfClass:[NSArray class]]) {
+        return;
+    }
+    NSMutableArray *lista = [NSMutableArray arrayWithArray:guardado];
+    [lista removeObject:tripId];
+    defaults_set_object(kClavePendientes, lista);
+}
+
++ (void)reintentarCierresPendientes {
+    id guardado = defaults_object(kClavePendientes);
+    if (![guardado isKindOfClass:[NSArray class]] || [guardado count] == 0) {
+        return;
+    }
+    NSLog(@"[CierreDeViaje] hay %lu viaje(s) sin cerrar: se reintenta",
+          (unsigned long)[guardado count]);
+    for (NSString *tripId in [guardado copy]) {
+        if ([tripId isKindOfClass:[NSString class]] && tripId.length > 0) {
+            // Sin el objeto del viaje no se puede avisar al pasajero por push, pero el estado
+            // en el servidor es lo que de verdad lo libera: su app lo vera al sondear.
+            [self intentarCierre:tripId viaje:nil intento:1];
+        }
+    }
 }
 
 /**

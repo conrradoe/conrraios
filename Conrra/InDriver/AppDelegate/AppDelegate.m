@@ -26,6 +26,7 @@
 #import "UploadDocumentViewController.h"
 #import "ConrraAvisoLocal.h"
 #import "ConrraRadioDeReparto.h"
+#import "ConrraCierreDeViaje.h"
 #import "UChatViewController.h"
 #import "NotificationViewController.h"
 #import "AutoHideAlert.h"
@@ -263,6 +264,10 @@
     // Called as part of the transition from the background to the active state; here you can undo many of the changes made on entering the background.
     application.applicationIconBadgeNumber =0;
     NSLog(@"*********** applicationWillEnterForeground ***********");
+    // Un viaje que no se pudo cerrar deja al PASAJERO atrapado en su recibo. Si el intento
+    // se perdio -- sin red, o la app se fue a WhatsApp en mitad de la llamada -- se reintenta
+    // aqui, que es cuando el telefono vuelve a tener a alguien delante.
+    [ConrraCierreDeViaje reintentarCierresPendientes];
     [self startTimer];
 }
 

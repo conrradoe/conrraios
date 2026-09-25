@@ -49,6 +49,14 @@ NS_ASSUME_NONNULL_BEGIN
                           viaje:(nullable TripModel *)viaje
                      alTerminar:(nullable void (^)(void))alTerminar;
 
+/**
+ Vuelve a intentar los cierres que quedaron sin confirmar.
+
+ Se llama al volver la app a primer plano. Un viaje que no se pudo cerrar deja al PASAJERO
+ atrapado en su recibo, asi que la insistencia no es cosmetica.
+ */
++ (void)reintentarCierresPendientes;
+
 /** Si este viaje ya se liquido en esta sesion, para no preguntar dos veces. */
 + (BOOL)yaSeLiquido:(nullable NSString *)tripId;
 
