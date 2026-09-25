@@ -946,7 +946,7 @@
     NSString * last4DigitOfUser=@"";
     NSDictionary * dictUser=defaults_object(P_USER_DICT_LOGGED);
     NSString *p_phone=[dictUser objectForKey:P_U_MOBILE];
-    last4DigitOfUser=[p_phone substringFromIndex:p_phone.length-4];
+    last4DigitOfUser=[Utilities ultimos4DigitosDe:p_phone];
     if(!([otp isEqualToString:last4DigitOfUser])){
         [self showAlertWithMessgae:[LanguageHelper getStringWithKey:@"k_s7_vld_last4"  ]];
         return;

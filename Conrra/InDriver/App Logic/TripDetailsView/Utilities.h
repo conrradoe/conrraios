@@ -72,6 +72,20 @@
  */
 +(NSString *) numeroParaLlamarConCodigo:(NSString *) codigo numero:(NSString *) numero;
 
+/**
+ Los cuatro ultimos digitos de un telefono, o cadena vacia si no se puede.
+
+ `[telefono substringFromIndex:telefono.length - 4]` parece inofensivo y no lo es: length es
+ NSUInteger, asi que con una cadena de uno a tres caracteres la resta se DESBORDA y sale un
+ indice de 18.446.744.073.709.551.615. substringFromIndex: levanta NSRangeException y la app
+ se cae. Con nil no pasa nada -- el mensaje a nil devuelve nil -- pero con un telefono corto
+ o mal guardado, si.
+
+ Estaba escrito asi en seis sitios, dos de ellos en la comprobacion del OTP de recogida, que
+ corre en cada viaje.
+ */
++(NSString *) ultimos4DigitosDe:(NSString *) telefono;
+
 +(NSString *) formatAmountAndCurrency:(float) amount currency:(NSString *) currency;
 
 +(NSString*) formatAmount:(float) amount;

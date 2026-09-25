@@ -354,6 +354,14 @@
     return t;
 }
 
++(NSString *) ultimos4DigitosDe:(NSString *) telefono {
+    NSString *t = [self textoUtil:telefono];
+    if (t.length < 4) {
+        return @"";
+    }
+    return [t substringFromIndex:t.length - 4];
+}
+
 +(NSString *) numeroParaLlamarConCodigo:(NSString *) codigo numero:(NSString *) numero {
     NSString *n = [self textoUtil:numero];
     if (n.length == 0) {

@@ -1029,13 +1029,13 @@
         NSDictionary *dict=[Utilities idFormJsonString:homeDataModel.trip.trip_customer_details];
         if(dict){
             NSString *p_phone=[dict objectForKey:@"p_phone"];
-            last4DigitElseOfUser=[p_phone substringFromIndex:p_phone.length-4];
+            last4DigitElseOfUser=[Utilities ultimos4DigitosDe:p_phone];
         }
     }
     NSString * last4DigitOfUser=homeDataModel.trip.otp;
     if(homeDataModel.trip.user.u_phone){
         NSString *p_phone=homeDataModel.trip.user.u_phone;
-        last4DigitOfUser=[p_phone substringFromIndex:p_phone.length-4];
+        last4DigitOfUser=[Utilities ultimos4DigitosDe:p_phone];
     }
     //     last 4 digit of user mobile number and in case booking for some else the last 4 digit of user
     if(!([self.txtTripOtp.text isEqualToString:homeDataModel.trip.otp]||[self.txtTripOtp.text isEqualToString:last4DigitOfUser]||[self.txtTripOtp.text isEqualToString:last4DigitElseOfUser])){
@@ -1071,13 +1071,13 @@
         NSDictionary *dict=[Utilities idFormJsonString:homeDataModel.trip.trip_customer_details];
         if(dict){
             NSString *p_phone=[dict objectForKey:@"p_phone"];
-            last4DigitElseOfUser=[p_phone substringFromIndex:p_phone.length-4];
+            last4DigitElseOfUser=[Utilities ultimos4DigitosDe:p_phone];
         }
     }
     NSString * last4DigitOfUser=homeDataModel.trip.otp;
     if(homeDataModel.trip.user.u_phone){
         NSString *p_phone=homeDataModel.trip.user.u_phone;
-        last4DigitOfUser=[p_phone substringFromIndex:p_phone.length-4];
+        last4DigitOfUser=[Utilities ultimos4DigitosDe:p_phone];
     }
     if(!([strOtp isEqualToString:homeDataModel.trip.otp]||[strOtp isEqualToString:last4DigitOfUser]||[strOtp isEqualToString:last4DigitElseOfUser])){
         //        [self showAlertWithMessgae:[LanguageHelper getStringWithKey:@"k_44_s4_plz_enter_valid_otp"]];
