@@ -143,7 +143,7 @@
     
     [self.btnFarereview setTitle: [LanguageHelper getStringWithKey:@"k_5_s8_fare_review"]   forState:UIControlStateNormal];
     [self.btnOffline setTitle: [LanguageHelper getStringWithKey:@"k_9_s8_go_offline"]   forState:UIControlStateNormal];
-    [self.btnPaymentReceived setTitle: [LanguageHelper getStringWithKey:@"k_8_s8_recieved_cash"]   forState:UIControlStateNormal];
+    [self.btnPaymentReceived setTitle:[LanguageHelper getStringWithKey:@"k_8_s8_pago_recibido" defaultValue:@"Pago recibido"] forState:UIControlStateNormal];
     [self.btnHome setTitle: [LanguageHelper getStringWithKey:@"k_r30_s9_home"]   forState:UIControlStateNormal];
     [self.btnSkip setTitle: [LanguageHelper getStringWithKey:@"k_22_s8_skip"]   forState:UIControlStateNormal];
     [self.btnDone setTitle: [LanguageHelper getStringWithKey:@"k_23_s8_done"]   forState:UIControlStateNormal];
@@ -432,17 +432,42 @@
                 [self.viewRating setHidden:NO];
             }
             [UtilityClass setLH:YES wt:[LanguageHelper getStringWithKey:@"k_r30_s3_loading"]];
-            if ([self.curr_trip.trip_pay_status isEqualToString:TS_PAID]) {
+            /*
+             El viaje cuenta como cobrado tambien con paid_cancel.
+
+             Android mira las DOS (handleTripResponse: `Paid` o `paid_cancel`) y aqui solo se
+             miraba Paid. paid_cancel es lo que queda cuando el conductor declara que el
+             pasajero no pago: el viaje esta cerrado y no hay nada mas que cobrar, pero iOS lo
+             trataba como pendiente y seguia ofreciendo cobrar.
+             */
+            BOOL viajeCerrado = [self.curr_trip.trip_pay_status isEqualToString:TS_PAID] ||
+                                [self.curr_trip.trip_pay_status caseInsensitiveCompare:TS_RIDER_CANCEL_CANCEL] == NSOrderedSame;
+            if (viajeCerrado) {
                 self->isPaid =YES;
                 if(  !self->isCollectCashCalled){
                     self->isCollectCashCalled =YES;
+                    /*
+                     El mensaje, segun como se pago.
+
+                     Esta rama ya existia con sus tres casos... y los tres ponian EXACTAMENTE
+                     el mismo texto, el generico de viaje completado. Alguien la dejo montada
+                     y sin rellenar, asi que al conductor de un viaje pagado con billetera no
+                     se le decia en ninguna parte que el dinero ya estaba en su saldo. Se
+                     quedaba mirando la pantalla esperando un efectivo que no venia.
+
+                     Android si lo dice (showWalletCreditNoticeIfNeeded) y con el importe
+                     delante, que es lo unico que zanja la duda.
+                     */
                     NSString *messgae=[LanguageHelper getStringWithKey:@"k_17_s8_promo_comp_success"];
-                    if([self.curr_trip.trip_pay_mode isEqualToString:CASH_PAY]){
-                        messgae=[LanguageHelper getStringWithKey:@"k_17_s8_promo_comp_success"];
-                    }else if([self.curr_trip.trip_pay_mode isEqualToString:HIRE_ME_WALLET_PAY]){
-                        messgae=[LanguageHelper getStringWithKey:@"k_17_s8_promo_comp_success"];
+                    NSString *importe = [self importeCobradoConMoneda];
+                    if([self.curr_trip.trip_pay_mode isEqualToString:HIRE_ME_WALLET_PAY]){
+                        messgae = importe.length > 0
+                            ? [NSString stringWithFormat:@"Se acreditaron %@ a tu billetera por este viaje.", importe]
+                            : @"El pago de este viaje se acreditó a tu billetera.";
                     }else if([self.curr_trip.trip_pay_mode isEqualToString:CARD]){
-                        messgae=[LanguageHelper getStringWithKey:@"k_17_s8_promo_comp_success"];
+                        messgae = importe.length > 0
+                            ? [NSString stringWithFormat:@"El pago de %@ se procesó con tarjeta.", importe]
+                            : @"El pago de este viaje se procesó con tarjeta.";
                     }
                     self.curr_trip.driver.d_is_available=@"1";
                     [self clearData];
@@ -501,6 +526,25 @@
         self.lbPromocode.text=@"";
     }
     //    self.lbPromocode.text=@""; // for Bargain GO App
+}
+
+/**
+ El importe cobrado, con su moneda, o cadena vacia si no se sabe.
+
+ Android lee trip_pay_amount, que es lo que el pasajero pago de verdad. Aqui se usa trip_fare
+ porque TripModel de iOS no trae el otro campo: es el mismo numero salvo cuando hubo
+ promocion. Si algun dia hace falta la distincion, se añade la propiedad y se cambia esta
+ linea, no las tres de arriba.
+ */
+-(NSString *)importeCobradoConMoneda {
+    NSString *crudo = isEmpty(self.curr_trip.trip_fare);
+    if (crudo.length == 0) {
+        return @"";
+    }
+    CityModel *ciudad = [CityModel getCityByCityId:self.curr_trip.city_id];
+    NSString *conMoneda = [Utilities formatAmountAndCurrency:[crudo floatValue]
+                                                    currency:ciudad.city_cur];
+    return conMoneda.length > 0 ? conMoneda : crudo;
 }
 
 -(void)onCashPaymentCompleted{
@@ -650,9 +694,18 @@
 
 
 - (IBAction)onEndTheRide:(id)sender {
+    /*
+     "¿Recibiste el Pago del Pasajero?", no "¿recibiste el efectivo?".
+
+     Esta pregunta sale con cualquier modo de pago, tambien cuando el viaje se cobro por
+     billetera o tarjeta. Preguntar por el EFECTIVO en esos casos desconcierta: el conductor
+     no recibio ningun billete y no sabe que contestar, y si dice que no se va derecho a
+     soporte por un pago que nunca iba a ser en mano. Preguntando por el PAGO, la respuesta
+     es la misma decision en los tres casos: llego o no llego.
+     */
     UIAlertController * alert = [UIAlertController
                                  alertControllerWithTitle:@""
-                                 message:[LanguageHelper getStringWithKey:@"k_19_s8_received_cash_msg"]
+                                 message:[LanguageHelper getStringWithKey:@"k_19_s8_pregunta_pago" defaultValue:@"¿Recibiste el Pago del Pasajero?"]
                                  preferredStyle:UIAlertControllerStyleAlert];
     UIAlertAction* yesButton = [UIAlertAction
                                 actionWithTitle:[LanguageHelper getStringWithKey:@"k_21_s4_yes"]
@@ -676,8 +729,8 @@
 - (IBAction)ButtonPaymentReceived:(id)sender {
     
     UIAlertController * alert = [UIAlertController
-                                 alertControllerWithTitle:@"Alert !"
-                                 message:[LanguageHelper getStringWithKey:@"k_19_s8_hve_u_received_cash"]
+                                 alertControllerWithTitle:@""
+                                 message:[LanguageHelper getStringWithKey:@"k_19_s8_pregunta_pago" defaultValue:@"¿Recibiste el Pago del Pasajero?"]
                                  preferredStyle:UIAlertControllerStyleAlert];
     UIAlertAction* yesButton = [UIAlertAction
                                 actionWithTitle:[LanguageHelper getStringWithKey:@"k_21_s4_yes"]
