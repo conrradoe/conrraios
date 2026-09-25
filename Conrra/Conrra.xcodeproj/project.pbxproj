@@ -85,6 +85,7 @@
 		D357A9A027F2F66C0086E2D4 /* CategoryCell.xib in Resources */ = {isa = PBXBuildFile; fileRef = D357A84027F2F66C0086E2D4 /* CategoryCell.xib */; };
 		D357A9A127F2F66C0086E2D4 /* UHomeViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = D357A84127F2F66C0086E2D4 /* UHomeViewController.m */; };
 		D357A9A327F2F66C0086E2D4 /* SettingViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = D357A84727F2F66C0086E2D4 /* SettingViewController.m */; };
+		A545707674534C17ADC589BC /* ConrraRadioDeReparto.m in Sources */ = {isa = PBXBuildFile; fileRef = 4E9C230850C341A1963B848E /* ConrraRadioDeReparto.m */; };
 		74FB5B4BFB8C438C93F25D8B /* ConrraDestinosRecientes.m in Sources */ = {isa = PBXBuildFile; fileRef = 2724F4AF91D6427793A05F9B /* ConrraDestinosRecientes.m */; };
 		1E96403CF1C54CF884BA53A4 /* ConrraChatDeSoporte.m in Sources */ = {isa = PBXBuildFile; fileRef = 5AEF8FF16871432F8CBFA559 /* ConrraChatDeSoporte.m */; };
 		D357A9A427F2F66C0086E2D4 /* BeginTripViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = D357A84927F2F66C0086E2D4 /* BeginTripViewController.m */; };
@@ -639,6 +640,8 @@
 		D357A84127F2F66C0086E2D4 /* UHomeViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = UHomeViewController.m; sourceTree = "<group>"; };
 		D357A84627F2F66C0086E2D4 /* SettingViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SettingViewController.h; sourceTree = "<group>"; };
 		D357A84727F2F66C0086E2D4 /* SettingViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SettingViewController.m; sourceTree = "<group>"; };
+		B97A491D80084AB39C99FCB8 /* ConrraRadioDeReparto.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraRadioDeReparto.h; sourceTree = "<group>"; };
+		4E9C230850C341A1963B848E /* ConrraRadioDeReparto.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraRadioDeReparto.m; sourceTree = "<group>"; };
 		E96A9438B83C405FAB903C60 /* ConrraDestinosRecientes.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraDestinosRecientes.h; sourceTree = "<group>"; };
 		2724F4AF91D6427793A05F9B /* ConrraDestinosRecientes.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraDestinosRecientes.m; sourceTree = "<group>"; };
 		82B1330689B545DB9475B7AE /* ConrraChatDeSoporte.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraChatDeSoporte.h; sourceTree = "<group>"; };
@@ -1992,6 +1995,8 @@
 		D357A8B527F2F66C0086E2D4 /* HomeView */ = {
 			isa = PBXGroup;
 			children = (
+				B97A491D80084AB39C99FCB8 /* ConrraRadioDeReparto.h */,
+				4E9C230850C341A1963B848E /* ConrraRadioDeReparto.m */,
 				D353F6F127FED34F00897014 /* WaitingTimerView */,
 				D357A8C527F2F66C0086E2D4 /* OneToOneRequest */,
 				D357A8DD27F2F66C0086E2D4 /* Save Route */,
@@ -3747,6 +3752,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A545707674534C17ADC589BC /* ConrraRadioDeReparto.m in Sources */,
 				74FB5B4BFB8C438C93F25D8B /* ConrraDestinosRecientes.m in Sources */,
 				1E96403CF1C54CF884BA53A4 /* ConrraChatDeSoporte.m in Sources */,
 				89B2CC384CA440E9B192AD2B /* RecargaEstilo.m in Sources */,

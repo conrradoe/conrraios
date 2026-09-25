@@ -52,6 +52,7 @@
 #import "DataBase.h"
 #import "DataUploadHelper.h"
 #import "FirebaseUnReadChat.h"
+#import "ConrraRadioDeReparto.h"
 #import "HomeDataModel.h"
 #import "LocationDataHelper.h"
 #import "SingleRequestView.h"
@@ -3683,12 +3684,32 @@
     [dict setObject:[dict1 objectForKey:P_CATEGORY_ID] forKey:P_CATEGORY_ID];
     [dict setObject:[NSString stringWithFormat:@"%f", appdelegate.currLoc.coordinate.latitude] forKey:@"lat"];
     [dict setObject:[NSString stringWithFormat:@"%f", appdelegate.currLoc.coordinate.longitude] forKey:@"lng"];
+    // Se guarda el punto con el que se consulta para volver a medir con EL MISMO al contestar.
+    CLLocationCoordinate2D puntoDeLaConsulta = appdelegate.currLoc.coordinate;
     if ([ConstantModel getConstantsObject].constant_driver_radius ==0.0) {
         [dict setObject:@"4" forKey:@"miles"];
     }
     else{
         [dict setObject:[NSString stringWithFormat:@"%.1f",[ConstantModel getConstantsObject].constant_driver_radius] forKey:@"miles"];
     }
+    /*
+     rl_miles, que no se mandaba nunca.
+
+     getRevisedTrips usa UN radio u OTRO segun el viaje: para is_ride_later = 1 coge
+     $rlMiles, y si no llega se queda en null. Y en PHP `$distancia <= null` convierte el
+     null a 0, asi que la condicion solo se cumple con distancia cero: los viajes
+     RESERVADOS se estaban descartando TODOS en el servidor, y el conductor de iOS no los
+     veia nunca.
+
+     El respaldo de 100 es el mismo que usa Android cuando la constante no esta puesta.
+     */
+    double radioProgramado = [[[ConstantModel valorDeConstantePorClave:@"rl_driver_radius"]
+                               stringByReplacingOccurrencesOfString:@"," withString:@"."] doubleValue];
+    if (radioProgramado <= 0) {
+        radioProgramado = 100.0;
+    }
+    [dict setObject:[NSString stringWithFormat:@"%.1f", radioProgramado] forKey:@"rl_miles"];
+
     if (isShowLoader) {
         [UtilityClass setLH:NO wt:[LanguageHelper getStringWithKey:@"k_r30_s3_loading"]];
     }
@@ -3704,7 +3725,29 @@
                 TripModel  *trip = [[TripModel alloc] initItemWithDict:dict];
                 [arrtemp1 addObject:trip];
             }
-            self->arrPendingTrips = arrtemp1;
+            /*
+             El tope se vuelve a medir aqui.
+
+             Se mide desde el MISMO punto con el que se pidio la lista -- el de arriba, no la
+             posicion de ahora -- para que el telefono y el servidor esten comparando lo
+             mismo: si el conductor se movio mientras la llamada iba y venia, medir desde el
+             sitio nuevo daria un resultado distinto al que dio el servidor.
+
+             Ver ConrraRadioDeReparto para el porque: el servidor compara MILLAS contra el
+             radio salvo que distance_paramiter valga exactamente "km".
+             */
+            NSUInteger antes = arrtemp1.count;
+            NSArray *dentroDelRadio = [ConrraRadioDeReparto filtrar:arrtemp1 desde:puntoDeLaConsulta];
+            if (dentroDelRadio.count < antes) {
+                NSLog(@"[RadioDeReparto] el servidor mando %lu solicitudes y %lu quedaron fuera del tope",
+                      (unsigned long)antes, (unsigned long)(antes - dentroDelRadio.count));
+                // El sonido de solicitud ya sono al llegar el push. Si lo que lo provoco cae
+                // fuera, se calla: una alarma que no lleva a ninguna tarjeta solo desconcierta.
+                if (dentroDelRadio.count == 0) {
+                    [APP_DELEGATE stopRequestSound];
+                }
+            }
+            self->arrPendingTrips = [NSMutableArray arrayWithArray:dentroDelRadio];
             [self invalidatePendingTripTimer];
             [self resetPendingTripTimer];
             [self updateRquestCounter];
