@@ -16,6 +16,7 @@
 #import "Utilities.h"
 #import "HomeViewController.h"
 #import "ConrraViajesCerrados.h"
+#import "TripNotificationHelper.h"
 #import "StarRatingView.h"
 #import "NSString+URLEncoding.h"
 #import "FareReviewViewController.h"
@@ -49,6 +50,9 @@
     /// Para no encadenar dos cierres: la pregunta puede contestarse dos veces si el conductor
     /// toca rapido, y dos navegaciones seguidas dejan la pila rara.
     BOOL yaSeCerroElViaje;
+    /// El viaje ya se liquido (se contesto la pregunta del pago). Evita volver a preguntar
+    /// cuando se sale desde la hoja de calificacion, que tambien pasa por terminarElViaje.
+    BOOL yaSeLiquidoElViaje;
 
     UIScrollView      *_ndReceiptScroll;
     UIImageView       *_ndPassengerImg;
@@ -804,6 +808,25 @@
  @param cerrarDespues YES cuando esto viene de la pregunta del pago: el viaje termina igual
  */
 -(void)abrirSoportePorPagoNoRecibidoYLuegoCerrar:(BOOL)cerrarDespues {
+    /*
+     EL VIAJE SE LIQUIDA AQUI, NO SOLO EN EL TELEFONO DEL CONDUCTOR.
+
+     Decir "no me pagaron" cerraba el recibo del conductor y dejaba el viaje en el servidor
+     como completado y sin liquidar. Y el pasajero se quedaba mirando SU recibo para siempre,
+     esperando un desenlace que no iba a llegar. Soltar a uno y atrapar al otro no es cerrar
+     el viaje.
+
+     Se marca paid_cancel, que es lo que usa Android para "el pasajero no pago"
+     (markTripPaidCancel) y lo que las dos apps entienden como viaje cerrado sin cobro. El
+     mensaje a soporte sale igual: lo que se discute es el dinero, no si el viaje termino.
+
+     Se manda y no se espera. Si la llamada falla, el conductor ya esta fuera y el viaje se
+     reclama por soporte, que es justo la hoja que se acaba de abrir.
+     */
+    if (cerrarDespues) {
+        [self marcarViajeComoNoPagado];
+    }
+
     NSString *viajeId = isEmpty(self.curr_trip.trip_Id);
     NSString *monto = @"";
     NSString *crudo = isEmpty(self.curr_trip.trip_fare);
@@ -897,6 +920,33 @@
                            monto:monto];
 }
 
+
+/**
+ Deja el viaje cerrado como "no pagado" en el servidor, sin esperar respuesta.
+
+ Es lo mismo que markTripAsRiderCancelForPayment pero sin tocar la pantalla: cuando esto corre,
+ el conductor ya se esta yendo. Lo que importa es que el estado salga hacia el servidor, porque
+ de eso depende que el PASAJERO pueda cerrar su recibo.
+ */
+-(void)marcarViajeComoNoPagado {
+    NSString *viajeId = isEmpty(self.curr_trip.trip_Id);
+    if (viajeId.length == 0) {
+        return;
+    }
+    NSMutableDictionary *dict = [NSMutableDictionary dictionaryWithDictionary:@{
+        @"trip_id"  : viajeId,
+        TRIP_STATUS : TS_RIDER_CANCEL_CANCEL,
+    }];
+    [GIC mkwu:TRIP_UPDATE d:dict isa:NO cb:^(id results, NSError *error) {
+        BOOL ok = [[[results objectForKey:P_STATUS] uppercaseString] isEqualToString:@"OK"];
+        NSLog(@"[Recibo] viaje %@ marcado como no pagado: %@", viajeId, ok ? @"si" : @"FALLO");
+        if (ok) {
+            // El pasajero tiene que enterarse de que el viaje se cerro, o su recibo se queda
+            // puesto igual que estaba el del conductor.
+            [TripNotificationHelper sendNotification:TS_RIDER_CANCEL_CANCEL trip:self.curr_trip];
+        }
+    }];
+}
 
 -(void)markTripAsRiderCancelForPayment
 {
@@ -1157,7 +1207,7 @@
     [aceptarBtn setTitle:[LanguageHelper getStringWithKey:@"k_s10_terminar_viaje" defaultValue:@"Terminar viaje"]
                 forState:UIControlStateNormal];
     [aceptarBtn setTitleColor:UIColor.blackColor forState:UIControlStateNormal];
-    [aceptarBtn addTarget:self action:@selector(ndFareAceptarTapped) forControlEvents:UIControlEventTouchUpInside];
+    [aceptarBtn addTarget:self action:@selector(ndFareTerminarTapped) forControlEvents:UIControlEventTouchUpInside];
     [content addSubview:aceptarBtn];
     y += 56 + 12;
 
@@ -1465,9 +1515,74 @@
     _ndTotalLbl.text    = [self formatAmountDual:total currency:cur];
 }
 
+/**
+ La unica puerta de salida del recibo: preguntar, liquidar y salir.
+
+ POR QUE HACIA FALTA. La pregunta del pago vivia en onEndTheRide y ButtonPaymentReceived, que
+ son acciones de botones del diseño VIEJO. El diseño nuevo los tapa, asi que al conductor NUNCA
+ se le preguntaba: cerraba el recibo y el viaje se quedaba en el servidor como completado y sin
+ liquidar. El conductor salia y el PASAJERO se quedaba atrapado en el suyo.
+
+ Ahora las tres salidas del recibo pasan por aqui:
+
+   ya cobrado        -> se cierra sin preguntar, no hay nada que decidir
+   Si, me pagaron    -> se registra el cobro (queda Paid) y se cierra
+   No me pagaron     -> se marca paid_cancel, se abre soporte, y se cierra igual
+
+ Las dos respuestas cierran el viaje para los DOS. Lo que se discute es el dinero, no si el
+ viaje termino.
+ */
+-(void)terminarElViaje {
+    if (yaSeCerroElViaje) {
+        return;
+    }
+    // Ya liquidado -- porque ya se contesto, o porque el viaje venia cobrado -- no hay nada
+    // que preguntar y se sale.
+    if (yaSeLiquidoElViaje ||
+        [self.curr_trip.trip_pay_status isEqualToString:TS_PAID] ||
+        [self.curr_trip.trip_pay_status caseInsensitiveCompare:TS_RIDER_CANCEL_CANCEL] == NSOrderedSame) {
+        [self cerrarElViajeYVolver];
+        return;
+    }
+
+    UIAlertController *alert = [UIAlertController
+        alertControllerWithTitle:@""
+                         message:[LanguageHelper getStringWithKey:@"k_19_s8_pregunta_pago"
+                                                     defaultValue:@"¿Recibiste el Pago del Pasajero?"]
+                  preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:[LanguageHelper getStringWithKey:@"k_21_s4_yes"]
+                                              style:UIAlertActionStyleDefault
+                                            handler:^(UIAlertAction *action) {
+        self->yaSeLiquidoElViaje = YES;
+        [self->tripTransactionManager payWithCashDetectComssion];
+        // Cobrado y con calma: se ofrece calificar. Las tres salidas de esa hoja vuelven por
+        // terminarElViaje, que ya no preguntara nada y cerrara.
+        [self ndFareAceptarTapped];
+    }]];
+    [alert addAction:[UIAlertAction actionWithTitle:[LanguageHelper getStringWithKey:@"k_22_s4_no"]
+                                              style:UIAlertActionStyleDefault
+                                            handler:^(UIAlertAction *action) {
+        self->yaSeLiquidoElViaje = YES;
+        // Sin calificacion en este camino: el conductor esta resolviendo un problema de
+        // dinero, no es momento de pedirle estrellas.
+        [self abrirSoportePorPagoNoRecibidoYLuegoCerrar:YES];
+    }]];
+    [self presentViewController:alert animated:YES completion:nil];
+}
+
 // Screen 1 → X close
 -(void)ndFareCloseTapped {
-    [self cerrarElViajeYVolver];
+    [self terminarElViaje];
+}
+
+/**
+ "Terminar viaje": primero se liquida, y la calificacion queda para despues.
+
+ Antes este boton abria directamente la hoja de estrellas. Calificar es lo accesorio; lo que
+ no puede saltarse es dejar el viaje cerrado para los dos.
+ */
+-(void)ndFareTerminarTapped {
+    [self terminarElViaje];
 }
 
 // Screen 1 → Aceptar → show rating sheet
@@ -1512,7 +1627,7 @@
 
 // Screen 2 → Omitir / close
 -(void)ndFareSkipRatingTapped {
-    [self cerrarElViajeYVolver];
+    [self terminarElViaje];
 }
 
 @end
