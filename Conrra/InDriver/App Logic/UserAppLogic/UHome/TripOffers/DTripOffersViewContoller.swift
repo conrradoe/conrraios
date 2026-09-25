@@ -98,20 +98,33 @@ import UIKit
         
         observerOfferNotifcation = NotificationCenter.default.addObserver(forName: NSNotification.Name(rawValue: AppNotificationName.USER_OFFER_NOTIFICATION), object: nil, queue: .main) { [unowned self] notification in
             /*
-             La lista se recarga, no solo se enseña el aviso.
+             La lista se recarga SOLO cuando el pasajero rechazo la oferta.
 
-             Este aviso llega cuando el pasajero RECHAZA la oferta del conductor (AppDelegate,
-             rama "declined" del manejador del conductor). Antes solo salia el mensaje y la
-             oferta rechazada se quedaba en la lista hasta que picara el temporizador: el
-             conductor veia una oferta viva que ya no existia, y si la tocaba se encontraba con
-             un error del servidor.
+             Este aviso llega con varios estados distintos. El que interesa aqui es "declined":
+             antes solo salia el mensaje y la oferta rechazada se quedaba en la lista hasta que
+             picara el temporizador, asi que el conductor veia una oferta viva que ya no
+             existia y al tocarla se encontraba con un error del servidor.
 
-             Android quita la fila en el momento (checkAndAddOrRemoveOffer -> removeOffer) y
-             despues comprueba si hay algun viaje aceptado. Aqui se vuelve a pedir la lista
-             entera en vez de tocar el array local: el push solo trae el mensaje, no el detalle
-             de la oferta, asi que la unica fuente fiable de que sigue vivo es el servidor.
+             POR QUE NO SE RECARGA EN LOS DEMAS. Recargar llama a getDriverTripOffers, y esa
+             funcion, al encontrar una oferta que ya no esta pendiente, pone tripDriver y
+             levanta isTripUpdated (TripOfferViewModel). El bind de isTripUpdated, con el viaje
+             en accept, hace navigationController?.popViewController... y esta pantalla es un
+             HIJO de HomeViewController añadido como subvista, no esta en la pila. O sea que
+             ese pop se lleva por delante a HomeViewController y deja debajo la pantalla del
+             PASAJERO. Recargando en todos los avisos, eso saltaba justo al aceptar el viaje.
+
+             El pop mal dirigido es anterior a esto y sigue ahi: cualquier otra cosa que
+             provoque la recarga en ese momento lo volvera a disparar. Se acota el disparador,
+             no se arregla la causa.
              */
-            self.refloadData()
+            var estadoDelAviso = ""
+            if let userinfo = notification.userInfo as? [String:Any],
+               let aps = userinfo["aps"] as? [String:Any] {
+                estadoDelAviso = (aps["trip_status"] as? String ?? "").lowercased()
+            }
+            if estadoDelAviso == "declined" {
+                self.refloadData()
+            }
 
             if let userinfo = notification.userInfo as? [String:Any]{
                 if let aps = userinfo["aps"] as? [String:Any]{

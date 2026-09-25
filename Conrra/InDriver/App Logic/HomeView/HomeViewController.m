@@ -465,7 +465,12 @@
      */
     NSString *idDelViajeEnCurso = isEmpty(self->homeDataModel.trip.trip_Id);
     if([self->homeDataModel.trip.trip_Status isEqualToString:TS_ARRIVE]){
-        [self.btnGoPopUP setTitle:[LanguageHelper getStringWithKey:@"k_20_s4_pick" defaultValue:@"Recoger Cliente"] forState:UIControlStateNormal];
+        // Clave nueva a proposito: k_20_s4_pick YA EXISTE en el paquete de idiomas con el
+        // texto "Voy en camino!", que es para lo que se usaba antes. getStringWithKey devuelve
+        // el valor del servidor cuando la clave existe, asi que poner ahi el defaultValue
+        // "Recoger Cliente" no habria servido de nada: el boton habria seguido diciendo "Voy
+        // en camino!" en el paso de recoger.
+        [self.btnGoPopUP setTitle:[LanguageHelper getStringWithKey:@"k_s10_recoger_cliente" defaultValue:@"Recoger Cliente"] forState:UIControlStateNormal];
         [self.btnGoPopUP setImage:nil forState:UIControlStateNormal];
         self.btnGoPopUP.semanticContentAttribute = UISemanticContentAttributeUnspecified;
     }else if([ConrraVoyEnCamino yaAvisoEnElViaje:idDelViajeEnCurso]){
