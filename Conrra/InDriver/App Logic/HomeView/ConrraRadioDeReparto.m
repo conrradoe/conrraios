@@ -5,7 +5,6 @@
 
 #import "ConrraRadioDeReparto.h"
 #import "ConstantModel.h"
-#import "CityModel.h"
 #import "TripModel.h"
 #import "WebCallConstants.h"
 #import <GIKit/GIKit.h>
@@ -18,30 +17,25 @@ static const double kRadioProgramadoPorDefecto = 100.0;
 
 @implementation ConrraRadioDeReparto
 
-/** El diccionario del conductor que tiene la sesion abierta. */
-+ (NSDictionary *)conductor {
-    NSDictionary *dict = defaults_object(P_USER_DICT);
-    return [dict isKindOfClass:[NSDictionary class]] ? dict : @{};
-}
-
 /**
- Si la ciudad del conductor mide en kilometros.
+ Si el radio del panel esta escrito en kilometros.
 
- Por defecto SI. Es lo que hace Android cuando no hay ciudad, y es lo prudente aqui: dar por
- supuestas millas multiplicaria el tope por 1,6 y el filtro dejaria pasar de mas, que es
- justo el problema que se viene a arreglar.
+ La unidad del radio es distance_paramiter, NO el city_dist_unit de la ciudad. Esto no es una
+ suposicion: getDriverRadiusConstants lee las DOS claves en la misma consulta y las devuelve
+ juntas, ['unit' => distance_paramiter, 'radius' => driver_radius]. Son un par: el numero y la
+ unidad en la que ese numero esta escrito. Lo que rompe el par es el bloque `if ($cityID)` que
+ viene despues y machaca 'unit' con el city_dist_unit de la ciudad, dejando el radio en una
+ unidad y la medida en otra.
+
+ Por defecto km. Suponer millas multiplicaria el tope por 1,6 y el filtro dejaria pasar de
+ mas, que es justo lo que se viene a arreglar.
  */
-+ (BOOL)laCiudadMideEnKm {
-    id crudo = [[self conductor] objectForKey:P_CITY_ID];
-    int idCiudad = [[NSString stringWithFormat:@"%@", crudo ?: @"0"] intValue];
-    if (idCiudad <= 0) {
-        return YES;
-    }
-    CityModel *ciudad = [CityModel getCityByCityId:idCiudad];
-    NSString *unidad = ciudad.city_dist_unit;
++ (BOOL)elRadioEstaEnKm {
+    NSString *unidad = [ConstantModel valorDeConstantePorClave:@"distance_paramiter"];
     if (![unidad isKindOfClass:[NSString class]] || unidad.length == 0) {
         return YES;
     }
+    unidad = [unidad stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
     return [unidad caseInsensitiveCompare:@"mi"] != NSOrderedSame;
 }
 
@@ -56,9 +50,8 @@ static const double kRadioProgramadoPorDefecto = 100.0;
     if (radio <= 0) {
         radio = programado ? kRadioProgramadoPorDefecto : kRadioInmediatoPorDefecto;
     }
-    // El numero del panel esta en la unidad de la ciudad. Aqui se mide en km, asi que si la
-    // ciudad va en millas hay que convertirlo antes de comparar.
-    return [self laCiudadMideEnKm] ? radio : radio * kKmPorMilla;
+    // Aqui se mide siempre en km, asi que si el panel esta en millas hay que convertir.
+    return [self elRadioEstaEnKm] ? radio : radio * kKmPorMilla;
 }
 
 + (BOOL)viaje:(TripModel *)viaje dentroDelRadioDesde:(CLLocationCoordinate2D)origen {
@@ -97,12 +90,52 @@ static const double kRadioProgramadoPorDefecto = 100.0;
      */
     if (!dentro) {
         NSLog(@"[RadioDeReparto] viaje %@ recta=%.2f km, tope=%.2f km, FUERA | reservado=%d "
-              @"driver_radius=%@ rl_driver_radius=%@ distance_paramiter=%@ ciudad_en_km=%d",
+              @"driver_radius=%@ rl_driver_radius=%@ distance_paramiter=%@ radio_en_km=%d",
               isEmpty(viaje.trip_Id), km, tope, viaje.is_ride_later,
               [ConstantModel valorDeConstantePorClave:@"driver_radius"],
               [ConstantModel valorDeConstantePorClave:@"rl_driver_radius"],
               [ConstantModel valorDeConstantePorClave:@"distance_paramiter"],
-              [self laCiudadMideEnKm]);
+              [self elRadioEstaEnKm]);
+    }
+    return dentro;
+}
+
++ (NSArray *)conductores:(NSArray *)conductores
+      dentroDeLaRecogida:(CLLocationCoordinate2D)recogida
+              programado:(BOOL)programado {
+    if (![conductores isKindOfClass:[NSArray class]] || conductores.count == 0) {
+        return conductores ?: @[];
+    }
+    if (!CLLocationCoordinate2DIsValid(recogida) ||
+        (recogida.latitude == 0 && recogida.longitude == 0)) {
+        return conductores;
+    }
+
+    double tope = [self topeEnKmProgramado:programado];
+    CLLocation *desde = [[CLLocation alloc] initWithLatitude:recogida.latitude
+                                                    longitude:recogida.longitude];
+    NSMutableArray *dentro = [[NSMutableArray alloc] init];
+    for (id elemento in conductores) {
+        if (![elemento respondsToSelector:@selector(lat)] ||
+            ![elemento respondsToSelector:@selector(lng)]) {
+            [dentro addObject:elemento];
+            continue;
+        }
+        double lat = [[elemento valueForKey:@"lat"] doubleValue];
+        double lng = [[elemento valueForKey:@"lng"] doubleValue];
+        if (lat == 0 && lng == 0) {
+            // Sin posicion no se puede medir: se deja pasar, como todo lo demas aqui.
+            [dentro addObject:elemento];
+            continue;
+        }
+        CLLocation *hasta = [[CLLocation alloc] initWithLatitude:lat longitude:lng];
+        double km = [desde distanceFromLocation:hasta] / 1000.0;
+        if (km <= tope) {
+            [dentro addObject:elemento];
+        } else {
+            NSLog(@"[RadioDeReparto] conductor %@ a %.2f km de la recogida, tope %.2f km: NO se le avisa",
+                  [elemento valueForKey:@"driverId"], km, tope);
+        }
     }
     return dentro;
 }

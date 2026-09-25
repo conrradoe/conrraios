@@ -60,6 +60,7 @@
 #import "UWalletViewController.h"
 #import "RecargasViewController.h"
 #import "ConrraDestinosRecientes.h"
+#import "ConrraRadioDeReparto.h"
 #import "UTripHistoryViewController.h"
 #import <MessageUI/MFMailComposeViewController.h>
 #import "URouteInputViewController.h"
@@ -3912,7 +3913,38 @@
     NSMutableArray *arrayIosDevices=[[NSMutableArray alloc] init];
     NSMutableArray *arrayAndroidDevices=[[NSMutableArray alloc] init];
     NSMutableArray *arrayDriversIds=[[NSMutableArray alloc] init];
-    for (DriverModel *dModel in driversArray) {
+
+    /*
+     El tope se vuelve a medir AQUI, antes de armar la lista de a quien se avisa.
+
+     Porque el reparto no lo decide el servidor. tripapi/sendnotificationontripsave recibe los
+     tokens ya elegidos -- en los parametros drivers, ios y android -- y se limita a mandarles
+     el push, sin mirar ni una distancia. Y el bloque que si tenia que filtrar, el de
+     getnearnotificationbydriverlist, esta detras de un `if (false && ...)`: codigo muerto.
+
+     Asi que quien decide quien suena es esta app, con driversArray. Y driversArray viene de
+     getnearbydriverlists, que filtra midiendo en la unidad de la CIUDAD del conductor mientras
+     el radio esta escrito en la unidad global: con la ciudad en millas, un radio de 6,1 km se
+     convierte en 6,1 millas, 9,8 km en linea recta -- 11 y pico por carretera. Ver
+     ConrraRadioDeReparto para el detalle.
+
+     Se mide desde la RECOGIDA, que es el mismo punto con el que se pidio la lista de cercanos
+     (NearByDriverHandler manda pickUpLocation cuando la hay), no desde donde este el pasajero:
+     si eligio una recogida lejos de si mismo, lo que importa es quien esta cerca del pasajero
+     que va a subir, no de quien pidio el viaje.
+     */
+    CLLocationCoordinate2D recogida = CLLocationCoordinate2DMake([currTrip.trip_pick_lat doubleValue],
+                                                                 [currTrip.trip_pick_long doubleValue]);
+    NSUInteger conductoresAntes = driversArray.count;
+    NSArray *conductoresAvisables = [ConrraRadioDeReparto conductores:driversArray
+                                                  dentroDeLaRecogida:recogida
+                                                          programado:currTrip.is_ride_later];
+    if (conductoresAvisables.count < conductoresAntes) {
+        NSLog(@"[RadioDeReparto] el servidor daba %lu conductores cerca y solo %lu estan dentro del tope",
+              (unsigned long)conductoresAntes, (unsigned long)conductoresAvisables.count);
+    }
+
+    for (DriverModel *dModel in conductoresAvisables) {
         if(dModel.deviceToken.length>0){
             if([dModel  isIos]){
                 [arrayIosDevices addObject:[NSString stringWithFormat:@"%@",dModel.deviceToken]];
