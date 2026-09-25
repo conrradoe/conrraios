@@ -5,6 +5,8 @@
 
 #import "ConrraRutaDeRecogida.h"
 #import "AppDelegate.h"
+// APP_DELEGATE es una macro de aqui, no de AppDelegate.h.
+#import "WebCallConstants.h"
 
 NSString *const ConrraRutaDeRecogidaActualizada = @"ConrraRutaDeRecogidaActualizada";
 
