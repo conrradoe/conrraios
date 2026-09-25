@@ -15,6 +15,7 @@
 #import "CategoryModel.h"
 #import "Utilities.h"
 #import "HomeViewController.h"
+#import "ConrraViajesCerrados.h"
 #import "StarRatingView.h"
 #import "NSString+URLEncoding.h"
 #import "FareReviewViewController.h"
@@ -834,6 +835,15 @@
     }
     yaSeCerroElViaje = YES;
     [self inavalidateTimerDetails];
+
+    /*
+     Se apunta el viaje como terminado ANTES de navegar.
+
+     El mapa sondea por driver_id, sin id de viaje, y el servidor le sigue devolviendo este
+     viaje mientras no este cobrado. Sin esta marca, al llegar al mapa el sondeo lo ve en
+     "completed" y vuelve a mandar al conductor aqui. Ese era el bucle.
+     */
+    [ConrraViajesCerrados cerrar:isEmpty(self.curr_trip.trip_Id)];
 
     /*
      La navegacion NO pasa por ButtonHome a proposito.

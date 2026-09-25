@@ -55,6 +55,7 @@
 #import "ConrraRadioDeReparto.h"
 #import "ConrraVoyEnCamino.h"
 #import "ConrraSolicitudesPersistentes.h"
+#import "ConrraViajesCerrados.h"
 #import "HomeDataModel.h"
 #import "LocationDataHelper.h"
 #import "SingleRequestView.h"
@@ -2627,8 +2628,31 @@
                         defaults_remove(@"cal_wait_time");
                         defaults_remove(DRIVER_STATUS_TEMP);
                         self.viewOtpVerify.hidden=YES;
-                        [self performSegueWithIdentifier:StoryBoardUtiles.FARE_AMOUNT_VC sender:nil];
-                        [self removerWatTimer];
+                        /*
+                         EL BUCLE DEL RECIBO.
+
+                         Esta consulta pregunta por driver_id, sin id de viaje, y el servidor
+                         devuelve como pendiente el viaje completado mientras no este cobrado
+                         -- entre otras cosas porque d_is_available solo vuelve a 1 con
+                         trip_pay_status 'Paid'. Asi que el conductor cerraba el recibo, caia
+                         aqui, el sondeo veia "completed" y lo mandaba de vuelta al recibo.
+                         Una y otra vez, sin salida.
+
+                         Android no lo sufre porque al abrir el recibo hace finish() sobre esta
+                         pantalla: la destruye y no puede volver a sondear. Aqui se reconstruye
+                         y sigue viva, asi que la marca tiene que sobrevivirle. Ver
+                         ConrraViajesCerrados.
+                         */
+                        if ([ConrraViajesCerrados yaSeCerro:isEmpty(self->homeDataModel.trip.trip_Id)]) {
+                            NSLog(@"[Recibo] el viaje %@ ya lo cerro el conductor: no se reabre",
+                                  isEmpty(self->homeDataModel.trip.trip_Id));
+                            [self removerWatTimer];
+                            [self settoInitialState];
+                            [self setDriverFree];
+                        } else {
+                            [self performSegueWithIdentifier:StoryBoardUtiles.FARE_AMOUNT_VC sender:nil];
+                            [self removerWatTimer];
+                        }
                     }
                     else if ([self->homeDataModel.trip.trip_Status isEqualToString:TS_RIDER_CANCEL] || [self->homeDataModel.trip.trip_Status isEqualToString:TS_EXPIRED]||[self->homeDataModel.trip.trip_Status isEqualToString:TS_RIDER_CANCEL_CANCEL] ||[self->homeDataModel.trip.trip_Status isEqualToString:TS_DRIVER_CANCEL_AT_PICKUP]||[self->homeDataModel.trip.trip_Status isEqualToString:TS_DRIVER_CANCEL_AT_DROP] ){
                         [self handleGetPendingsErrorOrEmptyTripWithOnavailableOn];
