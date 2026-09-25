@@ -264,16 +264,27 @@
     // Called as part of the transition from the background to the active state; here you can undo many of the changes made on entering the background.
     application.applicationIconBadgeNumber =0;
     NSLog(@"*********** applicationWillEnterForeground ***********");
-    // Un viaje que no se pudo cerrar deja al PASAJERO atrapado en su recibo. Si el intento
-    // se perdio -- sin red, o la app se fue a WhatsApp en mitad de la llamada -- se reintenta
-    // aqui, que es cuando el telefono vuelve a tener a alguien delante.
-    [ConrraCierreDeViaje reintentarCierresPendientes];
+    // El reintento de los cierres pendientes NO va aqui: va en applicationDidBecomeActive,
+    // que cubre tambien el arranque en frio. Ver la nota de alli.
     [self startTimer];
 }
 
 
 - (void)applicationDidBecomeActive:(UIApplication *)application {
     NSLog(@"*********** applicationDidBecomeActive ***********");
+
+    /*
+     Un viaje que no se pudo cerrar deja al PASAJERO atrapado en su recibo, asi que el reintento
+     va en el gancho que MAS veces se dispara.
+
+     Estaba en applicationWillEnterForeground, y ese no se llama en un arranque en frio: solo al
+     volver del fondo. Con lo cual el peor caso -- el conductor termina el viaje, no contesta la
+     pregunta y mata la app -- era justo el que no se reintentaba nunca. didBecomeActive corre en
+     los dos, al arrancar y al volver.
+
+     Es idempotente: si no hay nada pendiente no hace ni una llamada.
+     */
+    [ConrraCierreDeViaje reintentarCierresPendientes];
     // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
     
 }

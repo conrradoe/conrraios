@@ -24,12 +24,20 @@ NS_ASSUME_NONNULL_BEGIN
  Asi que la pregunta vive aqui, y se hace en cuanto el conductor da el viaje por terminado --
  que es donde la hace Android -- sin depender de que despues se vea ningun recibo.
 
- LAS DOS RESPUESTAS CIERRAN. Lo que se decide es si el dinero llego, no si el viaje termino:
+ EL VIAJE SE CIERRA SIEMPRE. Lo que decide la respuesta es QUE se registra, no SI se cierra.
+ Las dos escriben trip_pay_status = Paid, que es lo que el servidor y las dos apps de Android
+ entienden por "liquidado", y se diferencian en el estado, que es donde queda el registro:
 
-     Si  -> trip_pay_status = Paid
-     No  -> trip_status = paid_cancel, que es lo que usa Android para "el pasajero no pago"
+     Si  -> trip_status = completed      el dinero llego
+     No  -> trip_status = paid_cancel    el conductor no recibio el pago
 
- En los dos casos se avisa al pasajero, porque su pantalla tampoco se entera sola.
+ Cerrar con paid_cancel A SECAS -- lo que hace Android -- NO cierra nada: cae en la rama de
+ "pago pendiente" de riderapp/utils/Utils.java:245 y el pasajero se queda en su recibo. Medido
+ en el viaje 4039, donde la peticion entro a la primera y el pasajero siguio atrapado.
+
+ Y si el conductor no contesta -- cierra la app, se va a WhatsApp --, el viaje se cierra por el
+ como NO cobrado en cuanto la app vuelve a estar activa. Un viaje terminado nunca se queda
+ abierto, porque el que lo paga es el pasajero.
 
  NO SE ESPERA RESPUESTA PARA CONTINUAR. El bloque de vuelta se llama en cuanto el conductor
  contesta, no cuando el servidor conteste. Una llamada lenta no puede dejar a nadie encerrado;
