@@ -17,6 +17,7 @@
 #import "HomeViewController.h"
 #import "ConrraViajesCerrados.h"
 #import "TripNotificationHelper.h"
+#import "ConrraCierreDeViaje.h"
 #import "StarRatingView.h"
 #import "NSString+URLEncoding.h"
 #import "FareReviewViewController.h"
@@ -50,9 +51,6 @@
     /// Para no encadenar dos cierres: la pregunta puede contestarse dos veces si el conductor
     /// toca rapido, y dos navegaciones seguidas dejan la pila rara.
     BOOL yaSeCerroElViaje;
-    /// El viaje ya se liquido (se contesto la pregunta del pago). Evita volver a preguntar
-    /// cuando se sale desde la hoja de calificacion, que tambien pasa por terminarElViaje.
-    BOOL yaSeLiquidoElViaje;
 
     UIScrollView      *_ndReceiptScroll;
     UIImageView       *_ndPassengerImg;
@@ -1536,38 +1534,19 @@
     if (yaSeCerroElViaje) {
         return;
     }
-    // Ya liquidado -- porque ya se contesto, o porque el viaje venia cobrado -- no hay nada
-    // que preguntar y se sale.
-    if (yaSeLiquidoElViaje ||
-        [self.curr_trip.trip_pay_status isEqualToString:TS_PAID] ||
-        [self.curr_trip.trip_pay_status caseInsensitiveCompare:TS_RIDER_CANCEL_CANCEL] == NSOrderedSame) {
-        [self cerrarElViajeYVolver];
-        return;
-    }
+    /*
+     Aqui ya no se decide nada: se pregunta al TERMINAR el viaje, en HomeViewController, que
+     es lo unico que no depende de que esta pantalla llegue a pintarse. Ver ConrraCierreDeViaje.
 
-    UIAlertController *alert = [UIAlertController
-        alertControllerWithTitle:@""
-                         message:[LanguageHelper getStringWithKey:@"k_19_s8_pregunta_pago"
-                                                     defaultValue:@"¿Recibiste el Pago del Pasajero?"]
-                  preferredStyle:UIAlertControllerStyleAlert];
-    [alert addAction:[UIAlertAction actionWithTitle:[LanguageHelper getStringWithKey:@"k_21_s4_yes"]
-                                              style:UIAlertActionStyleDefault
-                                            handler:^(UIAlertAction *action) {
-        self->yaSeLiquidoElViaje = YES;
-        [self->tripTransactionManager payWithCashDetectComssion];
-        // Cobrado y con calma: se ofrece calificar. Las tres salidas de esa hoja vuelven por
-        // terminarElViaje, que ya no preguntara nada y cerrara.
-        [self ndFareAceptarTapped];
-    }]];
-    [alert addAction:[UIAlertAction actionWithTitle:[LanguageHelper getStringWithKey:@"k_22_s4_no"]
-                                              style:UIAlertActionStyleDefault
-                                            handler:^(UIAlertAction *action) {
-        self->yaSeLiquidoElViaje = YES;
-        // Sin calificacion en este camino: el conductor esta resolviendo un problema de
-        // dinero, no es momento de pedirle estrellas.
-        [self abrirSoportePorPagoNoRecibidoYLuegoCerrar:YES];
-    }]];
-    [self presentViewController:alert animated:YES completion:nil];
+     Se llama igual por si el viaje llego hasta aqui sin liquidar -- por ejemplo si el recibo
+     se abrio por otro camino. Si ya esta liquidado, el metodo lo ve y sigue de largo sin
+     enseñar nada.
+     */
+    [ConrraCierreDeViaje preguntarPorElPagoDesde:self
+                                           viaje:self.curr_trip
+                                      alTerminar:^{
+        [self cerrarElViajeYVolver];
+    }];
 }
 
 // Screen 1 → X close

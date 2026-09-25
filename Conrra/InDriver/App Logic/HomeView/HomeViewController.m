@@ -56,6 +56,7 @@
 #import "ConrraVoyEnCamino.h"
 #import "ConrraSolicitudesPersistentes.h"
 #import "ConrraViajesCerrados.h"
+#import "ConrraCierreDeViaje.h"
 #import "HomeDataModel.h"
 #import "LocationDataHelper.h"
 #import "SingleRequestView.h"
@@ -3387,14 +3388,36 @@
     driverStatus = TS_END;
     defaults_set_object(DRIVER_STATUS, driverStatus);
     [self removeTripDetailsTimer];
-    
+
     _btnBeginTrip.hidden =YES;
+    TripModel *viajeQueTermina = self->homeDataModel.trip;
     [self settoInitialState];
     TotalM = 0.0;
     TotalTripDIstance =0.0;
     defaults_remove(DRIVER_STATUS_TEMP);
     defaults_remove(@"total_travelled_distance");
-    [self performSegueWithIdentifier:StoryBoardUtiles.FARE_AMOUNT_VC sender:nil];
+
+    /*
+     LA PREGUNTA DEL PAGO SE HACE AQUI, NO EN EL RECIBO.
+
+     Un viaje terminado no esta cerrado hasta que el servidor sabe si se cobro. Mientras siga
+     en "completed" sin trip_pay_status, el PASAJERO se queda mirando su recibo sin salida --
+     da igual lo bien que se porte la app del conductor. Probado con Android pidiendo y iPhone
+     conduciendo: el conductor salia y el pasajero se quedaba dentro.
+
+     Estaba atada a la pantalla del recibo, y ahi es fragil: si el recibo no aparece, o aparece
+     con los botones del diseño viejo tapados -- que es lo que pasaba --, no se pregunta nada y
+     el viaje se queda a medias. El viaje es de dos telefonos; no puede depender de que uno
+     pinte cierta pantalla.
+
+     Se pregunta al terminar, que es donde lo hace Android, y el recibo sale despues como lo
+     que es: un resumen. Ver ConrraCierreDeViaje.
+     */
+    [ConrraCierreDeViaje preguntarPorElPagoDesde:self
+                                           viaje:viajeQueTermina
+                                      alTerminar:^{
+        [self performSegueWithIdentifier:StoryBoardUtiles.FARE_AMOUNT_VC sender:nil];
+    }];
 }
 
 
