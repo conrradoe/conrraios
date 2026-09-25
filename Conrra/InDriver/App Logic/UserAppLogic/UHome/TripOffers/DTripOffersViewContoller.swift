@@ -97,6 +97,22 @@ import UIKit
         }
         
         observerOfferNotifcation = NotificationCenter.default.addObserver(forName: NSNotification.Name(rawValue: AppNotificationName.USER_OFFER_NOTIFICATION), object: nil, queue: .main) { [unowned self] notification in
+            /*
+             La lista se recarga, no solo se enseña el aviso.
+
+             Este aviso llega cuando el pasajero RECHAZA la oferta del conductor (AppDelegate,
+             rama "declined" del manejador del conductor). Antes solo salia el mensaje y la
+             oferta rechazada se quedaba en la lista hasta que picara el temporizador: el
+             conductor veia una oferta viva que ya no existia, y si la tocaba se encontraba con
+             un error del servidor.
+
+             Android quita la fila en el momento (checkAndAddOrRemoveOffer -> removeOffer) y
+             despues comprueba si hay algun viaje aceptado. Aqui se vuelve a pedir la lista
+             entera en vez de tocar el array local: el push solo trae el mensaje, no el detalle
+             de la oferta, asi que la unica fuente fiable de que sigue vivo es el servidor.
+             */
+            self.refloadData()
+
             if let userinfo = notification.userInfo as? [String:Any]{
                 if let aps = userinfo["aps"] as? [String:Any]{
                     let alertMessageText = aps["alert"] as? String ?? ""
