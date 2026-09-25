@@ -33,6 +33,8 @@
 @property(nonatomic,assign) double lat;
 @property(assign,nonatomic) double lng;
 @property(assign,nonatomic) float distance;
+/// Si la cuenta esta verificada. Se decide al parsear, con Utilities estaVerificadoElDiccionario.
+@property(assign,nonatomic) BOOL is_verified;
 
 -(instancetype)initItemWithDict:(NSDictionary *)dict;
 -(void) updateDriverRating:(float   ) rating completionBlock:(void (^)(id results, NSError *error))block  isShowLoader:(BOOL)isShowLoader;

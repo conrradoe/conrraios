@@ -86,6 +86,21 @@
  */
 +(NSString *) ultimos4DigitosDe:(NSString *) telefono;
 
+/**
+ Si la cuenta de un pasajero esta verificada, mirando su diccionario crudo.
+
+ Se miran muchos nombres de campo a proposito, igual que hace Android en la anotacion
+ @SerializedName de uIsVerified: el backend no ha sido consistente con como se llama, y
+ quedarse solo con "u_is_verified" deja la palomita apagada para cuentas que SI lo estan.
+ Tambien vale el codigo postal con "v" o "verified", que es el apaño que ya existia alli para
+ las cuentas antiguas.
+
+ Estaba escrita dentro de ULeftViewController, atada a una pantalla. La palomita sale en
+ varios sitios -- el menu, la ficha del pasajero, la tarjeta de solicitud -- y tres copias de
+ una regla asi acaban divergiendo.
+ */
++(BOOL) estaVerificadoElDiccionario:(NSDictionary *) dict;
+
 +(NSString *) formatAmountAndCurrency:(float) amount currency:(NSString *) currency;
 
 +(NSString*) formatAmount:(float) amount;

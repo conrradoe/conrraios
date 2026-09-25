@@ -354,6 +354,45 @@
     return t;
 }
 
++(BOOL) estaVerificadoElDiccionario:(NSDictionary *) dict {
+    if (![dict isKindOfClass:[NSDictionary class]]) {
+        return NO;
+    }
+    NSArray *campos = @[@"u_is_verified", @"is_verified", @"verified", @"u_verified",
+                        @"isVerified", @"is_user_verified", @"v_status", @"u_verified_status",
+                        @"verified_status", @"verify_status", @"u_verify_status",
+                        @"is_verified_passenger", @"verified_passenger",
+                        @"is_rider_verified", @"is_verified_user"];
+    NSArray *afirmativos = @[@"1", @"true", @"yes", @"y", @"verified", @"success",
+                             @"active", @"v", @"verified_passenger"];
+    for (NSString *campo in campos) {
+        id crudo = [dict objectForKey:campo];
+        if (crudo == nil) {
+            continue;
+        }
+        NSString *valor = [[NSString stringWithFormat:@"%@", crudo]
+                           stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+        // El servidor manda a veces el numero como decimal: "1.0".
+        if ([valor hasSuffix:@".0"]) {
+            valor = [valor substringToIndex:valor.length - 2];
+        }
+        for (NSString *afirmativo in afirmativos) {
+            if ([valor caseInsensitiveCompare:afirmativo] == NSOrderedSame) {
+                return YES;
+            }
+        }
+    }
+    for (NSString *campo in @[@"u_zip", @"u_zipcode"]) {
+        id crudo = [dict objectForKey:campo];
+        NSString *valor = [NSString stringWithFormat:@"%@", crudo ?: @""];
+        if ([valor caseInsensitiveCompare:@"v"] == NSOrderedSame ||
+            [valor caseInsensitiveCompare:@"verified"] == NSOrderedSame) {
+            return YES;
+        }
+    }
+    return NO;
+}
+
 +(NSString *) ultimos4DigitosDe:(NSString *) telefono {
     NSString *t = [self textoUtil:telefono];
     if (t.length < 4) {

@@ -50,6 +50,16 @@ static const float kPasoDeOfertaRapida = 0.50f;
     UIButton     *_ndOfertasRapidas[3];
     UIView       *_ndProgressFillView;
     UIButton     *_ndQuitarBtn;
+    /// Los dos rotulos sobre el mapa, como en Android: tvMapPickupBadge y tvMapTripBadge.
+    UILabel      *_ndChipRecogida;
+    UILabel      *_ndChipViaje;
+    /// El sello de verificado sobre la foto del pasajero (ivVerifiedBadge).
+    UIImageView  *_ndSelloVerificado;
+    /// "Recogida a X km de ti", debajo de la valoracion (tvDistanceToPassenger).
+    UILabel      *_ndDistanciaAlPasajero;
+    /// El tiempo junto a la direccion A y la distancia junto a la B.
+    UILabel      *_ndMinutosRecogida;
+    UILabel      *_ndKmDelViaje;
     UIButton     *_ndAceptarBtn;
     BOOL          _ndSetupDone;
 }
@@ -1424,6 +1434,23 @@ static const float kPasoDeOfertaRapida = 0.50f;
     self.mapView = _ndMapView;   // reassign IBOutlet so all existing logic targets new map
     [self addSubview:_ndMapView];
 
+    /*
+     Los dos rotulos sobre el mapa, calcados de activity_trip_request_detail.xml.
+
+       arriba a la derecha  tvMapPickupBadge  "Recogida 1 min"        fondo claro, texto verde
+       abajo a la izquierda tvMapTripBadge    "Viaje 9 min - 2.95 Km" fondo amarillo, texto oscuro
+
+     Son las dos cifras que el conductor mira antes de nada: cuanto tarda en llegar a
+     recogerlo y cuanto dura el viaje. Sin ellas hay que leerse la tarjeta entera para saber
+     si el viaje compensa.
+     */
+    _ndChipRecogida = [self ndChipConFondo:[UIColor whiteColor]
+                                     texto:[UIColor colorWithRed:0.13f green:0.65f blue:0.30f alpha:1.0f]];
+    _ndChipViaje = [self ndChipConFondo:[UIColor colorWithRed:0.98f green:0.75f blue:0.10f alpha:1.0f]
+                                  texto:[UIColor colorWithRed:0.12f green:0.12f blue:0.12f alpha:1.0f]];
+    [_ndMapView addSubview:_ndChipRecogida];
+    [_ndMapView addSubview:_ndChipViaje];
+
     // Driver pin on new map
     AppDelegate *appDel = APP_DELEGATE;
     driverPin = [[MKPointAnnotation alloc] init];
@@ -1506,7 +1533,9 @@ static const float kPasoDeOfertaRapida = 0.50f;
     CGFloat y = tagsOverlap + sp;   // leave room for the tags card overlap
 
     // Rider card
-    CGFloat riderH = 78.0f;
+    // 96 en vez de 78: el renglon de "Recogida a X km de ti" necesita sitio propio, como en
+    // Android, en vez de ir apretado en la misma linea que las estrellas.
+    CGFloat riderH = 96.0f;
     UIView *riderCard = [self ndMakeCard:CGRectMake(mx, y, cw, riderH)];
     [sheet addSubview:riderCard];
 
@@ -1527,13 +1556,53 @@ static const float kPasoDeOfertaRapida = 0.50f;
     _ndRiderRatingLbl.textColor = [UIColor colorWithRed:0.5f green:0.5f blue:0.5f alpha:1.0f];
     [riderCard addSubview:_ndRiderRatingLbl];
 
-    _ndFareLbl = [[UILabel alloc] initWithFrame:CGRectMake(cw - 82, 10, 76, 58)];
+    _ndFareLbl = [[UILabel alloc] initWithFrame:CGRectMake(cw - 82, 10, 76, 48)];
     _ndFareLbl.font = [UIFont fontWithName:@"NotoSans-Bold" size:20] ?: [UIFont boldSystemFontOfSize:20];
     _ndFareLbl.textColor = [UIColor colorWithRed:0.1f green:0.1f blue:0.1f alpha:1.0f];
     _ndFareLbl.textAlignment = NSTextAlignmentRight;
     _ndFareLbl.adjustsFontSizeToFitWidth = YES;
     _ndFareLbl.minimumScaleFactor = 0.7f;
     [riderCard addSubview:_ndFareLbl];
+
+    /*
+     El sello de verificado sobre la foto, como ivVerifiedBadge en Android.
+
+     Va DELANTE de la foto a proposito: en Android tuvieron que llamar a bringToFront() dos
+     veces porque se les quedaba detras. Aqui se añade despues del avatar, que consigue lo
+     mismo sin depender del orden de nadie.
+     */
+    CGRect marcoAvatar = _ndRiderAvatar.frame;
+    CGFloat ladoSello = 20.0f;
+    _ndSelloVerificado = [[UIImageView alloc] initWithFrame:CGRectMake(
+        CGRectGetMaxX(marcoAvatar) - ladoSello + 2,
+        CGRectGetMaxY(marcoAvatar) - ladoSello + 2,
+        ladoSello, ladoSello)];
+    _ndSelloVerificado.contentMode = UIViewContentModeScaleAspectFit;
+    if (@available(iOS 13.0, *)) {
+        _ndSelloVerificado.image = [[UIImage systemImageNamed:@"checkmark.seal.fill"]
+                                    imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+        _ndSelloVerificado.tintColor = [UIColor colorWithRed:0.11f green:0.51f blue:0.95f alpha:1.0f];
+    }
+    _ndSelloVerificado.hidden = YES;
+    [riderCard addSubview:_ndSelloVerificado];
+
+    /*
+     "Recogida a X km de ti", en verde y debajo de la valoracion (tvDistanceToPassenger).
+
+     Es la cifra que decide si el conductor acepta. Iba metida en la misma linea que las
+     estrellas, apretada entre otras dos cosas; en Android tiene su propio renglon y su color,
+     porque es lo que se busca con la mirada.
+     */
+    _ndDistanciaAlPasajero = [[UILabel alloc] initWithFrame:CGRectMake(
+        CGRectGetMinX(_ndRiderRatingLbl.frame),
+        CGRectGetMaxY(_ndRiderRatingLbl.frame) + 2,
+        CGRectGetWidth(_ndRiderRatingLbl.frame), 18)];
+    _ndDistanciaAlPasajero.font = [UIFont fontWithName:@"NotoSans-Bold" size:13] ?: [UIFont boldSystemFontOfSize:13];
+    _ndDistanciaAlPasajero.textColor = [UIColor colorWithRed:0.13f green:0.65f blue:0.30f alpha:1.0f];
+    _ndDistanciaAlPasajero.adjustsFontSizeToFitWidth = YES;
+    _ndDistanciaAlPasajero.minimumScaleFactor = 0.8f;
+    [riderCard addSubview:_ndDistanciaAlPasajero];
+
     y += riderH + sp;
 
     // Route card
@@ -1567,7 +1636,33 @@ static const float kPasoDeOfertaRapida = 0.50f;
     dash.path = bp.CGPath;
     [routeCard.layer addSublayer:dash];
 
-    CGFloat textX = dotX + dotSz + 8.0f, textW = cw - textX - 10.0f;
+    /*
+     El hueco de la derecha para las dos cifras sueltas, como en Android:
+
+        A  Paradise Towers, Av. 5C Nte...        1 min     <- tvPickupEta
+        B  Esquina de Via Brasil y Via Espa...   2.95 Km   <- tvDropDistance
+
+     Estan ademas de los chips del mapa a proposito: ahi se leen junto a la direccion a la que
+     corresponden, que es como se comprueba que el viaje cuadra.
+     */
+    CGFloat anchoCifra = 62.0f;
+    CGFloat textX = dotX + dotSz + 8.0f, textW = cw - textX - 10.0f - anchoCifra;
+
+    _ndMinutosRecogida = [[UILabel alloc] initWithFrame:CGRectMake(cw - 10 - anchoCifra, row1CY - 9, anchoCifra, 18)];
+    _ndMinutosRecogida.font = [UIFont fontWithName:@"NotoSans-Regular" size:12] ?: [UIFont systemFontOfSize:12];
+    _ndMinutosRecogida.textColor = [UIColor colorWithRed:0.45f green:0.45f blue:0.45f alpha:1.0f];
+    _ndMinutosRecogida.textAlignment = NSTextAlignmentRight;
+    _ndMinutosRecogida.adjustsFontSizeToFitWidth = YES;
+    _ndMinutosRecogida.minimumScaleFactor = 0.8f;
+    [routeCard addSubview:_ndMinutosRecogida];
+
+    _ndKmDelViaje = [[UILabel alloc] initWithFrame:CGRectMake(cw - 10 - anchoCifra, row2CY - 9, anchoCifra, 18)];
+    _ndKmDelViaje.font = [UIFont fontWithName:@"NotoSans-Regular" size:12] ?: [UIFont systemFontOfSize:12];
+    _ndKmDelViaje.textColor = [UIColor colorWithRed:0.45f green:0.45f blue:0.45f alpha:1.0f];
+    _ndKmDelViaje.textAlignment = NSTextAlignmentRight;
+    _ndKmDelViaje.adjustsFontSizeToFitWidth = YES;
+    _ndKmDelViaje.minimumScaleFactor = 0.8f;
+    [routeCard addSubview:_ndKmDelViaje];
 
     _ndPickupPrimaryLbl = [[UILabel alloc] initWithFrame:CGRectMake(textX, row1CY - 20, textW, 20)];
     _ndPickupPrimaryLbl.font = [UIFont fontWithName:@"NotoSans-Bold" size:14] ?: [UIFont boldSystemFontOfSize:14];
@@ -1756,45 +1851,72 @@ static const float kPasoDeOfertaRapida = 0.50f;
                 [ratingStr appendAttributedString:[NSAttributedString attributedStringWithAttachment:attach]];
                 [ratingStr appendAttributedString:[[NSAttributedString alloc] initWithString:@" "]];
             }
-            /*
-             LAS DOS DISTANCIAS, y cada una diciendo de que es.
-
-             Esta tarjeta es donde el conductor decide si acepta, y solo enseñaba la longitud
-             del VIAJE. Lo que no estaba en ninguna parte era lo primero que uno mira: cuanto
-             hay que conducir para llegar a recogerlo. Un viaje de 12 km puede ser bueno o
-             ruinoso segun si la recogida esta a 2 o a 9.
-
-             La de recogida va por carretera (ConrraRutaDeRecogida); la del viaje ya venia asi
-             del servidor. Las dos en la misma unidad y medidas igual.
-             */
-            NSString *recogida = [ConrraRutaDeRecogida textoDesde:[APP_DELEGATE currLoc].coordinate
-                                                            hasta:CLLocationCoordinate2DMake([self.trip.trip_pick_lat doubleValue],
-                                                                                             [self.trip.trip_pick_long doubleValue])
-                                                          prefijo:[LanguageHelper getStringWithKey:@"k_s10_recogida_a" defaultValue:@"Recogida a"]];
-            NSString *delViaje = [NSString stringWithFormat:@"%@ %@ %@",
-                                  [LanguageHelper getStringWithKey:@"k_s10_viaje_de" defaultValue:@"Viaje de"],
-                                  [Utilities formatDistance:[self.trip.trip_distance floatValue]],
-                                  isEmpty(city.city_dist_unit)];
-            NSString *ratingText = recogida.length > 0
-                ? [NSString stringWithFormat:@"%.1f (%d)  ·  %@  ·  %@",
-                   user.rating, user.rating_count, recogida, delViaje]
-                : [NSString stringWithFormat:@"%.1f (%d)  ·  %@",
-                   user.rating, user.rating_count, delViaje];
+            // Solo la valoracion, como tvPassengerRating en Android: "5,0 (5)". Las distancias
+            // tienen sus propios sitios -- el renglon verde y las cifras junto a cada
+            // direccion -- en vez de ir todas apretadas en esta linea.
+            NSString *ratingText = [NSString stringWithFormat:@"%.1f (%d)",
+                                    user.rating, user.rating_count];
             [ratingStr appendAttributedString:[[NSAttributedString alloc] initWithString:ratingText attributes:@{NSFontAttributeName: _ndRiderRatingLbl.font, NSForegroundColorAttributeName: _ndRiderRatingLbl.textColor}]];
             _ndRiderRatingLbl.attributedText = ratingStr;
         } else {
-            NSString *recogidaSinUsuario = [ConrraRutaDeRecogida textoDesde:[APP_DELEGATE currLoc].coordinate
-                                                                       hasta:CLLocationCoordinate2DMake([self.trip.trip_pick_lat doubleValue],
-                                                                                                        [self.trip.trip_pick_long doubleValue])
-                                                                     prefijo:[LanguageHelper getStringWithKey:@"k_s10_recogida_a" defaultValue:@"Recogida a"]];
-            NSString *delViajeSinUsuario = [NSString stringWithFormat:@"%@ %@ %@",
-                                            [LanguageHelper getStringWithKey:@"k_s10_viaje_de" defaultValue:@"Viaje de"],
-                                            [Utilities formatDistance:[self.trip.trip_distance floatValue]],
-                                            isEmpty(city.city_dist_unit)];
-            _ndRiderRatingLbl.text = recogidaSinUsuario.length > 0
-                ? [NSString stringWithFormat:@"%@  ·  %@", recogidaSinUsuario, delViajeSinUsuario]
-                : delViajeSinUsuario;
+            _ndRiderRatingLbl.text = @"";
         }
+
+        /*
+         Las distancias, con las MISMAS formulas que Android (TripRequestActivity.setTripDetails):
+
+           tvDistanceToPassenger  "Recogida a %.1f km de ti"   o "Recogida muy cerca de ti"
+           tvPickupEta            "%d min"                      con min = redondeo(km x 3)
+           tvMapPickupBadge       "Recogida %d min"
+           tvDropDistance         "%s Km"                       la distancia del viaje, del servidor
+           tvMapTripBadge         "Viaje %d min - %s Km"
+
+         Los tres minutos por kilometro no son una estimacion fina, pero son los MISMOS en las
+         dos apps: para comparar vale mas eso que acertar en una sola.
+         */
+        CLLocationCoordinate2D dondeEstoy = [APP_DELEGATE currLoc].coordinate;
+        CLLocationCoordinate2D laRecogida = CLLocationCoordinate2DMake([self.trip.trip_pick_lat doubleValue],
+                                                                      [self.trip.trip_pick_long doubleValue]);
+        ConrraMedidaDeRuta *medida = [ConrraRutaDeRecogida consultarDesde:dondeEstoy hasta:laRecogida];
+        double kmRecogida = -1;
+        if (medida != nil) {
+            kmRecogida = medida.km;
+        } else if (CLLocationCoordinate2DIsValid(dondeEstoy) && CLLocationCoordinate2DIsValid(laRecogida) &&
+                   !(laRecogida.latitude == 0 && laRecogida.longitude == 0)) {
+            CLLocation *a = [[CLLocation alloc] initWithLatitude:dondeEstoy.latitude longitude:dondeEstoy.longitude];
+            CLLocation *b = [[CLLocation alloc] initWithLatitude:laRecogida.latitude longitude:laRecogida.longitude];
+            kmRecogida = [a distanceFromLocation:b] / 1000.0;
+        }
+
+        if (kmRecogida >= 0) {
+            NSInteger minutos = medida != nil ? medida.minutos : [self ndMinutosPara:kmRecogida];
+            _ndDistanciaAlPasajero.text = [NSString stringWithFormat:@"Recogida a %.1f km de ti", kmRecogida];
+            _ndMinutosRecogida.text = [NSString stringWithFormat:@"%ld min", (long)minutos];
+            [self ndColocarChip:_ndChipRecogida
+                          texto:[NSString stringWithFormat:@"Recogida %ld min", (long)minutos]
+                     aLaDerecha:YES arriba:YES];
+        } else {
+            // Android dice esto mismo cuando no puede medir: es mas util que un hueco en blanco.
+            _ndDistanciaAlPasajero.text = @"Recogida muy cerca de ti";
+            _ndMinutosRecogida.text = @"";
+            _ndChipRecogida.hidden = YES;
+        }
+
+        NSString *kmViaje = [isEmpty(self.trip.trip_distance) stringByTrimmingCharactersInSet:
+                             [NSCharacterSet whitespaceAndNewlineCharacterSet]];
+        if (kmViaje.length > 0 && [kmViaje caseInsensitiveCompare:@"null"] != NSOrderedSame) {
+            _ndKmDelViaje.text = [NSString stringWithFormat:@"%@ Km", kmViaje];
+            NSInteger minViaje = [self ndMinutosPara:[kmViaje doubleValue]];
+            [self ndColocarChip:_ndChipViaje
+                          texto:[NSString stringWithFormat:@"Viaje %ld min - %@ Km", (long)minViaje, kmViaje]
+                     aLaDerecha:NO arriba:NO];
+        } else {
+            _ndKmDelViaje.text = @"";
+            _ndChipViaje.hidden = YES;
+        }
+
+        // El sello azul solo si el pasajero esta verificado, como ivVerifiedBadge.
+        _ndSelloVerificado.hidden = !user.is_verified;
 
         if (user.u_profile_image_path.length > 0) {
             NSURL *url = [NSURL URLWithString:user.u_profile_image_path];
@@ -1841,6 +1963,55 @@ static const float kPasoDeOfertaRapida = 0.50f;
     return @[addr, @""];
 }
 
+/** Un rotulo flotante sobre el mapa, con el mismo relleno que el de Android (14 x 10). */
+- (UILabel *)ndChipConFondo:(UIColor *)fondo texto:(UIColor *)colorTexto {
+    UILabel *chip = [[UILabel alloc] initWithFrame:CGRectZero];
+    chip.backgroundColor = fondo;
+    chip.textColor = colorTexto;
+    chip.font = [UIFont fontWithName:@"NotoSans-Bold" size:13] ?: [UIFont boldSystemFontOfSize:13];
+    chip.textAlignment = NSTextAlignmentCenter;
+    chip.layer.cornerRadius = 16;
+    chip.clipsToBounds = YES;
+    chip.layer.shadowColor = [UIColor blackColor].CGColor;
+    chip.layer.shadowOpacity = 0.12f;
+    chip.layer.shadowOffset = CGSizeMake(0, 1);
+    chip.layer.shadowRadius = 3;
+    chip.hidden = YES;
+    return chip;
+}
+
+/** Coloca un chip con su ancho justo, dentro del mapa. */
+- (void)ndColocarChip:(UILabel *)chip texto:(NSString *)texto aLaDerecha:(BOOL)aLaDerecha arriba:(BOOL)arriba {
+    if (chip == nil) {
+        return;
+    }
+    if (texto.length == 0) {
+        chip.hidden = YES;
+        return;
+    }
+    chip.text = texto;
+    chip.hidden = NO;
+    CGSize medida = [chip sizeThatFits:CGSizeMake(CGRectGetWidth(_ndMapView.bounds) - 32, 40)];
+    CGFloat ancho = MIN(medida.width + 28, CGRectGetWidth(_ndMapView.bounds) - 32);
+    CGFloat alto = 34;
+    CGFloat x = aLaDerecha ? (CGRectGetWidth(_ndMapView.bounds) - 12 - ancho) : 12;
+    CGFloat y = arriba ? 12 : (CGRectGetHeight(_ndMapView.bounds) - 12 - alto);
+    chip.frame = CGRectMake(x, y, ancho, alto);
+    [_ndMapView bringSubviewToFront:chip];
+}
+
+/**
+ Los minutos que se tarda en recorrer unos kilometros en ciudad.
+
+ Tres por kilometro, que es el mismo criterio que usa Android en las dos cifras de esta
+ pantalla. No es una estimacion fina, pero es la MISMA en las dos apps, que para comparar
+ vale mas que ser preciso en una sola.
+ */
+- (NSInteger)ndMinutosPara:(double)km {
+    NSInteger minutos = (NSInteger)round(km * 3.0);
+    return minutos < 1 ? 1 : minutos;
+}
+
 - (void)ndBuildTags {
     for (UIView *v in _ndTagsCard.subviews) [v removeFromSuperview];
 
@@ -1851,9 +2022,52 @@ static const float kPasoDeOfertaRapida = 0.50f;
         // Format: "PaymentMethod|PetOrDelivery|N Pasajero(s)|Time"
         NSArray<NSString *> *parts = [notes componentsSeparatedByString:@"|"];
 
-        // Part 0: payment method → always "Paga en Efectivo"
-        if (parts.count > 0 && [parts[0] stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceCharacterSet].length > 0)
-            [tags addObject:@{@"imageName": @"ic_trip_cash", @"text": @"Paga en Efectivo"}];
+        /*
+         El metodo de pago, LEIDO de verdad.
+
+         Aqui estaba clavado en "Paga en Efectivo" pasara lo que pasara: un viaje con billetera
+         o con pago movil le decia al conductor que iba a cobrar en mano. Android lee esa misma
+         parte y reparte (TripRequestActivity, sobre la linea 855), asi que en la misma
+         solicitud una app decia una cosa y la otra, otra.
+
+         Y si el metodo trae detalles entre corchetes -- "Cash [tengo 20$]" -- salen en su
+         propia etiqueta, como tvCashDetailsBadge.
+         */
+        if (parts.count > 0) {
+            NSString *modo = [parts[0] stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+            if (modo.length > 0) {
+                NSString *soloModo = modo;
+                NSString *detalles = @"";
+                NSRange abre = [modo rangeOfString:@"["];
+                NSRange cierra = [modo rangeOfString:@"]" options:NSBackwardsSearch];
+                if (abre.location != NSNotFound && cierra.location != NSNotFound && cierra.location > abre.location) {
+                    detalles = [modo substringWithRange:NSMakeRange(abre.location + 1,
+                                                                    cierra.location - abre.location - 1)];
+                    soloModo = [[modo substringToIndex:abre.location]
+                                stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+                }
+                NSString *texto;
+                NSString *icono = @"ic_trip_cash";
+                if ([soloModo rangeOfString:@"Cash" options:NSCaseInsensitiveSearch].location != NSNotFound ||
+                    [soloModo rangeOfString:@"fectivo" options:NSCaseInsensitiveSearch].location != NSNotFound) {
+                    texto = [LanguageHelper getStringWithKey:@"k_r39_s9_cash" defaultValue:@"Paga en Efectivo"];
+                } else if ([soloModo rangeOfString:@"Movil" options:NSCaseInsensitiveSearch].location != NSNotFound ||
+                           [soloModo rangeOfString:@"Móvil" options:NSCaseInsensitiveSearch].location != NSNotFound) {
+                    texto = @"Pago Movil";
+                    icono = @"ic_trip_person";
+                } else if ([soloModo rangeOfString:@"Wallet" options:NSCaseInsensitiveSearch].location != NSNotFound ||
+                           [soloModo rangeOfString:@"illetera" options:NSCaseInsensitiveSearch].location != NSNotFound) {
+                    texto = @"Paga con Wallet";
+                    icono = @"ic_trip_person";
+                } else {
+                    texto = soloModo;
+                }
+                [tags addObject:@{@"imageName": icono, @"text": texto}];
+                if (detalles.length > 0) {
+                    [tags addObject:@{@"imageName": @"ic_trip_cash", @"text": detalles}];
+                }
+            }
+        }
 
         // Part 1: pet or delivery (skip if unrecognised)
         if (parts.count > 1) {
@@ -1867,10 +2081,11 @@ static const float kPasoDeOfertaRapida = 0.50f;
         // Part 2: passenger count — extract the number, drop the word
         if (parts.count > 2) {
             NSString *pax = [parts[2] stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceCharacterSet];
-            int count = [pax intValue]; // "1 Pasajero" → 1, "3 Pasajeros" → 3
-            if (count > 0) {
-                [tags addObject:@{@"imageName": @"ic_trip_person",
-                                  @"text": [NSString stringWithFormat:@"%d Persona%@", count, count == 1 ? @"" : @"s"]}];
+            // El texto tal cual lo manda el servidor -- "1 Pasajero(s)" -- que es lo que pinta
+            // tvPassengersBadge en Android. Reescribirlo a "1 Persona" hacia que la misma
+            // solicitud se leyera distinta en cada telefono.
+            if (pax.length > 0 && [pax intValue] > 0) {
+                [tags addObject:@{@"imageName": @"ic_trip_person", @"text": pax}];
             }
         }
     } else {

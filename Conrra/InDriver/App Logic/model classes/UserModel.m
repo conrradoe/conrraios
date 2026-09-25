@@ -7,6 +7,7 @@
 //
 
 #import "UserModel.h"
+#import "Utilities.h"
 #import "WebCallConstants.h"
 #import <GIKit/GIKit.h>
 @implementation UserModel
@@ -17,6 +18,7 @@
         
         self.userId=[[dict objectForKey:@"user_id"] intValue];
         self.u_name=[dict objectForKey:@"u_name"];
+        self.is_verified=[Utilities estaVerificadoElDiccionario:dict];
         self.u_fname=[dict objectForKey:@"u_fname"];
         self.u_lname=[dict objectForKey:@"u_lname"];
         self.u_phone=[dict objectForKey:@"u_phone"];
