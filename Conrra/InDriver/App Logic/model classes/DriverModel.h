@@ -43,6 +43,9 @@
 @property (strong,nonatomic) NSString *car_model;
 @property (strong,nonatomic) NSString *car_name;
 @property (strong,nonatomic) NSString *car_make;
+/// El color del coche. Es lo que permite reconocerlo desde la acera, y Android ya lo usa
+/// en el aviso de "voy en camino" y en la ficha de la oferta. Columna cars.car_color.
+@property (strong,nonatomic) NSString *car_color;
 @property (strong,nonatomic) NSString *d_lang;
 
 @property (strong,nonatomic) NSString *d_is_available;

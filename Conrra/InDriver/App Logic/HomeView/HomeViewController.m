@@ -53,6 +53,7 @@
 #import "DataUploadHelper.h"
 #import "FirebaseUnReadChat.h"
 #import "ConrraRadioDeReparto.h"
+#import "ConrraVoyEnCamino.h"
 #import "HomeDataModel.h"
 #import "LocationDataHelper.h"
 #import "SingleRequestView.h"
@@ -450,15 +451,33 @@
      El camino del sondeo -- cuando el TS_ARRIVE llega del servidor -- siempre lo tuvo bien.
      Esto lo iguala.
      */
+    /*
+     Tres rotulos, uno por paso, como updateTripStatusUI en Android:
+
+       arrive                    -> "Recoger Cliente"
+       accept + ya aviso         -> "He llegado!"
+       accept                    -> "Voy en camino!"
+
+     El del medio sale de la marca del aviso, no del estado del viaje, porque el paso "voy en
+     camino" a proposito NO cambia el estado: si se leyera de ahi, el boton volveria al
+     principio en el primer refresco de textos.
+     */
+    NSString *idDelViajeEnCurso = isEmpty(self->homeDataModel.trip.trip_Id);
     if([self->homeDataModel.trip.trip_Status isEqualToString:TS_ARRIVE]){
-        [self.btnGoPopUP setTitle:[LanguageHelper getStringWithKey:@"k_19_s4_arrived" defaultValue:@"He llegado!"] forState:UIControlStateNormal];
+        [self.btnGoPopUP setTitle:[LanguageHelper getStringWithKey:@"k_20_s4_pick" defaultValue:@"Recoger Cliente"] forState:UIControlStateNormal];
+        [self.btnGoPopUP setImage:nil forState:UIControlStateNormal];
+        self.btnGoPopUP.semanticContentAttribute = UISemanticContentAttributeUnspecified;
+    }else if([ConrraVoyEnCamino yaAvisoEnElViaje:idDelViajeEnCurso]){
+        // La clave y el texto son los de Android (k_driver_arrived): "Estoy llegando!", no
+        // "He llegado!". Es el boton que se pulsa AL llegar, no despues.
+        [self.btnGoPopUP setTitle:[LanguageHelper getStringWithKey:@"k_driver_arrived" defaultValue:@"Estoy llegando!"] forState:UIControlStateNormal];
         UIImage *msgIcon = [UIImage imageNamed:@"ic_message_bubble"];
         if (msgIcon) {
             [self.btnGoPopUP setImage:[msgIcon imageWithRenderingMode:UIImageRenderingModeAlwaysOriginal] forState:UIControlStateNormal];
             self.btnGoPopUP.semanticContentAttribute = UISemanticContentAttributeForceRightToLeft;
         }
     }else{
-        [self.btnGoPopUP setTitle:[LanguageHelper getStringWithKey:@"k_20_s4_pick" defaultValue:@"Voy en camino!"] forState:UIControlStateNormal];
+        [self.btnGoPopUP setTitle:[LanguageHelper getStringWithKey:@"k_driver_on_the_way" defaultValue:@"Voy en camino!"] forState:UIControlStateNormal];
         [self.btnGoPopUP setImage:nil forState:UIControlStateNormal];
         self.btnGoPopUP.semanticContentAttribute = UISemanticContentAttributeUnspecified;
     }
@@ -1280,7 +1299,11 @@
 
 
 -(void)settoInitialState{
-    
+
+    // La marca del aviso se guarda por viaje, asi que no se arrastra al siguiente. Se borra
+    // igual al cerrar, para no dejar una clave por cada viaje en los defaults.
+    [ConrraVoyEnCamino olvidarElViaje:isEmpty(homeDataModel.trip.trip_Id)];
+
     ispickFirst =NO;
     [self removeTripDetailsTimer];
     [self stopMusic];
@@ -1294,7 +1317,7 @@
     [_btnDecline setTitle:str1 forState:UIControlStateNormal];
     NSString *str2 = [LanguageHelper getStringWithKey:@"k_31_s4_begin_ride"];
     [_btnBeginTrip setTitle:str2 forState:UIControlStateNormal];
-    [self.btnGoPopUP setTitle:[LanguageHelper getStringWithKey:@"k_20_s4_pick" defaultValue:@"Voy en camino!"] forState:UIControlStateNormal];
+    [self.btnGoPopUP setTitle:[LanguageHelper getStringWithKey:@"k_driver_on_the_way" defaultValue:@"Voy en camino!"] forState:UIControlStateNormal];
     [self.btnGoPopUP setImage:nil forState:UIControlStateNormal];
     self.btnGoPopUP.semanticContentAttribute = UISemanticContentAttributeUnspecified;
 }
@@ -3160,17 +3183,43 @@
 
 
 
+/**
+ El boton del ciclo, con los tres pasos que tiene Android.
+
+ ANTES ERAN DOS Y EL PRIMERO SOBRABA UN PASO. El primer toque llamaba ya a
+ updateTripStatus:TS_ARRIVE, asi que el conductor decia "voy en camino" y al pasajero le
+ constaba que YA HABIA LLEGADO -- con su sonido de cab_arrive -- cuando el coche acababa de
+ arrancar. No era el rotulo: era el estado del viaje, adelantado.
+
+ Ahora, igual que fullButtonClickListener en SlideMainActivity:
+
+   1. "Voy en camino!"  el estado NO se toca. Se avisa al pasajero (push + mensaje de chat
+                        con el coche y la placa) y el boton pasa al paso siguiente.
+   2. "He llegado!"     updateTripStatus:TS_ARRIVE, que es cuando el viaje avanza de verdad.
+   3. "Recoger Cliente" handlePick, con el OTP si esta activado.
+
+ El paso 1 se reconoce por su marca, guardada por viaje: sin ella el boton volveria al
+ principio en cuanto la pantalla se reconstruyera, que es el sintoma que ya se corrigio una
+ vez por el lado del rotulo.
+ */
 - (IBAction)ButtonGoPressed:(UIButton *)sender {
     NSString *localTripStatus = defaults_object(DRIVER_STATUS_TEMP);
     BOOL isPickedUp = (localTripStatus != nil && [localTripStatus isEqualToString:TS_PICKED]);
-    // Also handle the second tap after server confirmed TS_ARRIVE (driverStatus == TS_ARRIVE)
-    BOOL hasArrived = [driverStatus isEqualToString:TS_ARRIVE];
+    BOOL hasArrived = [driverStatus isEqualToString:TS_ARRIVE] ||
+                      [homeDataModel.trip.trip_Status isEqualToString:TS_ARRIVE];
     if (isPickedUp || hasArrived) {
         [self removerWatTimer];
         [self handlePick];
-    } else {
-        [self updateTripStatus:TS_ARRIVE];
+        return;
     }
+
+    NSString *tripId = isEmpty(homeDataModel.trip.trip_Id);
+    if (![ConrraVoyEnCamino yaAvisoEnElViaje:tripId]) {
+        [ConrraVoyEnCamino avisarDesdeElViaje:homeDataModel.trip];
+        [self setUIFiels];
+        return;
+    }
+    [self updateTripStatus:TS_ARRIVE];
 }
 
 

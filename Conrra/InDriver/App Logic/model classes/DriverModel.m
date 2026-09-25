@@ -67,7 +67,8 @@
         self.d_profile_image_path=[dict objectForKey:@"d_profile_image_path"];
         self.d_car_image_path=[dict objectForKey:@"d_car_image_path"];
         self.car_model=[dict objectForKey:@"car_model"];
-        self.car_name =[dict objectForKey:@"car_name"]; 
+        self.car_name =[dict objectForKey:@"car_name"];
+        self.car_color =[dict objectForKey:@"car_color"]; 
     }
     return self;
 }
