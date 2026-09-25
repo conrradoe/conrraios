@@ -86,6 +86,7 @@
 		D357A9A127F2F66C0086E2D4 /* UHomeViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = D357A84127F2F66C0086E2D4 /* UHomeViewController.m */; };
 		D357A9A327F2F66C0086E2D4 /* SettingViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = D357A84727F2F66C0086E2D4 /* SettingViewController.m */; };
 		A545707674534C17ADC589BC /* ConrraRadioDeReparto.m in Sources */ = {isa = PBXBuildFile; fileRef = 4E9C230850C341A1963B848E /* ConrraRadioDeReparto.m */; };
+		B2F527D8035647BB99015CC5 /* ConrraRutaDeRecogida.m in Sources */ = {isa = PBXBuildFile; fileRef = A3120A42ABE24982ADED8477 /* ConrraRutaDeRecogida.m */; };
 		AB39D1C648EE4CBA921C540A /* ConrraCierreDeViaje.m in Sources */ = {isa = PBXBuildFile; fileRef = 00BBC96CA4E9477C9FC3A5B5 /* ConrraCierreDeViaje.m */; };
 		3077662B8C5E4C258A7C14DD /* ConrraViajesCerrados.m in Sources */ = {isa = PBXBuildFile; fileRef = D060E10145A54091AF049F68 /* ConrraViajesCerrados.m */; };
 		1C170642FA924207958E856D /* ConrraSolicitudesPersistentes.m in Sources */ = {isa = PBXBuildFile; fileRef = 614CD1ED992B48F9B47B764A /* ConrraSolicitudesPersistentes.m */; };
@@ -646,6 +647,8 @@
 		D357A84727F2F66C0086E2D4 /* SettingViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SettingViewController.m; sourceTree = "<group>"; };
 		B97A491D80084AB39C99FCB8 /* ConrraRadioDeReparto.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraRadioDeReparto.h; sourceTree = "<group>"; };
 		4E9C230850C341A1963B848E /* ConrraRadioDeReparto.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraRadioDeReparto.m; sourceTree = "<group>"; };
+		E2991250AEAC4F26A0D3F9A6 /* ConrraRutaDeRecogida.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraRutaDeRecogida.h; sourceTree = "<group>"; };
+		A3120A42ABE24982ADED8477 /* ConrraRutaDeRecogida.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraRutaDeRecogida.m; sourceTree = "<group>"; };
 		5C876652F2C148C1BEC7AAB3 /* ConrraCierreDeViaje.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraCierreDeViaje.h; sourceTree = "<group>"; };
 		00BBC96CA4E9477C9FC3A5B5 /* ConrraCierreDeViaje.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraCierreDeViaje.m; sourceTree = "<group>"; };
 		DAA46713304A43C09D2DE407 /* ConrraViajesCerrados.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraViajesCerrados.h; sourceTree = "<group>"; };
@@ -2009,6 +2012,8 @@
 			children = (
 				B97A491D80084AB39C99FCB8 /* ConrraRadioDeReparto.h */,
 				4E9C230850C341A1963B848E /* ConrraRadioDeReparto.m */,
+				E2991250AEAC4F26A0D3F9A6 /* ConrraRutaDeRecogida.h */,
+				A3120A42ABE24982ADED8477 /* ConrraRutaDeRecogida.m */,
 				5C876652F2C148C1BEC7AAB3 /* ConrraCierreDeViaje.h */,
 				00BBC96CA4E9477C9FC3A5B5 /* ConrraCierreDeViaje.m */,
 				DAA46713304A43C09D2DE407 /* ConrraViajesCerrados.h */,
@@ -3773,6 +3778,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A545707674534C17ADC589BC /* ConrraRadioDeReparto.m in Sources */,
+				B2F527D8035647BB99015CC5 /* ConrraRutaDeRecogida.m in Sources */,
 				AB39D1C648EE4CBA921C540A /* ConrraCierreDeViaje.m in Sources */,
 				3077662B8C5E4C258A7C14DD /* ConrraViajesCerrados.m in Sources */,
 				1C170642FA924207958E856D /* ConrraSolicitudesPersistentes.m in Sources */,

@@ -19,6 +19,7 @@
 #import "DataBase.h"
 #import <Conrra-Swift.h>
 #import "TripNotificationHelper.h"
+#import "ConrraRutaDeRecogida.h"
 #import "SentOfferDetailsViewController.h"
 #import "UIView+UpdateAutoLayoutConstraints.h"
 
@@ -62,6 +63,12 @@ static const float kPasoDeOfertaRapida = 0.50f;
 */
 -(void)awakeFromNib{
     [super awakeFromNib];
+    // La distancia por carretera llega despues de pintar: cuando llegue, se repinta la cifra.
+    // Sin esto la tarjeta se quedaria con la linea recta hasta el siguiente refresco.
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(ndRefreshUI)
+                                                 name:ConrraRutaDeRecogidaActualizada
+                                               object:nil];
     [self.viewTripInfo.layer setCornerRadius:15];
     [self.viewTripInfo setClipsToBounds:YES];
     [self.viewTripFare.layer setCornerRadius:15];
@@ -1749,16 +1756,44 @@ static const float kPasoDeOfertaRapida = 0.50f;
                 [ratingStr appendAttributedString:[NSAttributedString attributedStringWithAttachment:attach]];
                 [ratingStr appendAttributedString:[[NSAttributedString alloc] initWithString:@" "]];
             }
-            NSString *ratingText = [NSString stringWithFormat:@"%.1f (%d)  ·  %@ %@",
-                                    user.rating, user.rating_count,
-                                    [Utilities formatDistance:[self.trip.trip_distance floatValue]],
-                                    isEmpty(city.city_dist_unit)];
+            /*
+             LAS DOS DISTANCIAS, y cada una diciendo de que es.
+
+             Esta tarjeta es donde el conductor decide si acepta, y solo enseñaba la longitud
+             del VIAJE. Lo que no estaba en ninguna parte era lo primero que uno mira: cuanto
+             hay que conducir para llegar a recogerlo. Un viaje de 12 km puede ser bueno o
+             ruinoso segun si la recogida esta a 2 o a 9.
+
+             La de recogida va por carretera (ConrraRutaDeRecogida); la del viaje ya venia asi
+             del servidor. Las dos en la misma unidad y medidas igual.
+             */
+            NSString *recogida = [ConrraRutaDeRecogida textoDesde:[APP_DELEGATE currLoc].coordinate
+                                                            hasta:CLLocationCoordinate2DMake([self.trip.trip_pick_lat doubleValue],
+                                                                                             [self.trip.trip_pick_long doubleValue])
+                                                          prefijo:[LanguageHelper getStringWithKey:@"k_s10_recogida_a" defaultValue:@"Recogida a"]];
+            NSString *delViaje = [NSString stringWithFormat:@"%@ %@ %@",
+                                  [LanguageHelper getStringWithKey:@"k_s10_viaje_de" defaultValue:@"Viaje de"],
+                                  [Utilities formatDistance:[self.trip.trip_distance floatValue]],
+                                  isEmpty(city.city_dist_unit)];
+            NSString *ratingText = recogida.length > 0
+                ? [NSString stringWithFormat:@"%.1f (%d)  ·  %@  ·  %@",
+                   user.rating, user.rating_count, recogida, delViaje]
+                : [NSString stringWithFormat:@"%.1f (%d)  ·  %@",
+                   user.rating, user.rating_count, delViaje];
             [ratingStr appendAttributedString:[[NSAttributedString alloc] initWithString:ratingText attributes:@{NSFontAttributeName: _ndRiderRatingLbl.font, NSForegroundColorAttributeName: _ndRiderRatingLbl.textColor}]];
             _ndRiderRatingLbl.attributedText = ratingStr;
         } else {
-            _ndRiderRatingLbl.text = [NSString stringWithFormat:@"%@ %@",
-                                      [Utilities formatDistance:[self.trip.trip_distance floatValue]],
-                                      isEmpty(city.city_dist_unit)];
+            NSString *recogidaSinUsuario = [ConrraRutaDeRecogida textoDesde:[APP_DELEGATE currLoc].coordinate
+                                                                       hasta:CLLocationCoordinate2DMake([self.trip.trip_pick_lat doubleValue],
+                                                                                                        [self.trip.trip_pick_long doubleValue])
+                                                                     prefijo:[LanguageHelper getStringWithKey:@"k_s10_recogida_a" defaultValue:@"Recogida a"]];
+            NSString *delViajeSinUsuario = [NSString stringWithFormat:@"%@ %@ %@",
+                                            [LanguageHelper getStringWithKey:@"k_s10_viaje_de" defaultValue:@"Viaje de"],
+                                            [Utilities formatDistance:[self.trip.trip_distance floatValue]],
+                                            isEmpty(city.city_dist_unit)];
+            _ndRiderRatingLbl.text = recogidaSinUsuario.length > 0
+                ? [NSString stringWithFormat:@"%@  ·  %@", recogidaSinUsuario, delViajeSinUsuario]
+                : delViajeSinUsuario;
         }
 
         if (user.u_profile_image_path.length > 0) {

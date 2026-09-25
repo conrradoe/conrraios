@@ -57,6 +57,7 @@
 #import "ConrraSolicitudesPersistentes.h"
 #import "ConrraViajesCerrados.h"
 #import "ConrraCierreDeViaje.h"
+#import "ConrraRutaDeRecogida.h"
 #import "HomeDataModel.h"
 #import "LocationDataHelper.h"
 #import "SingleRequestView.h"
@@ -6860,8 +6861,21 @@
     CLLocation *curr = appDel.currLoc;
     CLLocation *pickup = [[CLLocation alloc] initWithLatitude:[homeDataModel.trip.trip_pick_lat doubleValue]
                                                     longitude:[homeDataModel.trip.trip_pick_long doubleValue]];
-    double distKm = (curr && pickup) ? ([curr distanceFromLocation:pickup] / 1000.0) : 0.0;
-    _ndTripInfoLbl.text = [NSString stringWithFormat:@"★ %.1f (%ld)  •  %.2f km", rating, (long)ratingCount, distKm];
+    /*
+     La distancia va POR CARRETERA y dice de que es.
+
+     Estaba en linea recta y sin etiqueta: un "3.20 km" suelto al lado de la valoracion. En
+     ciudad la recta se queda cerca de la mitad -- no ve sentidos unicos, ni rodeos, ni rios --
+     asi que le vendia al conductor una recogida mas cerca de lo que esta. Y la distancia del
+     VIAJE, en la misma tarjeta, si venia por carretera: dos cifras con la misma unidad
+     midiendo cosas distintas. Ver ConrraRutaDeRecogida.
+     */
+    NSString *hastaLaRecogida = [ConrraRutaDeRecogida textoDesde:curr.coordinate
+                                                           hasta:pickup.coordinate
+                                                         prefijo:[LanguageHelper getStringWithKey:@"k_s10_recogida_a" defaultValue:@"Recogida a"]];
+    _ndTripInfoLbl.text = hastaLaRecogida.length > 0
+        ? [NSString stringWithFormat:@"★ %.1f (%ld)  •  %@", rating, (long)ratingCount, hastaLaRecogida]
+        : [NSString stringWithFormat:@"★ %.1f (%ld)", rating, (long)ratingCount];
 
     // Sync cancel button initial visibility
     _ndTripCancelBtn.hidden = self.viewCancelBeforeBegin.isHidden;
@@ -7213,8 +7227,22 @@
     CLLocation *curr   = appDel.currLoc;
     CLLocation *pickup = [[CLLocation alloc] initWithLatitude:[homeDataModel.trip.trip_pick_lat doubleValue]
                                                     longitude:[homeDataModel.trip.trip_pick_long doubleValue]];
-    double distKm = (curr && pickup) ? ([curr distanceFromLocation:pickup] / 1000.0) : 0.0;
-    _ndOnTripInfoLbl.text = [NSString stringWithFormat:@"★ %.1f (%ld)  •  %.2f km", rating, (long)ratingCount, distKm];
+    /*
+     Con el pasajero a bordo, la cifra que importa es la que falta HASTA EL DESTINO.
+
+     Aqui se seguia enseñando la distancia a la RECOGIDA, que en ese momento ya no significa
+     nada: el pasajero esta dentro del coche, la recogida quedo atras y la cifra se iba
+     haciendo mas grande segun avanzaba el viaje. Justo al reves de lo que el conductor
+     necesita leer.
+     */
+    CLLocation *destinoDelViaje = [[CLLocation alloc] initWithLatitude:[homeDataModel.trip.trip_drop_lat doubleValue]
+                                                              longitude:[homeDataModel.trip.trip_drop_long doubleValue]];
+    NSString *hastaElDestino = [ConrraRutaDeRecogida textoDesde:curr.coordinate
+                                                          hasta:destinoDelViaje.coordinate
+                                                        prefijo:[LanguageHelper getStringWithKey:@"k_s10_destino_a" defaultValue:@"Destino a"]];
+    _ndOnTripInfoLbl.text = hastaElDestino.length > 0
+        ? [NSString stringWithFormat:@"★ %.1f (%ld)  •  %@", rating, (long)ratingCount, hastaElDestino]
+        : [NSString stringWithFormat:@"★ %.1f (%ld)", rating, (long)ratingCount];
 
     // Payment method
     BOOL isCard = [[homeDataModel.trip.trip_pay_mode lowercaseString] isEqualToString:@"card"] &&
