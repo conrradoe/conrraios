@@ -462,20 +462,41 @@
      pan de wa.me, o la asociacion esta en cache vieja tras reinstalar -- iOS abre Safari y
      enseña la pagina "Continue to Chat". Que es justo lo que se ve: no abre WhatsApp.
 
-     whatsapp://send no depende de nada de eso: va directo a la app. Para poder preguntar por
-     el con canOpenURL hay que declarar el esquema en LSApplicationQueriesSchemes del
-     Info.plist; sin esa linea canOpenURL devuelve NO aunque WhatsApp este instalado.
+     whatsapp://send no depende de nada de eso: va directo a la app. El esquema esta declarado
+     en LSApplicationQueriesSchemes del Info.plist, pero eso solo hace falta para PREGUNTAR por
+     el, y aqui ya no se pregunta -- ver la nota de abajo.
      */
     NSURL *directo = [NSURL URLWithString:[NSString stringWithFormat:
                         @"whatsapp://send?phone=%@&text=%@", digitos, texto]];
     NSURL *porWeb  = [NSURL URLWithString:[NSString stringWithFormat:
                         @"https://wa.me/%@?text=%@", digitos, texto]];
 
-    UIApplication *app = [UIApplication sharedApplication];
-    NSURL *primera = (directo != nil && [app canOpenURL:directo]) ? directo : porWeb;
-    NSURL *segunda = (primera == directo) ? porWeb : nil;
+    /*
+     NO SE PREGUNTA POR canOpenURL. Se intenta el esquema directo y punto.
 
-    [self abrir:primera luegoSiFalla:segunda desde:vc numero:digitos];
+     canOpenURL es solo un aviso previo, y es la UNICA pieza de todo esto que depende del
+     Info.plist: si el esquema no esta en LSApplicationQueriesSchemes -- o iOS arrastra en
+     cache la lista de una instalacion anterior, que es lo que pasa reinstalando desde Xcode
+     sobre un telefono real -- devuelve NO aunque WhatsApp este instalado. Y entonces esto se
+     colaba por wa.me, que en iOS es un universal link, y salia Safari con la pagina
+     "Continue to Chat". Que es exactamente el sintoma: no abre WhatsApp.
+
+     openURL con completionHandler no adivina: dice si abrio o no. Asi que se intenta de
+     verdad y se decide con el resultado, no con el permiso. Si el esquema no abre, queda
+     wa.me detras, y detras de wa.me el aviso con el numero.
+     */
+    NSLog(@"[Soporte] abriendo WhatsApp al %@ (%lu digitos)",
+          digitos, (unsigned long)digitos.length);
+    if (digitos.length < 10) {
+        // Tanto wa.me como whatsapp://send quieren el numero internacional COMPLETO, con
+        // prefijo de pais y sin el +. Un numero local se acepta sin protestar y no abre
+        // ningun chat, asi que si falta el prefijo conviene verlo en el log y no adivinarlo.
+        NSLog(@"[Soporte] OJO: 'support_number' parece local, sin prefijo de pais: %@", digitos);
+    }
+    [self abrir:(directo != nil ? directo : porWeb)
+   luegoSiFalla:(directo != nil ? porWeb : nil)
+          desde:vc
+         numero:digitos];
 }
 
 /**
@@ -499,7 +520,7 @@
                 [self cerrarLaHoja:vc];
                 return;
             }
-            NSLog(@"[Soporte] no se pudo abrir %@", url.scheme);
+            NSLog(@"[Soporte] openURL dijo NO para %@", url.absoluteString);
             if (reserva != nil) {
                 [self abrir:reserva luegoSiFalla:nil desde:vc numero:digitos];
                 return;
