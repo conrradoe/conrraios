@@ -226,7 +226,11 @@
                 self.isFromInactive =YES;
                 [self manageRemoteNotification:userInfo application:[UIApplication sharedApplication]];
             }else if ([[dicAps objectForKey:@"trip_status"] isEqualToString:TS_ACCEPTED]) {
-                [self handleAcceptNotification:[dicAps objectForKey:@"trip_id"] message:[dicAps objectForKey:@"alert"] userInfo:userInfo];
+                // Rama muerta: la condicion de arriba ya cubre TS_ACCEPTED y se queda con el.
+                // Se deja igualada a la otra por si alguien reordena el if y la revive.
+                [[NSNotificationCenter defaultCenter] postNotificationName:@"NotificationAcceptedReceived"
+                                                                    object:nil
+                                                                  userInfo:userInfo];
             }
             else if ([[dicAps objectForKey:@"trip_status"] isEqualToString:TS_CHAT]) {
                 [self handleChatNotification:dicAps ];
@@ -524,7 +528,27 @@ didFailToRegisterForRemoteNotificationsWithError:(NSError *)error {
     }else  if([[dicAps objectForKey:@"trip_status"] isEqualToString:TS_ACCEPTED]){
         defaults_set_object(TRIP_ID, isEmpty([dicAps objectForKey:@"trip_id"]));
         [self stopRequestSound];
-        [self handleAcceptNotification:[dicAps objectForKey:@"trip_id"] message:[dicAps objectForKey:@"alert"] userInfo:userInfo];
+        /*
+         El pasajero acepto la oferta del conductor.
+
+         AQUI SE LLAMABA A handleAcceptNotification, QUE ES DEL PASAJERO. Su boton OK ejecuta
+         loadUserHomeViewController, que reconstruye la ventana entera en modo PASAJERO. Por
+         eso el conductor, al aceptarle el viaje, acababa mirando "Pide un Taxi" con la ficha
+         de pago del conductor y el boton de cancelar: no era una pantalla mal pintada, es que
+         la app se habia cambiado de rol.
+
+         El camino bueno ya estaba escrito y sin conectar: DTripOffersViewContoller observa
+         "NotificationAcceptedReceived" y, con la oferta en su lista, llama a showAlertGoBack
+         -> replaceWithOfferTripDetail1 -> refreshOnAcceptTrip, que deja al conductor en SU
+         pantalla con el viaje cargado. Nadie publicaba esa notificacion.
+
+         Se publica para los dos: el panel de ofertas cuando esta montado, y HomeViewController
+         como red de seguridad cuando no lo esta -- el conductor puede estar en la pestaña de
+         solicitudes o en el mapa cuando le aceptan.
+         */
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"NotificationAcceptedReceived"
+                                                            object:nil
+                                                          userInfo:userInfo];
     }else{
         //        [self openAlertNotificationDebug:[NSString stringWithFormat:@"Else Condition %@",dicAps] ];
     }

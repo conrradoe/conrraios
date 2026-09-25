@@ -1198,6 +1198,7 @@
     [[NSNotificationCenter defaultCenter] removeObserver:self];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(onDriverLogout) name:@"driver_logout" object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(getNewOrderRequest:) name:AppNotificationName.DRIVER_ACCEPT_NOTIFICATION object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(leAceptaronLaOferta:) name:@"NotificationAcceptedReceived" object:nil];
     
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(hideAlertNotificationHandle:) name:AppNotificationName.DRIVER_HIDE_ALERT_NOTIFICATION object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self
@@ -2187,6 +2188,53 @@
     if (_ndCollectionView) { dispatch_async(dispatch_get_main_queue(), ^{ [self->_ndCollectionView reloadData]; NSInteger _ndCount = self->arrPendingTrips.count; self->_ndBadgeLabel.hidden = (_ndCount == 0); self->_ndBadgeLabel.text = [NSString stringWithFormat:@"%ld", (long)_ndCount]; }); }
     [self getAllPendingTrips:YES];
     [vcOffers runTimedCodeForGetTripOffers];
+}
+
+/**
+ Al conductor le aceptaron la oferta: se carga el viaje en ESTA pantalla.
+
+ Es la red de seguridad del panel de ofertas. Cuando ese panel esta montado, el lo resuelve
+ solo -- observa la misma notificacion y vuelve por el delegado a refreshOnAcceptTrip -- asi
+ que aqui no se hace nada y se evita cargar el viaje dos veces. Pero el conductor puede estar
+ en la pestaña de solicitudes o mirando el mapa cuando le aceptan, y entonces no hay panel que
+ escuche: sin esto se quedaria en la pantalla de antes con el viaje ya asignado por detras.
+
+ Antes de esto, el que atendia este aviso era AppDelegate llamando a handleAcceptNotification
+ -- que es del PASAJERO y reconstruye la ventana en modo pasajero. De ahi que al conductor le
+ saliera "Pide un Taxi" al aceptarle el viaje.
+ */
+-(void)leAceptaronLaOferta:(NSNotification *)aviso {
+    if (vcOffers != nil) {
+        return;
+    }
+    NSDictionary *dicAps = [aviso.userInfo valueForKey:@"aps"];
+    NSString *tripId = [NSString stringWithFormat:@"%@", [dicAps objectForKey:@"trip_id"] ?: @""];
+    if (tripId.length == 0) {
+        return;
+    }
+    // Si ya se esta llevando ese viaje no hay nada que recargar: el aviso puede repetirse.
+    if ([isEmpty(homeDataModel.trip.trip_Id) isEqualToString:tripId] &&
+        [driverStatus isEqualToString:TS_ACCEPTED]) {
+        return;
+    }
+
+    NSMutableDictionary *dict = [[NSMutableDictionary alloc] init];
+    [dict setObject:tripId forKey:@"trip_id"];
+    [GIC mkwu:TRIP_GETTRIP d:dict isa:NO cb:^(id results, NSError *error) {
+        if (error != nil ||
+            ![[[results objectForKey:P_STATUS] uppercaseString] isEqualToString:@"OK"] ||
+            ![[results objectForKey:P_RESPONSE] isKindOfClass:[NSArray class]] ||
+            [[results objectForKey:P_RESPONSE] count] == 0) {
+            NSLog(@"[Aceptada] no se pudo traer el viaje %@", tripId);
+            return;
+        }
+        TripModel *viaje = [[TripModel alloc] initItemWithDict:[[results objectForKey:P_RESPONSE] objectAtIndex:0]];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            self.viewRequestBg.hidden = YES;
+            [self->_viewRequestBg setConstraintConstant:0 forAttribute:NSLayoutAttributeHeight];
+            [self refreshOnAcceptTrip:viaje];
+        });
+    }];
 }
 
 -(void)getNewOrderRequest:(NSNotification *) notificationData {
