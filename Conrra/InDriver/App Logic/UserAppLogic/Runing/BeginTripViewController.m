@@ -1703,14 +1703,16 @@
 
 
 -(void) doSimpleNativeCall{
-    NSString * numberWithCode=[NSString stringWithFormat:@"%@%@",self.currentTrip.driver.c_code,self.currentTrip.driver.phone];
+    NSString * numberWithCode=[Utilities numeroParaLlamarConCodigo:self.currentTrip.driver.c_code numero:self.currentTrip.driver.phone];
     NSURL *phoneUrl = [NSURL URLWithString:[@"telprompt://"stringByAppendingString:numberWithCode]];
     NSURL *phoneFallbackUrl = [NSURL URLWithString:[@"tel://" stringByAppendingString:numberWithCode]];
-    if ([UIApplication.sharedApplication canOpenURL:phoneUrl]) {
+    // Sin numero la URL se queda en "telprompt://" y abriria el marcador en blanco. Cayendo
+    // al else sale el aviso de que no se puede llamar, que es lo que el usuario necesita oir.
+    if (numberWithCode.length > 0 && [UIApplication.sharedApplication canOpenURL:phoneUrl]) {
         [[UIApplication sharedApplication] openURL:phoneUrl options:@{} completionHandler:^(BOOL success) {
             
         }];
-    } else if ([UIApplication.sharedApplication canOpenURL:phoneFallbackUrl ]) {
+    } else if (numberWithCode.length > 0 && [UIApplication.sharedApplication canOpenURL:phoneFallbackUrl ]) {
         [UIApplication.sharedApplication openURL:phoneFallbackUrl options:@{} completionHandler:^(BOOL success) {
             
         }];

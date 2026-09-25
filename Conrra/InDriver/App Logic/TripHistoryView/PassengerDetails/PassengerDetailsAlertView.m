@@ -55,14 +55,18 @@
 
 -(void) doSimpleNativeCall:(NSString *)phone
 {
-    NSString  * phoneWithCode=phone;
+    // Aqui llega el numero ya montado por quien abre la ficha, asi que solo se normaliza:
+    // si ya trae el +, se queda igual.
+    NSString  * phoneWithCode=[Utilities numeroParaLlamarConCodigo:nil numero:phone];
     NSURL *phoneUrl = [NSURL URLWithString:[@"telprompt://"stringByAppendingString:phoneWithCode]];
     NSURL *phoneFallbackUrl = [NSURL URLWithString:[@"tel://" stringByAppendingString:phoneWithCode]];
     
     
-    if ([UIApplication.sharedApplication canOpenURL:phoneUrl]) {
+    // Sin numero la URL se queda en "telprompt://" y abriria el marcador en blanco. Cayendo
+    // al else sale el aviso de que no se puede llamar, que es lo que el usuario necesita oir.
+    if (phoneWithCode.length > 0 && [UIApplication.sharedApplication canOpenURL:phoneUrl]) {
         [[UIApplication sharedApplication] openURL:phoneUrl options:@{} completionHandler:nil];
-    } else if ([UIApplication.sharedApplication canOpenURL:phoneFallbackUrl]) {
+    } else if (phoneWithCode.length > 0 && [UIApplication.sharedApplication canOpenURL:phoneFallbackUrl]) {
         [UIApplication.sharedApplication openURL:phoneFallbackUrl options:@{} completionHandler:nil];
     } else {
         [UtilityClass swa:nil

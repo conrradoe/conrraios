@@ -54,6 +54,24 @@
 
 +(void) handleError:(NSError *)error viewController:(UIViewController *)viewController defaultMessage:(NSString *) defaultMessage;
 
+/**
+ El numero listo para marcar, con el + del prefijo internacional delante.
+
+ Sin el + el telefono marca el numero como si fuera del pais donde esta la tarjeta SIM:
+ 584125249085 se interpreta como un numero local larguisimo y la llamada no entra. Con
+ +584125249085 sale bien desde cualquier pais, que es el caso normal aqui.
+
+ Es lo mismo que hace Android: "+" + getcCode() + phone, y con la misma guarda -- el codigo
+ se descarta si viene vacio o con el texto "null", que es lo que deja un JSON null al
+ convertirse en cadena.
+
+ Y protege de un fallo que el formato de antes no veia: [NSString stringWithFormat:@"%@%@",
+ nil, @"412..."] no da "412...", da "(null)412...", que no se puede marcar.
+
+ @return el numero con prefijo, o cadena vacia si no hay numero que marcar
+ */
++(NSString *) numeroParaLlamarConCodigo:(NSString *) codigo numero:(NSString *) numero;
+
 +(NSString *) formatAmountAndCurrency:(float) amount currency:(NSString *) currency;
 
 +(NSString*) formatAmount:(float) amount;

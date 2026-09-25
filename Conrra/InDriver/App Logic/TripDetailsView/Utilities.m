@@ -340,6 +340,55 @@
 
 
 
+/** Deja una cadena util, o vacia: recorta, y trata "null" y "(null)" como si no hubiera nada. */
++(NSString *) textoUtil:(id) valor {
+    if (![valor isKindOfClass:[NSString class]]) {
+        return @"";
+    }
+    NSString *t = [(NSString *)valor stringByTrimmingCharactersInSet:
+                   [NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    if ([t caseInsensitiveCompare:@"null"] == NSOrderedSame ||
+        [t caseInsensitiveCompare:@"(null)"] == NSOrderedSame) {
+        return @"";
+    }
+    return t;
+}
+
++(NSString *) numeroParaLlamarConCodigo:(NSString *) codigo numero:(NSString *) numero {
+    NSString *n = [self textoUtil:numero];
+    if (n.length == 0) {
+        return @"";
+    }
+    // Si el numero ya trae el prefijo internacional, no se le pone otro encima.
+    if ([n hasPrefix:@"+"]) {
+        return n;
+    }
+
+    NSString *c = [self textoUtil:codigo];
+    // El codigo se guarda unas veces como "58" y otras como "+58".
+    c = [c stringByReplacingOccurrencesOfString:@"+" withString:@""];
+    c = [c stringByReplacingOccurrencesOfString:@" " withString:@""];
+    if (c.length == 0) {
+        // Sin prefijo no se puede internacionalizar: se marca tal cual y que el telefono
+        // decida, que es mejor que anteponer un + a medias.
+        return n;
+    }
+
+    /*
+     El numero local puede venir con su cero de tronco -- 0412... en vez de 412... -- que en
+     formato internacional sobra: +580412... no existe. Se quita solo cuando hay prefijo, que
+     es cuando se sabe que el numero pasa a ser internacional.
+     */
+    if (n.length > 1 && [n hasPrefix:@"0"]) {
+        n = [n substringFromIndex:1];
+    }
+    // Y si el numero ya venia con el prefijo pegado, no se duplica.
+    if ([n hasPrefix:c] && n.length > c.length) {
+        return [NSString stringWithFormat:@"+%@", n];
+    }
+    return [NSString stringWithFormat:@"+%@%@", c, n];
+}
+
 +(void) handleError:(NSError *)error viewController:(UIViewController *)viewController defaultMessage:(NSString *) defaultMessage{
     NSHTTPURLResponse *dataErrorResponse=[error.userInfo objectForKey:AppKeysName.ERROR_RESPONSE];
     if(error) {

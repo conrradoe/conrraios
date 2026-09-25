@@ -4405,14 +4405,16 @@
 -(void) doSimpleNativeCall:(TripModel *)trip
 {
     
-    NSString  * phoneWithCode=[NSString stringWithFormat:@"%@%@",trip.user.c_code,trip.user.u_phone];
+    NSString  * phoneWithCode=[Utilities numeroParaLlamarConCodigo:trip.user.c_code numero:trip.user.u_phone];
     NSURL *phoneUrl = [NSURL URLWithString:[@"telprompt://"stringByAppendingString:phoneWithCode]];
     NSURL *phoneFallbackUrl = [NSURL URLWithString:[@"tel://" stringByAppendingString:phoneWithCode]];
     
     
-    if ([UIApplication.sharedApplication canOpenURL:phoneUrl]) {
+    // Sin numero la URL se queda en "telprompt://" y abriria el marcador en blanco. Cayendo
+    // al else sale el aviso de que no se puede llamar, que es lo que el usuario necesita oir.
+    if (phoneWithCode.length > 0 && [UIApplication.sharedApplication canOpenURL:phoneUrl]) {
         [[UIApplication sharedApplication] openURL:phoneUrl options:@{} completionHandler:nil];
-    } else if ([UIApplication.sharedApplication canOpenURL:phoneFallbackUrl]) {
+    } else if (phoneWithCode.length > 0 && [UIApplication.sharedApplication canOpenURL:phoneFallbackUrl]) {
         [UIApplication.sharedApplication openURL:phoneFallbackUrl options:@{} completionHandler:nil];
     } else {
         [UtilityClass swa:nil
