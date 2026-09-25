@@ -25,6 +25,7 @@
 #import "UpdateUserCurrentLocation.h"
 #import "UploadDocumentViewController.h"
 #import "ConrraAvisoLocal.h"
+#import "ConrraRadioDeReparto.h"
 #import "UChatViewController.h"
 #import "NotificationViewController.h"
 #import "AutoHideAlert.h"
@@ -49,6 +50,8 @@
     SystemSoundID completeSoundRequest;
     SocketHelperSwift *socketHelperSwift;
     BOOL _switchingToDriverMode;
+    /// Las solicitudes cuyo radio ya se comprobo, para no volver a preguntar al reentrar.
+    NSMutableSet *solicitudesYaComprobadas;
 }
 
 - (BOOL)switchingToDriverMode {
@@ -398,8 +401,44 @@ didFailToRegisterForRemoteNotificationsWithError:(NSError *)error {
         [self manageRemoteNotificationUser:userInfo application:application];
         return;
     }
-    
-    
+
+    /*
+     La solicitud se comprueba ANTES de sonar y antes de pintar nada.
+
+     Una solicitud puede llegar hasta aqui con el conductor fuera del radio. El reparto no lo
+     decide el servidor: tripapi/sendnotificationontripsave manda el push a los tokens que la
+     app del pasajero le pasa, y esa app elige con la lista de cercanos, que el servidor mide
+     contra una coordenada que puede no ser la del conductor -- getNearByDriverList llama a
+     override() antes de medir, y override() copia u_lat/u_lng encima de d_lat/d_lng.
+
+     Desde el lado del pasajero eso no se ve: recibe la coordenada ya sustituida. Aqui si,
+     porque este telefono sabe donde esta. Calco de lo que hace Android en
+     MyFirebaseMessagingService: comprobar primero, sonar despues. Una alarma que no lleva a
+     ninguna solicitud es peor que no recibir el aviso.
+
+     El push solo trae el trip_id, asi que hay que preguntar por el viaje. Se vuelve a entrar
+     por aqui con la respuesta, y el id queda apuntado para que la segunda vuelta no repita la
+     consulta. Falla hacia enseñar: si no se puede comprobar, suena.
+     */
+    NSString *estadoDelPush = [dicAps objectForKey:@"trip_status"];
+    NSString *idDelPush = [NSString stringWithFormat:@"%@", [dicAps objectForKey:@"trip_id"] ?: @""];
+    if ([estadoDelPush isEqualToString:TS_REQUEST] && idDelPush.length > 0 &&
+        ![self->solicitudesYaComprobadas containsObject:idDelPush]) {
+        [ConrraRadioDeReparto laSolicitud:idDelPush meritaAvisar:^(BOOL avisar) {
+            if (!avisar) {
+                NSLog(@"[RadioDeReparto] push de la solicitud %@ descartado: la recogida queda "
+                      @"fuera del tope medido desde aqui", idDelPush);
+                return;
+            }
+            if (self->solicitudesYaComprobadas == nil) {
+                self->solicitudesYaComprobadas = [[NSMutableSet alloc] init];
+            }
+            [self->solicitudesYaComprobadas addObject:idDelPush];
+            [self manageRemoteNotification:userInfo application:application];
+        }];
+        return;
+    }
+
     if (application.applicationState == UIApplicationStateActive) {
         if([[dicAps objectForKey:@"trip_status"] isEqualToString:TS_RIDER_CANCEL])
         {

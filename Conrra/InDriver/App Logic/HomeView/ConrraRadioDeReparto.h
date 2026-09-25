@@ -82,6 +82,22 @@ NS_ASSUME_NONNULL_BEGIN
  @param recogida    el punto desde el que se pide el viaje
  @param programado  YES si el viaje es reservado
  */
+/**
+ Comprueba una solicitud que llega por push, ANTES de sonar la alarma.
+
+ Calco de RadioDeReparto.solicitudFueraDeRadio (Android). El push solo trae trip_id,
+ trip_status y el mensaje: no lleva el punto de recogida, asi que hay que preguntar por el
+ viaje para poder medirlo. Aqui la consulta es asincrona -- el manejador de push corre en el
+ hilo principal y bloquearlo colgaria la app -- y la alarma espera a la respuesta.
+
+ FALLA HACIA ENSEÑAR: si la red no contesta, si el viaje no viene o si las coordenadas estan
+ vacias, llama al bloque con YES y la notificacion sale igual.
+
+ @param tripId    el id que trae el push
+ @param respuesta se llama SIEMPRE, en el hilo principal; YES = suena, NO = se descarta
+ */
++ (void)laSolicitud:(NSString *)tripId meritaAvisar:(void (^)(BOOL avisar))respuesta;
+
 + (NSArray *)conductores:(NSArray *)conductores
        dentroDeLaRecogida:(CLLocationCoordinate2D)recogida
                programado:(BOOL)programado;

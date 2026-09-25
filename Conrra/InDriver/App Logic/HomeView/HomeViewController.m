@@ -165,6 +165,8 @@
     BOOL             _ndShowingSolicitudes;
     NSMutableArray   *_ndSentOffers;
     NSString         *_ndPendingNotificationTripId;
+    /// El aviso que se saca desde el push, para poder cerrarlo si resulta que no hay nada.
+    UIAlertController *_ndAvisoDeSolicitudDelPush;
 
     UIView   *_ndTripInfoCard;
     UIView   *_ndTripAvatarView;
@@ -2259,7 +2261,46 @@
 }
 
 
+/**
+ Calla la alarma y cierra el aviso cuando la lista confirmada viene vacia.
+
+ POR QUE HACE FALTA. El push no lo decide el servidor: la app del pasajero le pasa los tokens
+ y el servidor se limita a mandarlos. Y la app del pasajero elige con la lista de cercanos,
+ que el servidor calcula contra una coordenada que puede no ser la del conductor: en
+ DriverModel::getNearByDriverList se llama a override() ANTES de medir, y override() copia
+ u_lat/u_lng encima de d_lat/d_lng. Mientras la app del conductor manda posicion las dos
+ columnas van iguales, pero si deja de mandarla y sigue marcado disponible, u_lat se queda con
+ lo ultimo que escribio el lado pasajero -- incluido el pin de recogida, que graba ese mismo
+ endpoint. Medido el 2026-09-24: el conductor 816, disponible y verificado, con las dos
+ columnas a 21,49 km una de otra.
+
+ Desde la app del pasajero eso no se puede ver: recibe la coordenada ya sustituida. Pero AQUI
+ si, porque getrevisedtrips se mide desde el lat/lng que manda esta misma app, o sea la
+ posicion de verdad. La lista propia es fiable; el push no. Asi que manda la lista.
+
+ No se puede quitar el globo del sistema cuando el telefono esta en segundo plano -- eso lo
+ pinta iOS con lo que trae el push y no hay como retirarlo desde aqui. Lo que si se quita es
+ la alarma dentro de la app y el aviso con el boton Ver, que es lo que el conductor tiene
+ delante mientras trabaja.
+ */
+- (void)callarSiNoHaySolicitudes {
+    if (arrPendingTrips.count > 0) {
+        return;
+    }
+    [APP_DELEGATE stopRequestSound];
+    if (_ndAvisoDeSolicitudDelPush != nil) {
+        UIAlertController *aviso = _ndAvisoDeSolicitudDelPush;
+        _ndAvisoDeSolicitudDelPush = nil;
+        NSLog(@"[RadioDeReparto] llego un push de solicitud y la lista propia vino vacia: "
+              @"ninguna recogida esta dentro del tope. Se calla la alarma.");
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [aviso dismissViewControllerAnimated:YES completion:nil];
+        });
+    }
+}
+
 -(void ) handleNewRequestNotification:(NSString *)tripId message:(NSString *)message{
+    __weak typeof(self) wselfAviso = self;
     UIAlertController *alertController = [UIAlertController alertControllerWithTitle:@""
                                                                              message:isEmpty(message)                                                                         preferredStyle:UIAlertControllerStyleAlert];
     
@@ -2267,14 +2308,17 @@
                                                              style:UIAlertActionStyleDefault
                                                            handler:^(UIAlertAction * _Nonnull action) {
         [APP_DELEGATE stopRequestSound];
+        [wselfAviso limpiarElAvisoDelPush];
     }];
     [alertController addAction:actionOkCancel];
+    _ndAvisoDeSolicitudDelPush = alertController;
     __weak typeof(self) wself = self;
     UIAlertAction *actionOk = [UIAlertAction actionWithTitle:NSLocalizedString(@"View", @"")
                                                        style:UIAlertActionStyleDefault
                                                      handler:^(UIAlertAction * _Nonnull action) {
         [wself stopLocationUpdate];
         [APP_DELEGATE stopRequestSound];
+        [wself limpiarElAvisoDelPush];
         HomeViewController *home = wself;
         if (!home) return;
         UINavigationController *nav = home.navigationController;
@@ -2306,8 +2350,23 @@
     [alertController addAction:actionOk];
     UIViewController * viewController=[self.navigationController topViewController];
     if(![viewController isKindOfClass:[HomeViewController class]]) {
-        [self.navigationController.topViewController presentViewController:alertController animated:YES completion:nil];
+        [self.navigationController.topViewController presentViewController:alertController animated:YES completion:^{
+            /*
+             La lista se pide una vez el aviso ya esta en pantalla, no antes: si se pidiera
+             primero y contestara rapido, la respuesta llegaria cuando todavia no hay nada que
+             cerrar y el aviso se quedaria puesto.
+
+             El push no dice donde es la recogida, asi que esto es lo unico que lo comprueba:
+             getrevisedtrips se mide desde la posicion que manda esta misma app.
+             */
+            [self getAllPendingTrips:NO];
+        }];
     }
+}
+
+/// Suelta el aviso del push cuando el conductor ya ha decidido, para no cerrar uno ajeno luego.
+- (void)limpiarElAvisoDelPush {
+    _ndAvisoDeSolicitudDelPush = nil;
 }
 - (void)refreshTripStatusRefresh:(NSString *) tripId tripStatus:(NSString *)tripStatus{
     [self gettripDetails:driverStatus];
@@ -3775,6 +3834,7 @@
         }
         
         [self.tableViewPendingTrips reloadData];
+        [self callarSiNoHaySolicitudes];
 
         NSString *_pendingNotiId = self->_ndPendingNotificationTripId.length ? [self->_ndPendingNotificationTripId copy] : nil;
         if (_pendingNotiId) self->_ndPendingNotificationTripId = nil;

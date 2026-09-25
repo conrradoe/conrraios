@@ -7,6 +7,7 @@
 #import "ConstantModel.h"
 #import "TripModel.h"
 #import "WebCallConstants.h"
+#import "AppDelegate.h"
 #import <GIKit/GIKit.h>
 
 static const double kKmPorMilla = 1.609344;
@@ -98,6 +99,56 @@ static const double kRadioProgramadoPorDefecto = 100.0;
               [self elRadioEstaEnKm]);
     }
     return dentro;
+}
+
++ (void)laSolicitud:(NSString *)tripId meritaAvisar:(void (^)(BOOL avisar))respuesta {
+    if (respuesta == nil) {
+        return;
+    }
+    void (^contestar)(BOOL) = ^(BOOL avisar) {
+        if ([NSThread isMainThread]) {
+            respuesta(avisar);
+        } else {
+            dispatch_async(dispatch_get_main_queue(), ^{ respuesta(avisar); });
+        }
+    };
+
+    NSString *id_ = [isEmpty(tripId) stringByTrimmingCharactersInSet:
+                     [NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    if (id_.length == 0) {
+        contestar(YES);
+        return;
+    }
+    CLLocationCoordinate2D aqui = [APP_DELEGATE currLoc].coordinate;
+    if (!CLLocationCoordinate2DIsValid(aqui) || (aqui.latitude == 0 && aqui.longitude == 0)) {
+        contestar(YES);
+        return;
+    }
+
+    NSMutableDictionary *dict = [[NSMutableDictionary alloc] init];
+    [dict setObject:id_ forKey:@"trip_id"];
+    [[[GIKCommon alloc] init] mkwu:TRIP_GETTRIP d:dict isa:NO cb:^(id results, NSError *error) {
+        if (error != nil ||
+            ![[[results objectForKey:P_STATUS] uppercaseString] isEqualToString:@"OK"] ||
+            ![[results objectForKey:P_RESPONSE] isKindOfClass:[NSArray class]]) {
+            contestar(YES);
+            return;
+        }
+        NSArray *viajes = [results objectForKey:P_RESPONSE];
+        for (id crudo in viajes) {
+            if (![crudo isKindOfClass:[NSDictionary class]]) {
+                continue;
+            }
+            TripModel *viaje = [[TripModel alloc] initItemWithDict:crudo];
+            if ([isEmpty(viaje.trip_Id) caseInsensitiveCompare:id_] != NSOrderedSame) {
+                continue;
+            }
+            contestar([self viaje:viaje dentroDelRadioDesde:aqui]);
+            return;
+        }
+        // El viaje no venia en la respuesta: no se ha podido comprobar, asi que suena.
+        contestar(YES);
+    }];
 }
 
 + (NSArray *)conductores:(NSArray *)conductores
