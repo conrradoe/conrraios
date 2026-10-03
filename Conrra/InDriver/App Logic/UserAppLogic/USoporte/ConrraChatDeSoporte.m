@@ -5,6 +5,7 @@
 
 #import "ConrraChatDeSoporte.h"
 #import "ConstantModel.h"
+#import "Utilities.h"
 #import "LanguageHelper.h"
 #import "WebCallConstants.h"
 #import <GIKit/GIKit.h>
@@ -20,7 +21,8 @@
 + (BOOL)esPasajero;
 + (NSString *)nombreDeQuienEscribe;
 + (void)abrirWhatsAppDesde:(UIViewController *)vc mensaje:(NSString *)mensaje;
-+ (void)abrir:(NSURL *)url luegoSiFalla:(NSURL *)reserva desde:(UIViewController *)vc numero:(NSString *)digitos;
++ (void)abrirCadena:(NSArray<NSURL *> *)cadena desde:(UIViewController *)vc numero:(NSString *)digitos;
++ (NSString *)digitosInternacionalesDe:(NSString *)crudo;
 + (void)noSePudoAbrirDesde:(UIViewController *)vc numero:(NSString *)digitos;
 + (void)cerrarLaHoja:(UIViewController *)vc;
 @end
@@ -422,14 +424,8 @@
  se llama support_number.
  */
 + (void)abrirWhatsAppDesde:(UIViewController *)vc mensaje:(NSString *)mensaje {
-    NSString *numero = [ConstantModel valorDeConstantePorClave:@"support number"];
-    NSMutableString *digitos = [[NSMutableString alloc] init];
-    for (NSUInteger i = 0; i < numero.length; i++) {
-        unichar c = [numero characterAtIndex:i];
-        if (c >= '0' && c <= '9') {
-            [digitos appendFormat:@"%C", c];
-        }
-    }
+    NSString *crudo = [ConstantModel valorDeConstantePorClave:@"support number"];
+    NSString *digitos = [self digitosInternacionalesDe:crudo];
 
     if (digitos.length == 0) {
         // Sin numero no se puede hacer nada, pero al menos se le da el correo en vez de
@@ -466,10 +462,38 @@
      en LSApplicationQueriesSchemes del Info.plist, pero eso solo hace falta para PREGUNTAR por
      el, y aqui ya no se pregunta -- ver la nota de abajo.
      */
-    NSURL *directo = [NSURL URLWithString:[NSString stringWithFormat:
-                        @"whatsapp://send?phone=%@&text=%@", digitos, texto]];
-    NSURL *porWeb  = [NSURL URLWithString:[NSString stringWithFormat:
-                        @"https://wa.me/%@?text=%@", digitos, texto]];
+    /*
+     TRES INTENTOS, EN ESTE ORDEN, Y EL ORDEN ES EL ARREGLO.
+
+       1. whatsapp://send?phone=...&text=...   el bueno: abre el chat con soporte.
+       2. whatsapp://send?text=...            sin numero. WhatsApp SE ABRE igual y el
+                                              usuario elige el chat, con el texto escrito.
+       3. https://wa.me/...                   la red, para cuando WhatsApp no esta puesto.
+
+     POR QUE EL SEGUNDO EXISTE. whatsapp://send?phone=... lo atiende WhatsApp, y WhatsApp
+     RECHAZA la direccion si el numero no le vale. Entonces openURL devuelve NO y antes se
+     caia a wa.me, que en iOS es un universal link: salia Safari con "Continue to Chat". Y
+     eso es, literalmente, "iPhone no abre WhatsApp".
+
+     Android no tiene este problema y no es que lo haga mejor: abre wa.me con un ACTION_VIEW
+     generico y su resolucion de intents casa el HOST wa.me con el filtro que declara
+     WhatsApp. WhatsApp se abre SIEMPRE, y si el numero esta mal lo dice WhatsApp. En iOS no
+     existe ese mecanismo, asi que la garantia hay que escribirla: el paso 2 abre WhatsApp
+     aunque el numero sea inservible, que es la paridad que importa.
+
+     wa.me queda ULTIMO y no segundo a proposito: abrir Safari cuenta como exito para
+     openURL, asi que si fuera antes se comeria el intento que si abre la app.
+     */
+    NSMutableArray<NSURL *> *cadena = [[NSMutableArray alloc] init];
+    void (^meter)(NSString *) = ^(NSString *texto_) {
+        NSURL *u = [NSURL URLWithString:texto_];
+        if (u != nil) {
+            [cadena addObject:u];
+        }
+    };
+    meter([NSString stringWithFormat:@"whatsapp://send?phone=%@&text=%@", digitos, texto]);
+    meter([NSString stringWithFormat:@"whatsapp://send?text=%@", texto]);
+    meter([NSString stringWithFormat:@"https://wa.me/%@?text=%@", digitos, texto]);
 
     /*
      NO SE PREGUNTA POR canOpenURL. Se intenta el esquema directo y punto.
@@ -485,18 +509,50 @@
      verdad y se decide con el resultado, no con el permiso. Si el esquema no abre, queda
      wa.me detras, y detras de wa.me el aviso con el numero.
      */
-    NSLog(@"[Soporte] abriendo WhatsApp al %@ (%lu digitos)",
-          digitos, (unsigned long)digitos.length);
-    if (digitos.length < 10) {
-        // Tanto wa.me como whatsapp://send quieren el numero internacional COMPLETO, con
-        // prefijo de pais y sin el +. Un numero local se acepta sin protestar y no abre
-        // ningun chat, asi que si falta el prefijo conviene verlo en el log y no adivinarlo.
-        NSLog(@"[Soporte] OJO: 'support_number' parece local, sin prefijo de pais: %@", digitos);
+    [self abrirCadena:cadena desde:vc numero:digitos];
+}
+
+/**
+ El numero de soporte en formato internacional, solo digitos.
+
+ POR QUE HACE FALTA. whatsapp://send?phone=... solo abre el chat si el numero es
+ internacional valido. Un numero guardado en formato local lleva su cero de tronco
+ -- 04125249085 -- y en internacional ese cero sobra: +580412... no existe. WhatsApp
+ rechaza la direccion, openURL devuelve NO, y el usuario acaba en Safari.
+
+ En Android el mismo numero malo abre WhatsApp igual, porque alli la direccion la resuelve
+ el sistema por el host de wa.me y no WhatsApp. De ahi que el mismo dato funcione en un
+ telefono y no en el otro.
+
+ NO SE INVENTA NADA NUEVO: se reusa numeroParaLlamarConCodigo, que es el arreglo que ya se
+ hizo para el boton de llamar. Respeta el numero que ya trae "+" o que ya trae el prefijo
+ pegado, y solo quita el cero y pone el prefijo cuando el numero es claramente local.
+
+ EL PREFIJO QUE PONE ES EL DE LA CUENTA, que es el unico dato disponible, y eso es una
+ SUPOSICION: si la linea de soporte estuviera en otro pais que la cuenta, saldria mal. Por
+ eso se escribe en el log el antes y el despues. Lo correcto es guardar support_number con
+ su prefijo en el backend; esto es la red por debajo.
+ */
++ (NSString *)digitosInternacionalesDe:(NSString *)crudo {
+    NSDictionary *cuenta = defaults_object(P_USER_DICT);
+    NSString *prefijo = @"";
+    if ([cuenta isKindOfClass:[NSDictionary class]]) {
+        id c = [cuenta objectForKey:P_C_CODE];
+        if (c != nil && c != [NSNull null]) {
+            prefijo = [NSString stringWithFormat:@"%@", c];
+        }
     }
-    [self abrir:(directo != nil ? directo : porWeb)
-   luegoSiFalla:(directo != nil ? porWeb : nil)
-          desde:vc
-         numero:digitos];
+    NSString *conPrefijo = [Utilities numeroParaLlamarConCodigo:prefijo numero:crudo];
+
+    NSMutableString *digitos = [[NSMutableString alloc] init];
+    for (NSUInteger i = 0; i < conPrefijo.length; i++) {
+        unichar c = [conPrefijo characterAtIndex:i];
+        if (c >= '0' && c <= '9') {
+            [digitos appendFormat:@"%C", c];
+        }
+    }
+    NSLog(@"[Soporte] support_number: '%@' + prefijo '%@' -> %@", crudo, prefijo, digitos);
+    return digitos;
 }
 
 /**
@@ -506,26 +562,27 @@
  devolvia NO, el boton se quedaba mudo y no habia forma de saber por que. Un boton que no
  responde parece la app rota.
  */
-+ (void)abrir:(NSURL *)url
-  luegoSiFalla:(NSURL *)reserva
-        desde:(UIViewController *)vc
-       numero:(NSString *)digitos {
-    if (url == nil) {
++ (void)abrirCadena:(NSArray<NSURL *> *)cadena
+              desde:(UIViewController *)vc
+             numero:(NSString *)digitos {
+    if (cadena.count == 0) {
         [self noSePudoAbrirDesde:vc numero:digitos];
         return;
     }
+    NSURL *url = [cadena firstObject];
+    NSArray<NSURL *> *resto = [cadena subarrayWithRange:NSMakeRange(1, cadena.count - 1)];
+
     [[UIApplication sharedApplication] openURL:url options:@{} completionHandler:^(BOOL abierto) {
         dispatch_async(dispatch_get_main_queue(), ^{
             if (abierto) {
+                NSLog(@"[Soporte] abrio con %@", url.absoluteString);
                 [self cerrarLaHoja:vc];
                 return;
             }
+            // Este es el renglon que dice por que no abrio, y es el unico que se ve en un
+            // telefono real: en el simulador WhatsApp no esta instalado y siempre falla.
             NSLog(@"[Soporte] openURL dijo NO para %@", url.absoluteString);
-            if (reserva != nil) {
-                [self abrir:reserva luegoSiFalla:nil desde:vc numero:digitos];
-                return;
-            }
-            [self noSePudoAbrirDesde:vc numero:digitos];
+            [self abrirCadena:resto desde:vc numero:digitos];
         });
     }];
 }
