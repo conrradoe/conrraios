@@ -301,7 +301,34 @@
                 }
             }
         }else{
-            for (CityModel * cModel in [delegate arrayCities]) {
+            /*
+             SOLO LAS CIUDADES HIJAS, y no es un detalle de estilo.
+
+             La tabla de ciudades tiene madres e hijas: la madre es la region -- "Panama",
+             id 31 -- y la hija es donde se opera de verdad -- "Panama City", id 32. El
+             geocerco de la madre CONTIENE el de la hija, asi que recorriendo la lista
+             entera la primera que encaja puede ser la MADRE. Y el orden de la lista es el
+             que venga del servidor, o sea que no es ni estable.
+
+             ESO ROMPIA LA BUSQUEDA DE CONDUCTORES. El pasajero manda esa ciudad a
+             getnearbydriverlists, y alli se filtra por igualdad exacta:
+
+                 DriverModel.php:500    AND d.city_id='{$cityID}'
+
+             Los conductores estan dados de alta en la HIJA (city_id 32, p_city_id 31). Con
+             la madre la consulta no devuelve NI UNO: el pasajero no veia un solo coche
+             aunque tuviera uno al lado. Y el conductor si veia al pasajero, porque su
+             sondeo -- tripapi/getrevisedtrips -- va por lat/lng y millas y no mira la
+             ciudad. De ahi que pareciera un fallo de un solo lado.
+
+             Android nunca lo tuvo, y no por suerte: recorre retriveChildCities(), que deja
+             fuera a las madres (Controller.java:819). Esto hace lo mismo.
+
+             Si no hay ninguna hija se recorre la lista entera, porque una instalacion de
+             una sola ciudad sin madre tiene que seguir funcionando igual.
+             */
+            NSArray *candidatas = arrayChilds.count > 0 ? arrayChilds : [delegate arrayCities];
+            for (CityModel * cModel in candidatas) {
                 if([cModel containsLocation:locCoordinate]){
                     BOOL isInRedZone=[cModel containsLocationRedZone:locCoordinate];
                     if(isInRedZone==YES){
