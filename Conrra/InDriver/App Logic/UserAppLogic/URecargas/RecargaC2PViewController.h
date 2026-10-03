@@ -21,6 +21,18 @@ NS_ASSUME_NONNULL_BEGIN
  */
 @interface RecargaC2PViewController : BaseViewController
 
+/**
+ La tabla de bancos, como parejas {nombre, codigo}.
+
+ Se expone porque la recarga para estudiantes tiene que traducir el MISMO nombre de banco
+ al MISMO codigo. Dos tablas que hay que mantener a la vez acaban distintas, y el sintoma
+ seria una recarga rechazada por un codigo viejo. Ver ConrraRecargaEstudiantes.
+ */
++ (NSArray<NSArray<NSString *> *> *)bancosPorNombre;
+
+/** Un nombre de banco comparable: sin acentos, sin mayusculas y sin adornos. */
++ (NSString *)normalizar:(NSString *)texto;
+
 @end
 
 NS_ASSUME_NONNULL_END

@@ -24,6 +24,11 @@ NS_ASSUME_NONNULL_BEGIN
 @property(assign,nonatomic)BOOL isCustomUrl;
 @property(strong,nonatomic)NSString * customUrl;
 @property(strong,nonatomic)NSString * customTitle;
+/**
+ Cuerpo de un POST, para quien abra esta pantalla con datos que no pueden ir en la
+ direccion. A nil se carga con GET, como siempre. Ver ConrraRecargaEstudiantes.
+ */
+@property(strong,nonatomic)NSData * customPostBody;
 
 @end
 

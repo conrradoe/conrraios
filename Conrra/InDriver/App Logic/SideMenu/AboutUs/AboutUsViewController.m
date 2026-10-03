@@ -52,7 +52,29 @@
     self.webView.navigationDelegate=self;
     
     //3
-    NSURLRequest *request = [NSURLRequest requestWithURL:url];
+    /*
+     POST en vez de GET cuando quien abre la pantalla manda un cuerpo.
+
+     POR QUE: la recarga para estudiantes prellena el formulario con la cedula y el
+     telefono que el usuario ya tiene registrados, y eso no puede viajar en la direccion.
+     Un parametro de URL acaba escrito en el log de accesos del servidor web y en la
+     cabecera Referer de cada recurso que cargue la pagina; el cuerpo de un POST, no.
+
+     OJO si algun dia la direccion redirige: un 30x convierte el POST en GET y el cuerpo se
+     pierde. Por eso quien lo use tiene que seguir funcionando sin el, solo con lo que
+     lleve la direccion.
+     */
+    NSURLRequest *request;
+    if (self.customPostBody.length > 0) {
+        NSMutableURLRequest *conCuerpo = [NSMutableURLRequest requestWithURL:url];
+        conCuerpo.HTTPMethod = @"POST";
+        conCuerpo.HTTPBody = self.customPostBody;
+        [conCuerpo setValue:@"application/x-www-form-urlencoded"
+         forHTTPHeaderField:@"Content-Type"];
+        request = conCuerpo;
+    } else {
+        request = [NSURLRequest requestWithURL:url];
+    }
     [self.webView loadRequest:request];
     [self.activityLoader  setHidden:NO];
        [self.activityLoader startAnimating];

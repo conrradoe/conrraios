@@ -7,6 +7,7 @@
 #import "RecargaEstilo.h"
 #import "RecargaC2PViewController.h"
 #import "RecargaBotonViewController.h"
+#import "ConrraRecargaEstudiantes.h"
 #import "AboutUsViewController.h"
 #import "Utilities.h"
 #import "CityModel.h"
@@ -84,6 +85,20 @@
                                                                       defaultValue:@"Reporta tu pago y lo verificamos"]
                                             accion:@selector(abrirTransferencia)];
 
+    /*
+     La fila de recarga para estudiantes, armada entera desde la tabla `constants`.
+
+     Nace escondida y solo aparece si hay rotulo y una direccion https, y solo para el
+     pasajero; ver ConrraRecargaEstudiantes. Debajo no cuelga nada -- la tasa esta anclada
+     al fondo de la pantalla --, asi que esconderla no descoloca el resto.
+     */
+    UIView *filaEstudiantes = [self filaConIcono:@"gift"
+                                         recurso:@"menu_icon_wallet"
+                                          titulo:[ConrraRecargaEstudiantes titulo]
+                                       subtitulo:[ConrraRecargaEstudiantes subtitulo]
+                                          accion:@selector(abrirEstudiantes)];
+    filaEstudiantes.hidden = ![ConrraRecargaEstudiantes disponible];
+
     self.lblTasa = [RecargaEstilo ayuda:@""];
     self.lblTasa.textAlignment = NSTextAlignmentCenter;
     [self.view addSubview:self.lblTasa];
@@ -115,6 +130,10 @@
         [filaTransferencia.topAnchor      constraintEqualToAnchor:filaTarjeta.bottomAnchor constant:12],
         [filaTransferencia.leadingAnchor  constraintEqualToAnchor:self.view.leadingAnchor constant:margen],
         [filaTransferencia.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-margen],
+
+        [filaEstudiantes.topAnchor      constraintEqualToAnchor:filaTransferencia.bottomAnchor constant:12],
+        [filaEstudiantes.leadingAnchor  constraintEqualToAnchor:self.view.leadingAnchor constant:margen],
+        [filaEstudiantes.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-margen],
 
         [self.lblTasa.bottomAnchor   constraintEqualToAnchor:seguro.bottomAnchor constant:-20],
         [self.lblTasa.leadingAnchor  constraintEqualToAnchor:self.view.leadingAnchor constant:margen],
@@ -243,6 +262,31 @@
 
 - (void)abrirTransferencia {
     [self abrirWebConMetodo:@"transferencia"];
+}
+
+/**
+ La recarga para estudiantes: se abre su pagina con la identidad de la cuenta.
+
+ El cuerpo lleva la cedula, el telefono y el banco que el pasajero ya tiene registrados,
+ para no pedirselos otra vez, y va por POST porque son datos personales: ver
+ ConrraRecargaEstudiantes.cuerpoPost. Si no hay nada que prellenar se abre igual y el
+ usuario teclea.
+ */
+- (void)abrirEstudiantes {
+    if (![ConrraRecargaEstudiantes disponible]) {
+        return;
+    }
+    UIViewController *vc = [StoryBoardUtiles viewContollerWithIdentifier:@"AboutUsViewController"
+                                                                   name:StoryBoardUtiles.STORYBOARD_USER];
+    if (![vc isKindOfClass:[AboutUsViewController class]]) {
+        return;
+    }
+    AboutUsViewController *web = (AboutUsViewController *)vc;
+    web.isCustomUrl     = YES;
+    web.customTitle     = [ConrraRecargaEstudiantes titulo];
+    web.customUrl       = [ConrraRecargaEstudiantes urlConIdentidad];
+    web.customPostBody  = [ConrraRecargaEstudiantes cuerpoPost];
+    [self.navigationController pushViewController:web animated:YES];
 }
 
 /**

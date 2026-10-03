@@ -16,6 +16,7 @@
 		577B36D90960470B9954A54B /* ConrraDestinoDePlan.m in Sources */ = {isa = PBXBuildFile; fileRef = DB5BD24B804B4571B40CED22 /* ConrraDestinoDePlan.m */; };
 		57B36B2469D2429187164471 /* PlanesViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 5C3562E51F094F46852A86A0 /* PlanesViewController.m */; };
 		89B2CC384CA440E9B192AD2B /* RecargaEstilo.m in Sources */ = {isa = PBXBuildFile; fileRef = 286AB2CF366447A6947CA85D /* RecargaEstilo.m */; };
+		C0E57001A4B3421E9D11AE01 /* ConrraRecargaEstudiantes.m in Sources */ = {isa = PBXBuildFile; fileRef = C0E57003A4B3421E9D11AE03 /* ConrraRecargaEstudiantes.m */; };
 		9475C579137E9387870B81EC /* RadarAnimationView.m in Sources */ = {isa = PBXBuildFile; fileRef = 237379DFF884A86F4F2133D5 /* RadarAnimationView.m */; };
 		9DF32FC4D472C62122B86325 /* UserPinAnnotationView.m in Sources */ = {isa = PBXBuildFile; fileRef = 1006C26EADC7E7AA5F24C56A /* UserPinAnnotationView.m */; };
 		A5038AAF7F1240C19B8A9CBF /* ConrraAvisoLocal.m in Sources */ = {isa = PBXBuildFile; fileRef = 9081982A068C47CBA3DEE80B /* ConrraAvisoLocal.m */; };
@@ -514,6 +515,7 @@
 
 /* Begin PBXFileReference section */
 		00B6C42AA70E4AEDA64A8857 /* RecargaEstilo.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RecargaEstilo.h; sourceTree = "<group>"; };
+		C0E57002A4B3421E9D11AE02 /* ConrraRecargaEstudiantes.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraRecargaEstudiantes.h; sourceTree = "<group>"; };
 		01BCB721B17D343B2458CB2B /* UserPinAnnotationView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = UserPinAnnotationView.h; sourceTree = "<group>"; };
 		07A75B65E6F74203B8CD8A51 /* ConrraAvisoLocal.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraAvisoLocal.h; sourceTree = "<group>"; };
 		083FC0351047472FA58C03E5 /* RadarAnimationView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RadarAnimationView.h; sourceTree = "<group>"; };
@@ -522,6 +524,7 @@
 		20CE1AE0F2C6472D99053ADD /* RecargasViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RecargasViewController.m; sourceTree = "<group>"; };
 		237379DFF884A86F4F2133D5 /* RadarAnimationView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RadarAnimationView.m; sourceTree = "<group>"; };
 		286AB2CF366447A6947CA85D /* RecargaEstilo.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RecargaEstilo.m; sourceTree = "<group>"; };
+		C0E57003A4B3421E9D11AE03 /* ConrraRecargaEstudiantes.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraRecargaEstudiantes.m; sourceTree = "<group>"; };
 		30ACBF88F6E845E8BBAA7330 /* RecargaBotonViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RecargaBotonViewController.m; sourceTree = "<group>"; };
 		572E2802AC864CEEB245CD34 /* ConrraCarruselBanners.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraCarruselBanners.h; sourceTree = "<group>"; };
 		5C3562E51F094F46852A86A0 /* PlanesViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PlanesViewController.m; sourceTree = "<group>"; };
@@ -3537,6 +3540,8 @@
 			children = (
 				00B6C42AA70E4AEDA64A8857 /* RecargaEstilo.h */,
 				286AB2CF366447A6947CA85D /* RecargaEstilo.m */,
+				C0E57002A4B3421E9D11AE02 /* ConrraRecargaEstudiantes.h */,
+				C0E57003A4B3421E9D11AE03 /* ConrraRecargaEstudiantes.m */,
 				87C480AEF3914B05A4449118 /* RecargasViewController.h */,
 				20CE1AE0F2C6472D99053ADD /* RecargasViewController.m */,
 				D6702AD70662448C84CE048C /* RecargaC2PViewController.h */,
@@ -3786,6 +3791,7 @@
 				74FB5B4BFB8C438C93F25D8B /* ConrraDestinosRecientes.m in Sources */,
 				1E96403CF1C54CF884BA53A4 /* ConrraChatDeSoporte.m in Sources */,
 				89B2CC384CA440E9B192AD2B /* RecargaEstilo.m in Sources */,
+				C0E57001A4B3421E9D11AE01 /* ConrraRecargaEstudiantes.m in Sources */,
 				1EF7D8AE4D584A61A57B40E3 /* RecargasViewController.m in Sources */,
 				05C616BCD06F4F7E9B3F5EA3 /* RecargaC2PViewController.m in Sources */,
 				EBA67F1D6A614C54BF8C25C8 /* RecargaBotonViewController.m in Sources */,
