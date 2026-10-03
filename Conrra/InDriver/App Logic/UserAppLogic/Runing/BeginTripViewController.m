@@ -144,8 +144,6 @@
     /// Con cuantos mensajes sin leer se cerro el aviso a mano. Sirve para no volver a
     /// sacarlo hasta que llegue uno nuevo de verdad.
     int _avisoCerradoConNMensajes;
-    NSTimer *timerBlink;
-    BOOL blinkStatus;
     /** Cuantos no leidos habia la ultima vez, para avisar solo cuando sube. */
     int ultimoConteoNoLeidos;
     /** La primera lectura trae los mensajes que YA estaban sin leer: esos no se avisan. */
@@ -171,10 +169,6 @@
 
 -(void) cancellAllTimerWhenGoToHome{
     isGoToHomeScreen=YES;
-    if(timerBlink){
-        [timerBlink invalidate];
-        timerBlink=nil;
-    }
     if(tripCheckTimer){
         [tripCheckTimer invalidate];
         tripCheckTimer=nil;
@@ -888,11 +882,6 @@
  sabe.
  */
 -(void)cerrarAvisoDeMensaje {
-    if (timerBlink) {
-        [timerBlink invalidate];
-        timerBlink = nil;
-    }
-    _viewMessage.backgroundColor = UIColor.whiteColor;
     self.viewMessage.hidden = YES;
     _avisoCerradoConNMensajes = [_firebaseUnReadChat messageCount];
 }
@@ -955,11 +944,6 @@
     {
         [tripCheckTimer invalidate];
         tripCheckTimer=nil;
-    }
-    if(timerBlink)
-    {
-        [timerBlink invalidate];
-        timerBlink=nil;
     }
     /// Firebase
     //    [self firebase_removeObservers];
@@ -2976,11 +2960,15 @@
     }
 
     // Sin clave unica: cada mensaje nuevo es un aviso nuevo, a diferencia de la llegada.
+    /*
+     SIN VIBRACION. El aviso del sistema ya suena y se ve en la pantalla de bloqueo.
+     Vibrar encima, y en CADA mensaje, es un tiron fisico por algo que no es urgente: el
+     pasajero no tiene que hacer nada con un mensaje de chat mientras va en el coche.
+     */
     [ConrraAvisoLocal mostrarConClaveUnica:nil
                                     titulo:nombre
                                      texto:isEmpty(texto)
                                     sonido:nil];
-    [ConrraAvisoLocal vibrar];
 }
 
 
@@ -3264,22 +3252,19 @@
             [self.btnPhone setBadgeBackgroundColor:[UIColor redColor]];
             [self avisarMensajeNuevoSiToca:[_firebaseUnReadChat messageCount]
                                      texto:[_firebaseUnReadChat lastMessagText]];
-            if(timerBlink) {
-                [timerBlink invalidate];
-                timerBlink=nil;
-            }
-            timerBlink = [NSTimer
-                          scheduledTimerWithTimeInterval:(NSTimeInterval)(1.0)
-                          target:self
-                          selector:@selector(blink)
-                          userInfo:nil
-                          repeats:TRUE];
-            blinkStatus = NO;
+            /*
+             LA FRANJA SE QUEDA AMARILLA FIJA.
+
+             Antes un temporizador de un segundo la cambiaba de blanco a amarillo y vuelta,
+             y seguia asi todo el viaje mientras quedara un mensaje sin leer. Un parpadeo no
+             se puede ignorar: obliga a volver a mirar cada segundo, y el pasajero va dentro
+             de un coche, no delante de una pantalla.
+
+             Avisar no necesita moverse. La franja ya se distingue por el color, y lleva el
+             nombre del conductor, el texto del mensaje y el numero en el boton de chat.
+             */
+            _viewMessage.backgroundColor = RGB(255, 192, 0);
         }else{
-            if(timerBlink) {
-                [timerBlink invalidate];
-                timerBlink=nil;
-            }
             [self.viewMessage setHidden:YES];
             [self.btnPhone setBadgeString:@""];
             [self.btnPhone hideWhenZero];
@@ -3299,18 +3284,6 @@
 
 - (IBAction)onChatReplyButtonTap:(id)sender {
     [self openChatViewController];
-}
-
-
--(void)blink{
-    if(blinkStatus == NO){
-        _viewMessage.backgroundColor = UIColor.whiteColor;
-
-        blinkStatus = YES;
-    }else {
-        _viewMessage.backgroundColor =  RGB(255, 192, 0 );
-        blinkStatus = NO;
-    }
 }
 
 
