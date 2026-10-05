@@ -298,11 +298,21 @@
         //   P_USER_DEFAULT_PAY_MODE        :@"card"
     }];
 
-    if(self.isFormPrepaireConfirmTrip)
-    {
-    }else{
-        [dict setObject:@"card" forKey:P_USER_DEFAULT_PAY_MODE];
-    }
+    /*
+     AQUI SE FORZABA u_pay_mode = "card", Y SE HA QUITADO.
+
+     Esta pantalla sirve para administrar tarjetas: elegir la predeterminada. Pero ademas
+     escribia el MODO de pago de la cuenta como "card", aunque el pasajero solo estuviera
+     ordenando sus tarjetas y fuera a pagar su siguiente viaje en efectivo.
+
+     Era lo UNICO que escribia ese campo en toda la app, asi que el u_pay_mode del perfil no
+     describia una preferencia: describia "la ultima vez que alguien toco esta pantalla".
+     Ahora lo escribe ConrraPagoPreferido con el metodo que de verdad se eligio para un
+     viaje, y este dejaria eso pisado.
+
+     La tarjeta predeterminada (P_USER_DEFAULT_PAY_METHOD) si se sigue guardando: eso si es
+     el trabajo de esta pantalla.
+     */
     
     [UtilityClass setLH:NO wt:[LanguageHelper getStringWithKey:@"k_53_s3_please_wait" defaultValue:@"Please wait..."]];
 

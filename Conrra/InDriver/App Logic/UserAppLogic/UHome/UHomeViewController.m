@@ -8,6 +8,7 @@
 
 #import "UHomeViewController.h"
 #import "ConrraSaldoBilletera.h"
+#import "ConrraPagoPreferido.h"
 #import "ConrraDestinoDePlan.h"
 #import "UIViewController+LGSideMenuController.h"
 #import "UIView+UpdateAutoLayoutConstraints.h"
@@ -193,7 +194,26 @@
         self.viewPrePayment.hidden=YES;
         self.marginTopPrePayment.constant = 0;
     }
-    paymentViewModel = [[HomePaymentViewModel alloc] init:1];
+    /*
+     EL METODO DE PAGO ARRANCA EN EL QUE SE USO LA ULTIMA VEZ.
+
+     Esto era `init:1` fijo -- el 1 es billetera --, asi que quien paga en efectivo todos
+     los dias lo tenia que cambiar en CADA viaje. Y el u_pay_mode del perfil no servia de
+     nada, porque lo unico que escribia ahi era la pantalla de tarjetas y siempre ponia
+     "card". Ver ConrraPagoPreferido.
+
+     El 1 se queda como respaldo para la primera vez, que es lo que habia.
+     */
+    paymentViewModel = [[HomePaymentViewModel alloc]
+                        init:[ConrraPagoPreferido modoParaElSelectorOPorOmision:1]];
+    NSString *tarjetaRecordada = [ConrraPagoPreferido tarjeta];
+    if (tarjetaRecordada.length > 0) {
+        // Con tarjeta hace falta tambien el identificador de Stripe: sin el, al volver se
+        // sabria "tarjeta" pero no CUAL, y el cobro no se podria hacer.
+        paymentViewModel.paymentMethod = tarjetaRecordada;
+        [paymentViewModel updatePaymentModeText:paymentViewModel.paymentMode
+                                     cardNumber:[ConrraPagoPreferido tarjetaVisible]];
+    }
     [self.btnMenu setHidden:YES];
     [self.btnMenu setHideWhenZero:YES];
     [self.btnMenu setBadgeBackgroundColor:[UIColor clearColor]];
@@ -4730,6 +4750,11 @@
     self->paymentViewModel.paymentMethod = paymentMethod;
     [self->paymentViewModel updatePaymentModeText:2 cardNumber:cardNumber];
     [self->currentFareOfferVC updatePaymentLabel:self->paymentViewModel.paymentModeText icon:self->paymentViewModel.paymentModeImage];
+    // Con el identificador de la tarjeta y los cuatro digitos: hace falta restaurar las dos
+    // cosas para que al volver se vea la misma tarjeta y se pueda cobrar en ella.
+    [ConrraPagoPreferido recordarModo:self->paymentViewModel.tripPayMode
+                              tarjeta:paymentMethod
+                              visible:cardNumber];
     //    [self->rentalView updatePaymentModeText:2 cardNumber:cardNumber];
     //    [self->outstationView updatePaymentModeText:2 cardNumber:cardNumber];
 }
@@ -5850,6 +5875,15 @@ static const CGFloat   kAltoRotuloRecientes = 26.0;
     [paymentViewModel updatePaymentModeText:mode];
     [currentFareOfferVC updatePaymentLabel:paymentViewModel.paymentModeText
                                       icon:paymentViewModel.paymentModeImage];
+    /*
+     Se recuerda para el viaje siguiente, aqui y en el perfil.
+
+     Se guarda el NOMBRE que resolvio el modelo (tripPayMode) y no el numero `mode`: el
+     numero es un detalle de este selector y el nombre es lo que entiende el servidor. Si el
+     modo es "ninguno" el nombre sale vacio y no se guarda nada, que es lo correcto: la
+     ausencia de eleccion no es una preferencia.
+     */
+    [ConrraPagoPreferido recordarModo:paymentViewModel.tripPayMode tarjeta:nil visible:nil];
 }
 
 -(void)refreshHomeAvailabilityLabel {
