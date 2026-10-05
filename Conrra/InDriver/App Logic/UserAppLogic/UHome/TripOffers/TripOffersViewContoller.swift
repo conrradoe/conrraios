@@ -250,7 +250,7 @@ private class TripOffersRootView: UIView {
              de las dos opciones: ya hizo el trayecto.
              */
             let importe = Float(offer.offer_amt ?? "") ?? 0
-            if importe > 0 && importe > Self.saldoDeLaBilletera() {
+            if !ConrraSaldoBilletera.alcanza(trip.trip_pay_mode, importe: importe) {
                 avisarSaldoInsuficiente(importe: importe)
                 return
             }
@@ -272,43 +272,19 @@ private class TripOffersRootView: UIView {
         tripOfferViewModel.updateTripOffer(tripOffer: offer, status: "declined")
     }
 
-    /// El saldo del monedero del pasajero que tiene la sesion abierta.
-    private static func saldoDeLaBilletera() -> Float {
-        let defaults = UserDefaults.standard
-        let dict = (defaults.object(forKey: "user_dict_logged") as? [String: Any])
-                 ?? (defaults.object(forKey: "user_dict") as? [String: Any])
-        guard let valor = dict?["u_wallet"] else { return 0 }
-        if let n = valor as? NSNumber { return n.floatValue }
-        if let t = valor as? String { return Float(t) ?? 0 }
-        return 0
-    }
-
     /**
-     Le dice que no le alcanza, con las dos cifras delante.
+     Le dice que no le alcanza.
 
-     Sin los numeros el aviso no sirve de nada: lo primero que se pregunta quien lo lee es
-     cuanto le falta.
+     Las dos cifras y el texto los arma ConrraSaldoBilletera, que es donde vive la regla.
+     Esta pantalla tenia su propia copia de "cuanto hay en la billetera" y era la UNICA que
+     miraba el saldo en toda la app; ahora lo miran los tres puntos y todos dicen lo mismo.
      */
     private func avisarSaldoInsuficiente(importe: Float) {
         // El tipo explicito no sobra: CityModel.h vive dentro de NS_ASSUME_NONNULL pero
         // getCityByCityId devuelve nil si la lista de ciudades no esta cargada. Sin la
         // anotacion, Swift lo cree no-opcional y el "?." de abajo ni compila.
         let ciudad: CityModel? = CityModel.getCityByCityId(Int(trip?.city_id ?? 0))
-        let moneda = ciudad?.city_cur ?? ""
-        let pedido = Utilities.formatAmountAndCurrency(importe, currency: moneda) ?? String(format: "%.2f", importe)
-        let tengo  = Utilities.formatAmountAndCurrency(Self.saldoDeLaBilletera(), currency: moneda)
-                     ?? String(format: "%.2f", Self.saldoDeLaBilletera())
-
-        let alerta = UIAlertController(
-            title: LanguageHelper.getStringWithKey("k_s10_saldo_corto_titulo",
-                                                  defaultValue: "Saldo insuficiente"),
-            message: String(format: "Esta oferta es de %@ y en tu billetera tienes %@. Recarga o elige otro método de pago antes de aceptarla.",
-                            pedido, tengo),
-            preferredStyle: .alert)
-        alerta.addAction(UIAlertAction(
-            title: LanguageHelper.getStringWithKey("k_18_s4_Ok", defaultValue: "Entendido"),
-            style: .default))
-        present(alerta, animated: true)
+        ConrraSaldoBilletera.avisarEn(self, importe: importe, moneda: ciudad?.city_cur ?? "")
     }
 
 
@@ -1031,6 +1007,18 @@ private class TripOffersRootView: UIView {
         }
         if hayTopes && montoDelAjustador > ofertaMaxima {
             avisar(LanguageHelper.getStringWithKey("k_r1_s6_pls_ntr_amnt_less_thn_max_fare"))
+            return
+        }
+        /*
+         Y EL SALDO, que es el tercer sitio donde el pasajero compromete dinero.
+
+         Subir su propia oferta es cambiar lo que va a pagar, asi que vale lo mismo que
+         aceptar la de un conductor: con billetera, si no le alcanza, no se manda. Aqui solo
+         se miraban el minimo y el maximo, y por eso se podia ofertar por encima del saldo y
+         arrancar un viaje impagable.
+         */
+        if !ConrraSaldoBilletera.alcanza(trip.trip_pay_mode, importe: montoDelAjustador) {
+            avisarSaldoInsuficiente(importe: montoDelAjustador)
             return
         }
         tripOfferManager.updateTripPayAmount(trip: trip, amount: montoDelAjustador) { [weak self] results, error in

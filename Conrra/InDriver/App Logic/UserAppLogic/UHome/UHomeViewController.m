@@ -7,6 +7,7 @@
 //
 
 #import "UHomeViewController.h"
+#import "ConrraSaldoBilletera.h"
 #import "ConrraDestinoDePlan.h"
 #import "UIViewController+LGSideMenuController.h"
 #import "UIView+UpdateAutoLayoutConstraints.h"
@@ -3507,6 +3508,22 @@
     ////        [dict setObject:CASH_PAY forKey:@"trip_pay_mode"];
     //    }
     
+    /*
+     EL SALDO, ANTES DE PEDIR EL VIAJE.
+
+     Es el primero de los tres puntos donde el pasajero compromete dinero, y era el unico
+     que no miraba nada: con billetera y saldo corto el viaje arrancaba igual y la deuda
+     aparecia AL FINAL, cuando ya habia hecho el trayecto. Ver ConrraSaldoBilletera.
+
+     El importe se lee del propio cuerpo de la peticion y no de una variable de la pantalla:
+     asi se comprueba exactamente lo que se va a mandar, sea esta la pantalla que sea.
+     */
+    float importeDelViaje = [[dict objectForKey:@"trip_pay_amount"] floatValue];
+    if (![ConrraSaldoBilletera alcanza:paymentViewModel.tripPayMode importe:importeDelViaje]) {
+        [ConrraSaldoBilletera avisarEn:self importe:importeDelViaje moneda:cityModel.city_cur];
+        return;
+    }
+
     [UtilityClass setLH:NO wt:[LanguageHelper getStringWithKey:@"k_r16_s3_plz_wait"]];
     [GIC mkwerwu:API_CREATE_TRIP
                d:dict
@@ -3847,6 +3864,21 @@
         if(paymentViewModel.paymentMethod.length>0){
             [dict setObject:paymentViewModel.paymentMethod forKey:@"payment_card_id"];
         }
+    }
+    /*
+     EL SALDO, ANTES DE PEDIR EL VIAJE.
+
+     Es el primero de los tres puntos donde el pasajero compromete dinero, y era el unico
+     que no miraba nada: con billetera y saldo corto el viaje arrancaba igual y la deuda
+     aparecia AL FINAL, cuando ya habia hecho el trayecto. Ver ConrraSaldoBilletera.
+
+     El importe se lee del propio cuerpo de la peticion y no de una variable de la pantalla:
+     asi se comprueba exactamente lo que se va a mandar, sea esta la pantalla que sea.
+     */
+    float importeDelViaje = [[dict objectForKey:@"trip_pay_amount"] floatValue];
+    if (![ConrraSaldoBilletera alcanza:paymentViewModel.tripPayMode importe:importeDelViaje]) {
+        [ConrraSaldoBilletera avisarEn:self importe:importeDelViaje moneda:cityModel.city_cur];
+        return;
     }
     [GIC mkwerwu:API_CREATE_TRIP
                d:dict
