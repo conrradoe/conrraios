@@ -28,6 +28,12 @@ NS_ASSUME_NONNULL_BEGIN
  alguien añada un quinto sitio donde el precio cambie y se olvide de copiarla. Aqui esta una
  vez y cada punto la llama.
 
+ LOS NOMBRES DE SWIFT VAN FIJADOS A MANO (NS_SWIFT_NAME). La pantalla de ofertas es Swift,
+ y el importador de Objective-C reescribe los nombres de los metodos por su cuenta --
+ recorta preposiciones, mueve etiquetas-- con reglas pensadas para el ingles. Con nombres en
+ castellano el resultado no es predecible leyendo el codigo, y un nombre distinto del que
+ espera el llamante no compila. Asi queda dicho cual es, y no depende de esas reglas.
+
  ESTO NO SUSTITUYE AL SERVIDOR. El endpoint que crea y acepta viajes admite cualquier importe
  sin mirar saldo, asi que un cliente modificado se salta todo esto. Cerrarlo de verdad es
  trabajo de backend; esto cierra lo que se puede cerrar desde el telefono.
@@ -46,7 +52,8 @@ NS_ASSUME_NONNULL_BEGIN
  Con un modo de pago que no sea billetera devuelve YES siempre: el efectivo y el pago movil
  no dependen de este saldo, y bloquearlos aqui seria impedir viajes que si se pueden pagar.
  */
-+ (BOOL)alcanza:(nullable NSString *)modoDePago importe:(float)importe;
++ (BOOL)alcanza:(nullable NSString *)modoDePago
+        importe:(float)importe NS_SWIFT_NAME(alcanza(_:importe:));
 
 /** Cuanto falta para llegar. Cero si ya alcanza. */
 + (float)falta:(float)importe;
@@ -59,7 +66,7 @@ NS_ASSUME_NONNULL_BEGIN
  */
 + (void)avisarEn:(nullable UIViewController *)vc
          importe:(float)importe
-          moneda:(nullable NSString *)moneda;
+          moneda:(nullable NSString *)moneda NS_SWIFT_NAME(avisarEn(_:importe:moneda:));
 
 @end
 

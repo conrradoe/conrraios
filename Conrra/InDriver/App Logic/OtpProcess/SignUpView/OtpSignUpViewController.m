@@ -1138,12 +1138,38 @@
     UIImagePickerControllerSourceType tipo = conCamara
         ? UIImagePickerControllerSourceTypeCamera
         : UIImagePickerControllerSourceTypePhotoLibrary;
+    /*
+     El ayudante pide TRES tramos, y el tercero no es opcional:
+     obtainPermissionForMediaSourceType:withSuccessHandler:andFailure:. Sin andFailure el
+     selector no existe y no compila.
+
+     Y el fallo tiene que hacer algo. Si el permiso esta denegado, presentar el selector a
+     secas deja una pantalla negra; aqui se le dice que esta denegado y se le abre los
+     Ajustes, que es lo que ya hace la foto de perfil.
+     */
     [UIImagePickerController obtainPermissionForMediaSourceType:tipo withSuccessHandler:^{
         UIImagePickerController *selector = [[UIImagePickerController alloc] init];
         selector.delegate = self;
         selector.allowsEditing = YES;
         selector.sourceType = tipo;
         [self presentViewController:selector animated:YES completion:nil];
+    } andFailure:^{
+        UIAlertController *aviso = [UIAlertController
+            alertControllerWithTitle:nil
+                             message:[LanguageHelper getStringWithKey:@"k_s10_sin_permiso_foto"
+                                                        defaultValue:@"No tienes el permiso concedido. Puedes dárselo en los Ajustes."]
+                      preferredStyle:UIAlertControllerStyleAlert];
+        [aviso addAction:[UIAlertAction
+            actionWithTitle:[LanguageHelper getStringWithKey:@"k_s10_abrir_ajustes" defaultValue:@"Abrir Ajustes"]
+                      style:UIAlertActionStyleDefault
+                    handler:^(UIAlertAction *a) {
+            [[UIApplication sharedApplication] openURL:[NSURL URLWithString:UIApplicationOpenSettingsURLString]
+                                               options:@{} completionHandler:nil];
+        }]];
+        [aviso addAction:[UIAlertAction
+            actionWithTitle:[LanguageHelper getStringWithKey:@"k_30_s6_cancel_j" defaultValue:@"Cancelar"]
+                      style:UIAlertActionStyleCancel handler:nil]];
+        [self presentViewController:aviso animated:YES completion:nil];
     }];
 }
 
