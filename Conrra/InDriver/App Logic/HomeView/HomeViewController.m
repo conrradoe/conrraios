@@ -69,6 +69,7 @@
 #import "UpcommingTripCell.h"
 #import "OfferCardCell.h"
 #import <Conrra-Swift.h>
+#import "ConrraDescuento.h"
 @interface HomeViewController ()<FIRMessagingDelegate,TripRequestDelegate,MFMailComposeViewControllerDelegate,SingleRequestViewDelegate,DTripOffersViewContollerDelegate,SentOfferDetailsViewControllerDelegate,OfferCardCellDelegate,UITextFieldDelegate,AutoHideAlertDelegate,AskTripOtpVCDelegate,UpcommingTripCellDelegate,UICollectionViewDelegate,UICollectionViewDataSource,UICollectionViewDelegateFlowLayout>
 @property (strong, nonatomic) FIRDatabaseReference *ref_TripChat;
 
@@ -7252,9 +7253,10 @@
     // Fare amount
     NSString *fare = homeDataModel.trip.trip_fare;
     if (fare.length > 0) {
-        CityModel *cityModel = [CityModel getCityByCityId:homeDataModel.trip.city_id];
-        NSString *formatted  = [Utilities formatAmountAndCurrency:[fare floatValue] currency:cityModel.city_cur];
-        _ndOnTripFareLbl.text = formatted ?: fare;
+        // Al conductor se le enseña el mismo par de importes que al pasajero: el descuento
+        // no sale de su parte sino de la comision de la plataforma, pero tiene que ver que
+        // el viaje es promocional y no un numero que no cuadra. Ver ConrraDescuento.
+        [ConrraDescuento pintarEn:_ndOnTripFareLbl viaje:homeDataModel.trip];
     } else {
         _ndOnTripFareLbl.text = @"--";
     }

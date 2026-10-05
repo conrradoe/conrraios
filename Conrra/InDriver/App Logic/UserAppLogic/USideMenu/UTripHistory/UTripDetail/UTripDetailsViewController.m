@@ -20,6 +20,7 @@
 #import "RoundShapeBg.h"
 #import "StarRatingView.h"
 #import "TripModel+Helper.h"
+#import "ConrraDescuento.h"
 @interface UTripDetailsViewController ()<MKMapViewDelegate>
 @property (weak, nonatomic) IBOutlet MKMapView *mapView;
 @property (weak, nonatomic) IBOutlet UILabel *lbCarCategoryName;
@@ -132,7 +133,7 @@
     // waiting time
     self.lblWaitTimeValue.text=[NSString stringWithFormat:@"%d%@",self.trip.wait_duration,[LanguageHelper getStringWithKey:self.trip.wait_duration<=1?@"k_17_s4_min":@"k_17_s4_mins"]];
     // Fare TotoalCost
-    self.lblRideCostValue.text=[Utilities formatAmountAndCurrency:[self.trip.trip_fare floatValue] currency:cityModel.city_cur];
+    [ConrraDescuento pintarEn:self.lblRideCostValue viaje:self.trip];
     //Distance
     self.lblDistanceValue.text =[NSString stringWithFormat:@"%@ %@",tripDis,dis];
     // Promo

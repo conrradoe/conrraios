@@ -19,6 +19,7 @@
 #import "Utilities.h"
 #import "UIView+UpdateAutoLayoutConstraints.h"
 #import "TripModel+Helper.h"
+#import "ConrraDescuento.h"
 @interface FareReviewViewController ()<MKMapViewDelegate>
 @property (weak, nonatomic) IBOutlet UIScrollView *scrollView;
 @property (weak, nonatomic) IBOutlet MKMapView *mapView;
@@ -142,7 +143,8 @@
     
   
     
-    _lblTotalFare.text = [Utilities formatAmountAndCurrency:[self.cur_trip.trip_fare floatValue] currency:cModel.city_cur];
+    // Con el original tachado al lado si el viaje llevaba descuento. Ver ConrraDescuento.
+    [ConrraDescuento pintarEn:_lblTotalFare viaje:self.cur_trip];
   
     self.lblRideCostValue.text=[Utilities formatAmountAndCurrency:total currency:cModel.city_cur];
     

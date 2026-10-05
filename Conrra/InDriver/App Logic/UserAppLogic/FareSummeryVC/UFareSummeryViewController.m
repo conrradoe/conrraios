@@ -30,6 +30,7 @@
 #import "TripModel+Helper.h"
 #import "UserProfile.h"
 #import "UIImageView+WebCache.h"
+#import "ConrraDescuento.h"
 //#import <Razorpay/Razorpay-Swift.h>
 
 @interface UFareSummeryViewController ()<UITextViewDelegate, /*RazorpayPaymentCompletionProtocol,*/ /*STPAddCardViewControllerDelegate, STPPaymentCardTextFieldDelegate,*/
@@ -499,20 +500,32 @@
     CityModel * cityModel=[CityModel getCityByCityId:self.curr_trip.city_id];
     NSString *currency =cityModel.city_cur;
 
+    /*
+     El importe, con el original tachado al lado cuando hubo descuento.
+
+     Se le pasa formatAmountDual como formato en vez de usar el de ConrraDescuento: esta
+     pantalla enseña dolares Y bolivares, e imponerle el otro formato le quitaria los
+     bolivares.
+
+     La linea del promo pasa a enseñar el AHORRO -- el promo mas el impuesto que no se paga --
+     en vez del promo crudo, que es lo que hace falta para que original - ahorro = pagas. Con
+     impuesto 0 son el mismo numero; en un viaje viejo con impuesto, no.
+
+     viewPromoCode.hidden se deja EXACTAMENTE como estaba: es el campo para escribir un
+     codigo, no la linea del descuento, y sacarlo aqui seria enseñar un formulario de la nada.
+     */
+    ConrraDescuento *descuento = [ConrraDescuento deViaje:self.curr_trip];
+    _lbAmountToPay.attributedText = [descuento comoTextoFormateandoCon:^NSString *(float importe) {
+        return [self formatAmountDual:importe currency:currency];
+    }];
+
     if(self.curr_trip.isPromoCodeUsed || [self.curr_trip.trip_promo_amt floatValue]>0.0)
     {
-        float amt = [_curr_trip.trip_fare doubleValue];
-        if (amt<=0.0) {
-            amt =0.0;
-        }
-
-        _lbAmountToPay.text = [self formatAmountDual:amt currency:currency];
-        [_lbPromocodeAmount setText:[NSString stringWithFormat:@"%@ %@",[LanguageHelper getStringWithKey:@"k_r15_s9_promo_cde_applied"]  ,[Utilities formatAmountAndCurrency:[self.curr_trip.trip_promo_amt doubleValue] currency:currency]]];
+        [_lbPromocodeAmount setText:[NSString stringWithFormat:@"%@ %@",[LanguageHelper getStringWithKey:@"k_r15_s9_promo_cde_applied"]  ,[Utilities formatAmountAndCurrency:descuento.ahorro currency:currency]]];
         self.viewPromoCode.hidden=YES;
     }
     else{
         [_lbPromocodeAmount setText:@""];
-        _lbAmountToPay.text = [self formatAmountDual:[_curr_trip.trip_fare doubleValue] currency:currency];
     }
 }
 

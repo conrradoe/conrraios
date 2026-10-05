@@ -14,6 +14,7 @@
 #import "CategoryModel.h"
 #import "TripModel+Helper.h"
 #import "Utilities.h"
+#import "ConrraDescuento.h"
 
 @implementation tripHistoryCell
 
@@ -86,17 +87,20 @@
     //
     //    NSString *time = [self getHoursAndMinutes:minutes];
     //
-    float total = [tripModel.trip_fare floatValue]-[tripModel.trip_promo_amt floatValue];
+    /*
+     AQUI SE DESCONTABA DOS VECES.
+
+     Restaba trip_promo_amt a trip_fare, y trip_fare ES trip_pay_amount: el servidor lo
+     guarda YA con el descuento aplicado (ver ConrraDescuento). Asi que esta celda enseñaba
+     MENOS de lo que el pasajero pago, y menos que cualquier otra pantalla del mismo viaje.
+     */
     
-    if (total<=0.0) {
-        total =0.0;
-    }
     
     //    _lblriderName.text=[NSString stringWithFormat:@"%@ - %@",[NSString stringWithFormat:@"%@ %@",tripDis,dis],time];
     
     _lblDate.text =[Utilities GetGMTDatetoLocalTZ:tripModel.trip_date :APP_DATE_FORMAT ];
     
-    _lblAmmount.text =[Utilities formatAmountAndCurrency:total currency:isEmpty(cModel.city_cur)];
+    [ConrraDescuento pintarEn:_lblAmmount viaje:tripModel];
     NSString *profile= tripModel.user.u_profile_image_path;
     
     if (profile.length>0) {

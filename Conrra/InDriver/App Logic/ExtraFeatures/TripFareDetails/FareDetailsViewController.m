@@ -15,6 +15,7 @@
 #import "UIImageView+WebCache.h"
 #import "Utilities.h"
 #import "UserProfile.h"
+#import "ConrraDescuento.h"
 @interface FareDetailsViewController ()
 {
     NSMutableArray *arrOptions;
@@ -46,7 +47,12 @@
     self.tableView.delegate=self;
     self.tableView.dataSource=self;
     self.lblCurrency.text=isEmpty(cityModel.city_cur);
-    self.lblTotalFare.text =[Utilities formatAmount:[self.trip.trip_fare floatValue]];
+    // Esta pantalla formatea SIN moneda, asi que se le pasa su propio formato en vez de
+    // imponerle el de ConrraDescuento.
+    self.lblTotalFare.attributedText = [[ConrraDescuento deViaje:self.trip]
+        comoTextoFormateandoCon:^NSString *(float importe) {
+            return [Utilities formatAmount:importe];
+        }];
 //    [arrOptions addObject:@"Fare Per Min"];
     [self.tableView registerNib:[UINib nibWithNibName:@"FareDetailsCell" bundle:nil] forCellReuseIdentifier:@"FareDetailsCell"];
     

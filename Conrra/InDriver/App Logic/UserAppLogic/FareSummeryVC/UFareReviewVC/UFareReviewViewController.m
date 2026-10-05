@@ -20,6 +20,7 @@
 #import "UIView+UpdateAutoLayoutConstraints.h"
 #import "RoundShapeBg.h"
 #import "TripModel+Helper.h"
+#import "ConrraDescuento.h"
 @interface UFareReviewViewController ()<MKMapViewDelegate,UIScrollViewDelegate>
 @property (weak, nonatomic) IBOutlet UIScrollView *scrollView;
 @property (weak, nonatomic) IBOutlet MKMapView *mapView;
@@ -138,7 +139,7 @@
     float total =[_cur_trip.trip_fare floatValue];
     self.lblRideCostValue.text=[Utilities formatAmountAndCurrency:total<=0.0?0.0:total currency:cityModel.city_cur];
     
-    self.lblTotalFare.text =[Utilities formatAmountAndCurrency:[self.cur_trip.trip_fare floatValue] currency:cityModel.city_cur];
+    [ConrraDescuento pintarEn:self.lblTotalFare viaje:self.cur_trip];
    
    
     _lblDriverName.text=[NSString stringWithFormat:@"%@ %@", _cur_trip.driver.d_fname,_cur_trip.driver.d_lname];

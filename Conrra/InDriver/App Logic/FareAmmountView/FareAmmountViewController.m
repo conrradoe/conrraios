@@ -29,6 +29,7 @@
 #import "TripModel+Helper.h"
 #import "ConrraChatDeSoporte.h"
 #import "CityModel.h"
+#import "ConrraDescuento.h"
 @interface FareAmmountViewController ()<TripTransactionManagerDelegate>
 {
     double driverComm;
@@ -1432,7 +1433,12 @@
     _ndTaxLbl.text      = [Utilities formatAmountAndCurrency:tax   currency:cur];
     _ndRideCostLbl.text = [Utilities formatAmountAndCurrency:ride  currency:cur];
     // Show total in local currency AND USD equivalent
-    _ndTotalLbl.text    = [self formatAmountDual:total currency:cur];
+    // El total, con el original tachado si hubo descuento. Conserva su formato de dos
+    // monedas: se le pasa a ConrraDescuento en vez de cambiarlo.
+    _ndTotalLbl.attributedText = [[ConrraDescuento deViaje:self.curr_trip]
+        comoTextoFormateandoCon:^NSString *(float importe) {
+            return [self formatAmountDual:importe currency:cur];
+        }];
 }
 
 /**
