@@ -21,7 +21,11 @@
 #import "SettingsModel.h"
 #import "ConrraButton.h"
 #import "LanguageHelper.h"
-@interface OtpSignUpViewController ()<NIDropDownDelegate>
+#import "ConrraFotoDeRegistro.h"
+#import "UIImagePickerController+Extension.h"
+@interface OtpSignUpViewController ()<NIDropDownDelegate, UIImagePickerControllerDelegate, UINavigationControllerDelegate>
+/// El circulo de la foto, para repintarlo cuando el pasajero elige una.
+@property (nonatomic, weak) UIImageView *ivFotoDeRegistro;
 @end
 
 @implementation OtpSignUpViewController
@@ -66,6 +70,15 @@
     [self.txtTerms setEditable:NO];
     [self.txtTerms setSelectable:NO];
     [self.txtTerms addGestureRecognizer:[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleTapOnLabel:)]];
+
+    /*
+     Se tira cualquier foto que quedara de un registro anterior.
+
+     viewDidLoad corre una sola vez por formulario, asi que esto no borra la que el pasajero
+     elija y lleve al OTP; solo evita que una foto elegida y abandonada se le pegue al
+     siguiente que se registre en el mismo telefono.
+     */
+    [ConrraFotoDeRegistro olvidar];
 
     [self setupSignUpScreenLayout];
 }
@@ -717,6 +730,72 @@
     const CGFloat gap = 12;
     UIColor *fBg = [UIColor colorWithRed:243/255.0f green:243/255.0f blue:243/255.0f alpha:1.0f];
 
+    /*
+     LA FOTO, LO PRIMERO.
+
+     Calcado de Android, que la pide en el formulario y la manda al crear la cuenta. Es
+     OPCIONAL: no hay validacion que la exija, porque obligar a hacerse una foto para poder
+     pedir un taxi es un muro en la puerta.
+
+     El circulo y el texto van aqui y no en el storyboard porque esta pantalla ya esta
+     montada entera por codigo -- setupSignUpScreenLayout esconde el storyboard y se pinta
+     sola --, asi que el sitio natural es este.
+     */
+    UIView *fotoBox = [[UIView alloc] init];
+    fotoBox.translatesAutoresizingMaskIntoConstraints = NO;
+    [cv addSubview:fotoBox];
+
+    UIImageView *ivFoto = [[UIImageView alloc] init];
+    ivFoto.translatesAutoresizingMaskIntoConstraints = NO;
+    ivFoto.contentMode = UIViewContentModeScaleAspectFill;
+    ivFoto.clipsToBounds = YES;
+    ivFoto.layer.cornerRadius = 40;
+    ivFoto.backgroundColor = fBg;
+    ivFoto.userInteractionEnabled = YES;
+    ivFoto.image = [UIImage imageNamed:@"Profile Icon Crop Image"];
+    [ivFoto addGestureRecognizer:[[UITapGestureRecognizer alloc]
+                                  initWithTarget:self action:@selector(su_pedirFoto)]];
+    [fotoBox addSubview:ivFoto];
+    self.ivFotoDeRegistro = ivFoto;
+
+    UIButton *btFoto = [UIButton buttonWithType:UIButtonTypeSystem];
+    btFoto.translatesAutoresizingMaskIntoConstraints = NO;
+    [btFoto setTitle:[LanguageHelper getStringWithKey:@"k_s10_anadir_foto"
+                                         defaultValue:@"Añadir foto"]
+            forState:UIControlStateNormal];
+    btFoto.titleLabel.font = FONTS_NOTO_BOLD(14) ?: [UIFont boldSystemFontOfSize:14];
+    [btFoto addTarget:self action:@selector(su_pedirFoto) forControlEvents:UIControlEventTouchUpInside];
+    [fotoBox addSubview:btFoto];
+
+    UILabel *lbFotoAyuda = [[UILabel alloc] init];
+    lbFotoAyuda.translatesAutoresizingMaskIntoConstraints = NO;
+    lbFotoAyuda.text = [LanguageHelper getStringWithKey:@"k_s10_anadir_foto_ayuda"
+                                           defaultValue:@"Opcional. Ayuda a que tu conductor te reconozca."];
+    lbFotoAyuda.font = FONTS_NOTO_REGULAR(12) ?: [UIFont systemFontOfSize:12];
+    lbFotoAyuda.textColor = [UIColor colorWithWhite:0.45f alpha:1];
+    lbFotoAyuda.textAlignment = NSTextAlignmentCenter;
+    lbFotoAyuda.numberOfLines = 0;
+    [fotoBox addSubview:lbFotoAyuda];
+
+    [NSLayoutConstraint activateConstraints:@[
+        [fotoBox.topAnchor      constraintEqualToAnchor:cv.topAnchor constant:20],
+        [fotoBox.leadingAnchor  constraintEqualToAnchor:cv.leadingAnchor  constant:hP],
+        [fotoBox.trailingAnchor constraintEqualToAnchor:cv.trailingAnchor constant:-hP],
+
+        [ivFoto.topAnchor      constraintEqualToAnchor:fotoBox.topAnchor],
+        [ivFoto.centerXAnchor  constraintEqualToAnchor:fotoBox.centerXAnchor],
+        [ivFoto.widthAnchor    constraintEqualToConstant:80],
+        [ivFoto.heightAnchor   constraintEqualToConstant:80],
+
+        [btFoto.topAnchor      constraintEqualToAnchor:ivFoto.bottomAnchor constant:6],
+        [btFoto.centerXAnchor  constraintEqualToAnchor:fotoBox.centerXAnchor],
+
+        [lbFotoAyuda.topAnchor      constraintEqualToAnchor:btFoto.bottomAnchor constant:2],
+        [lbFotoAyuda.leadingAnchor  constraintEqualToAnchor:fotoBox.leadingAnchor],
+        [lbFotoAyuda.trailingAnchor constraintEqualToAnchor:fotoBox.trailingAnchor],
+        [lbFotoAyuda.bottomAnchor   constraintEqualToAnchor:fotoBox.bottomAnchor],
+    ]];
+
     // Nombre
     UIView *firstNameBox = [self su_makeFieldBox:fH radius:fR bg:fBg];
     [cv addSubview:firstNameBox];
@@ -725,7 +804,7 @@
     self.txtFirstName = firstNameTF;
     [self setupTextField:firstNameTF];
     [NSLayoutConstraint activateConstraints:@[
-        [firstNameBox.topAnchor      constraintEqualToAnchor:cv.topAnchor constant:20],
+        [firstNameBox.topAnchor      constraintEqualToAnchor:fotoBox.bottomAnchor constant:gap],
         [firstNameBox.leadingAnchor  constraintEqualToAnchor:cv.leadingAnchor  constant:hP],
         [firstNameBox.trailingAnchor constraintEqualToAnchor:cv.trailingAnchor constant:-hP],
         [firstNameBox.heightAnchor   constraintEqualToConstant:fH],
@@ -1018,6 +1097,70 @@
     [attributedString appendAttributedString:attrStrAnd];
     [attributedString appendAttributedString:[[NSAttributedString alloc] initWithString:[LanguageHelper getStringWithKey:@"k_2_s4_privacy"] attributes:@{ NSFontAttributeName:FONTS_THEME_REGULAR_NO_SCALE(15), NSForegroundColorAttributeName:[UIColor blackColor], NSUnderlineStyleAttributeName:@(NSUnderlineStyleSingle), NSUnderlineColorAttributeName:[UIColor blackColor], @"object2":@"viewDetails2"}]];
     return attributedString;
+}
+
+#pragma mark - La foto del registro
+
+/**
+ Pregunta de donde sacar la foto y la pide.
+
+ Se usa el mismo ayudante que la foto de perfil (UIImagePickerController+Extension), que es
+ el que pide el permiso antes de abrir nada: sin el, presentar el selector con el permiso sin
+ conceder deja una pantalla negra.
+ */
+-(void)su_pedirFoto {
+    UIAlertController *hoja = [UIAlertController alertControllerWithTitle:nil message:nil
+                                                          preferredStyle:UIAlertControllerStyleActionSheet];
+    if ([UIImagePickerController isSourceTypeAvailable:UIImagePickerControllerSourceTypeCamera]) {
+        [hoja addAction:[UIAlertAction actionWithTitle:[LanguageHelper getStringWithKey:@"k_s10_hacer_foto"
+                                                                          defaultValue:@"Hacer una foto"]
+                                                style:UIAlertActionStyleDefault
+                                              handler:^(UIAlertAction *a) {
+            [self su_abrirSelector:YES];
+        }]];
+    }
+    [hoja addAction:[UIAlertAction actionWithTitle:[LanguageHelper getStringWithKey:@"k_s10_elegir_foto"
+                                                                      defaultValue:@"Elegir de la galería"]
+                                            style:UIAlertActionStyleDefault
+                                          handler:^(UIAlertAction *a) {
+        [self su_abrirSelector:NO];
+    }]];
+    [hoja addAction:[UIAlertAction actionWithTitle:[LanguageHelper getStringWithKey:@"k_s10_cerrar"
+                                                                      defaultValue:@"Cerrar"]
+                                            style:UIAlertActionStyleCancel handler:nil]];
+    // En iPad una hoja de acciones sin origen revienta.
+    hoja.popoverPresentationController.sourceView = self.ivFotoDeRegistro;
+    hoja.popoverPresentationController.sourceRect = self.ivFotoDeRegistro.bounds;
+    [self presentViewController:hoja animated:YES completion:nil];
+}
+
+-(void)su_abrirSelector:(BOOL)conCamara {
+    UIImagePickerControllerSourceType tipo = conCamara
+        ? UIImagePickerControllerSourceTypeCamera
+        : UIImagePickerControllerSourceTypePhotoLibrary;
+    [UIImagePickerController obtainPermissionForMediaSourceType:tipo withSuccessHandler:^{
+        UIImagePickerController *selector = [[UIImagePickerController alloc] init];
+        selector.delegate = self;
+        selector.allowsEditing = YES;
+        selector.sourceType = tipo;
+        [self presentViewController:selector animated:YES completion:nil];
+    }];
+}
+
+- (void)imagePickerController:(UIImagePickerController *)picker
+didFinishPickingMediaWithInfo:(NSDictionary<UIImagePickerControllerInfoKey, id> *)info {
+    [picker dismissViewControllerAnimated:YES completion:nil];
+    // La recortada primero: allowsEditing esta puesto, asi que es la que el usuario encuadro.
+    UIImage *elegida = info[UIImagePickerControllerEditedImage] ?: info[UIImagePickerControllerOriginalImage];
+    [ConrraFotoDeRegistro guardarImagen:elegida];
+    UIImage *guardada = [ConrraFotoDeRegistro imagen];
+    if (guardada != nil) {
+        self.ivFotoDeRegistro.image = guardada;
+    }
+}
+
+- (void)imagePickerControllerDidCancel:(UIImagePickerController *)picker {
+    [picker dismissViewControllerAnimated:YES completion:nil];
 }
 
 @end

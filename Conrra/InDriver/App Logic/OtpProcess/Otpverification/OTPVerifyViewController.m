@@ -22,6 +22,7 @@
 #import "AboutUsViewController.h"
 #import "SettingsModel.h"
 #import "ConrraButton.h"
+#import "ConrraFotoDeRegistro.h"
 @interface OTPVerifyViewController ()<UITextFieldDelegate,OTPFieldViewDelegate,MFMailComposeViewControllerDelegate>{
     int smsCode;
     CGRect frameOrignal;
@@ -288,9 +289,23 @@
 //    [dictApi setObject:@"9411623083" forKey:P_MOBILE];
     [dictApi setObject:default_fire_password forKey:@"fire_password"];
     [dictApi setObject:@"1" forKey:P_IS_USER_LOGIN];
+    /*
+     La foto que el pasajero eligio en el formulario, que es OTRA pantalla.
+
+     Viaja por ConrraFotoDeRegistro y no por una propiedad de este controlador: el alta la
+     hace esta pantalla pero la foto se elige en la anterior, y es el mismo reparto que usa
+     Android. image_description va vacio pero va: UserAPI lo lee sin comprobar que exista.
+     */
+    if ([ConrraFotoDeRegistro hay]) {
+        [dictApi setObject:[ConrraFotoDeRegistro base64] forKey:@"user_image"];
+        [dictApi setObject:@"jpg" forKey:@"image_type"];
+        [dictApi setObject:@"" forKey:@"image_description"];
+    }
     [UtilityClass setLH:NO wt:[LanguageHelper getStringWithKey:@"k_r30_s3_loading"]];
     [GIC mkwerwu:USER_PH_SIGNUP d:dictApi cb:^(id results, NSError *error) {
            if (isStatusOk(results)) {
+               // La cuenta ya existe con su foto: no hace falta seguir guardandola.
+               [ConrraFotoDeRegistro olvidar];
                defaults_set_object(P_API_KEY, [[results objectForKey:P_RESPONSE] objectForKey:P_API_KEY]);
                defaults_set_object(P_USER_DICT, [results objectForKey:P_RESPONSE]);
                defaults_set_object(P_USER_DICT_LOGGED, [results objectForKey:P_RESPONSE]);
