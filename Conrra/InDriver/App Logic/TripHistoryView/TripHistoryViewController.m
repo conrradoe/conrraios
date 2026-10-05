@@ -19,6 +19,7 @@
 #import "TripDetailsViewController.h"
 #import "UIImageView+WebCache.h"
 #import "CityModel.h"
+#import "ConrraDescuento.h"
 
 #define kDTHReceiptNotchGuide 5099
 
@@ -829,8 +830,42 @@
     UILabel *taxVal = [self dReceiptValueLabel:trip.tax_amount_r.length > 0 ? [NSString stringWithFormat:@"%@ %@", trip.tax_amount_r, currency] : [NSString stringWithFormat:@"0.00 %@", currency]];
     [ticket addSubview:taxKey]; [ticket addSubview:taxVal];
 
+    /*
+     ======================= AQUI HABIA DOS ERRORES =======================
+     El desglose decia esto:
+
+         Impuestos   tax_amt_r
+         Traslado    trip_fare                 <- el TOTAL, con nombre de traslado
+         Total       tax_amt_r + trip_fare     <- el impuesto, contado dos veces
+
+     Y el backend es explicito (model/TripModel.php, calculateTripFareVer1):
+
+         $tripPayAmt = $tripFareBeforeTaxAfterPromo + $serviceTaxAmt + $tollCharges;
+         'trip_pay_amount' => $tripPayAmt,   'tax_amt' => $serviceTaxAmt
+
+     O sea que trip_pay_amount -- que es lo que iOS llama trip_fare -- YA incluye el
+     impuesto. "Traslado" estaba enseñando el total, y el total estaba sumando el impuesto
+     por segunda vez.
+
+     El propio recibo del conductor ya lo hacia bien (FareAmmountViewController: ride =
+     total - tax); esta pantalla era la que no. Hoy no se nota porque todas las ciudades
+     tienen impuesto 0, pero en los viajes antiguos con impuesto el conductor ve en su
+     historial un total que nunca se cobro.
+
+     tax_amt_r, por cierto, es el MISMO impuesto que tax_amt: el backend solo lo pone a cero
+     cuando el conductor cancelo en la recogida y la tarifa la paga el. Por eso es el que se
+     resta, y no tax_amt.
+     ======================================================================
+     */
+    float impuesto = [trip.tax_amount_r floatValue];
+    float totalCobrado = [trip.trip_fare floatValue];
+    float soloTraslado = totalCobrado - impuesto;
+    if (soloTraslado < 0) {
+        soloTraslado = 0;
+    }
+
     UILabel *fareKey = [self dReceiptKeyLabel:@"Traslado"];
-    UILabel *fareVal = [self dReceiptValueLabel:trip.trip_fare.length > 0 ? [NSString stringWithFormat:@"%@ %@", trip.trip_fare, currency] : [NSString stringWithFormat:@"0.00 %@", currency]];
+    UILabel *fareVal = [self dReceiptValueLabel:[NSString stringWithFormat:@"%.2f %@", soloTraslado, currency]];
     [ticket addSubview:fareKey]; [ticket addSubview:fareVal];
 
     UILabel *totalKey = [[UILabel alloc] init];
@@ -842,10 +877,22 @@
 
     UILabel *totalVal = [[UILabel alloc] init];
     totalVal.translatesAutoresizingMaskIntoConstraints = NO;
-    totalVal.text = [NSString stringWithFormat:@"%.2f %@", [trip.tax_amount_r floatValue] + [trip.trip_fare floatValue], currency];
+    /*
+     La fuente y el color van ANTES del attributedText, no despues.
+
+     Un NSAttributedString solo trae lo que trae -- aqui el tachado y el gris del importe
+     original -- y lo que no trae lo hereda del label. Asignar font o textColor DESPUES
+     sobreescribiria la cadena entera y se perderia el gris.
+     */
     totalVal.font = FONTS_NOTO_BOLD(15);
     totalVal.textColor = textMain;
     totalVal.textAlignment = NSTextAlignmentRight;
+    // El total es trip_pay_amount tal cual, con el original tachado al lado si hubo
+    // descuento. Conserva el formato de esta pantalla: importe y moneda detras.
+    totalVal.attributedText = [[ConrraDescuento deViaje:trip]
+        comoTextoFormateandoCon:^NSString *(float importe) {
+            return [NSString stringWithFormat:@"%.2f %@", importe, currency];
+        }];
     [ticket addSubview:totalVal];
 
     UIView *bottomSpacer = [[UIView alloc] init];

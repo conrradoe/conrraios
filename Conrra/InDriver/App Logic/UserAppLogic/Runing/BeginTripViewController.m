@@ -26,6 +26,7 @@
 #import "UHomeViewController.h"
 #import "UIView+UpdateAutoLayoutConstraints.h"
 #import "MapBearingCalculation.h"
+#import "ConrraDescuento.h"
 @interface BeginTripViewController () <MKMapViewDelegate, UITextViewDelegate, AutoHideAlertDelegate>
 
 @property (nonatomic, strong) MKMapView      *mapView;
@@ -1267,6 +1268,7 @@
      */
     if (self.currentTrip.trip_fare.length > 0) {
         CityModel *ciudad = [CityModel getCityByCityId:self.currentTrip.city_id];
+        ConrraDescuento *descuento = [ConrraDescuento deViaje:self.currentTrip];
         float importe = [self.currentTrip.trip_fare floatValue];
         NSString *enDolares = [Utilities formatAmountAndCurrency:importe currency:ciudad.city_cur]
                               ?: self.currentTrip.trip_fare;
@@ -1276,11 +1278,43 @@
         NSMutableParagraphStyle *parrafo = [[NSMutableParagraphStyle alloc] init];
         parrafo.alignment = NSTextAlignmentRight;
 
-        NSMutableAttributedString *texto = [[NSMutableAttributedString alloc] initWithString:enDolares
+        NSMutableAttributedString *texto = [[NSMutableAttributedString alloc] init];
+
+        /*
+         EL ORIGINAL TACHADO, DELANTE Y MAS PEQUEÑO.
+
+         Aqui no se puede usar ConrraDescuento.comoTexto tal cual: esta etiqueta monta dos
+         lineas con tamaños distintos -- 22 el importe, 17 los bolivares -- y un
+         NSAttributedString sin fuentes heredaria UNA sola del label, que es justo lo que
+         este panel no puede hacer. Asi que se usan los NUMEROS de la clase y la pintura se
+         queda aqui.
+
+         El tachado va a 15 y no a 22: la fila mide 52 puntos y ya lleva dos lineas. A 22 los
+         dos importes no caben y adjustsFontSizeToFitWidth los encogeria los dos, dejando el
+         que de verdad importa -- lo que paga -- mas pequeño que antes.
+         */
+        if (descuento.hay) {
+            NSString *original = [Utilities formatAmountAndCurrency:descuento.original
+                                                            currency:ciudad.city_cur];
+            if (original.length > 0) {
+                [texto appendAttributedString:[[NSAttributedString alloc] initWithString:original
+                    attributes:@{ NSFontAttributeName: ([UIFont fontWithName:@"NotoSans-Bold" size:15]
+                                                        ?: [UIFont boldSystemFontOfSize:15]),
+                                  NSForegroundColorAttributeName: [UIColor colorWithRed:0x8A/255.0
+                                                                                 green:0x8A/255.0
+                                                                                  blue:0x8E/255.0
+                                                                                 alpha:1],
+                                  NSStrikethroughStyleAttributeName: @(NSUnderlineStyleSingle),
+                                  NSParagraphStyleAttributeName: parrafo }]];
+                enDolares = [@"  " stringByAppendingString:enDolares];
+            }
+        }
+
+        [texto appendAttributedString:[[NSAttributedString alloc] initWithString:enDolares
             attributes:@{ NSFontAttributeName: ([UIFont fontWithName:@"NotoSans-Bold" size:22]
                                                 ?: [UIFont boldSystemFontOfSize:22]),
                           NSForegroundColorAttributeName: oscuro,
-                          NSParagraphStyleAttributeName: parrafo }];
+                          NSParagraphStyleAttributeName: parrafo }]];
 
         float tasa = [ConstantModel tasaDolarALocal];
         if (tasa > 0) {
