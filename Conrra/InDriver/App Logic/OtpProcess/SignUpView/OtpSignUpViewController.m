@@ -761,7 +761,7 @@
     UIButton *btFoto = [UIButton buttonWithType:UIButtonTypeSystem];
     btFoto.translatesAutoresizingMaskIntoConstraints = NO;
     [btFoto setTitle:[LanguageHelper getStringWithKey:@"k_s10_anadir_foto"
-                                         defaultValue:@"Añadir foto"]
+                                         defaultValue:@"Hacerme una selfie"]
             forState:UIControlStateNormal];
     btFoto.titleLabel.font = FONTS_NOTO_BOLD(14) ?: [UIFont boldSystemFontOfSize:14];
     [btFoto addTarget:self action:@selector(su_pedirFoto) forControlEvents:UIControlEventTouchUpInside];
@@ -770,7 +770,7 @@
     UILabel *lbFotoAyuda = [[UILabel alloc] init];
     lbFotoAyuda.translatesAutoresizingMaskIntoConstraints = NO;
     lbFotoAyuda.text = [LanguageHelper getStringWithKey:@"k_s10_anadir_foto_ayuda"
-                                           defaultValue:@"Opcional. Ayuda a que tu conductor te reconozca."];
+                                           defaultValue:@"Opcional. Hazte una selfie para que tu conductor te reconozca."];
     lbFotoAyuda.font = FONTS_NOTO_REGULAR(12) ?: [UIFont systemFontOfSize:12];
     lbFotoAyuda.textColor = [UIColor colorWithWhite:0.45f alpha:1];
     lbFotoAyuda.textAlignment = NSTextAlignmentCenter;
@@ -1102,42 +1102,47 @@
 #pragma mark - La foto del registro
 
 /**
- Pregunta de donde sacar la foto y la pide.
+ Pide la foto, y la pide HECHA EN EL MOMENTO.
 
- Se usa el mismo ayudante que la foto de perfil (UIImagePickerController+Extension), que es
- el que pide el permiso antes de abrir nada: sin el, presentar el selector con el permiso sin
- conceder deja una pantalla negra.
+ ================================ NO HAY GALERIA ================================
+ Y es deliberado. Esta foto sirve para que el conductor reconozca a quien tiene que
+ recoger, asi que una imagen cualquiera del carrete no vale: puede ser de otra persona, un
+ dibujo o una captura. Capturando en vivo, la foto es de quien se esta registrando y es de
+ ahora.
+
+ Android hace lo mismo y de la misma forma: en BasePickerCompatActivity.selectImage la
+ opcion de galeria esta COMENTADA y solo queda la camara.
+ ================================================================================
+
+ SE ABRE EN LA CAMARA FRONTAL. Eso es algo que Android no puede hacer: su intent
+ ACTION_IMAGE_CAPTURE no lleva de donde sacar la imagen y cada fabricante decide.
+
+ LO QUE ESTO NO IMPIDE: el boton de girar la camara de iOS sigue ahi, asi que el usuario
+ puede pasarse a la trasera y fotografiar otra cosa. Lo que queda cerrado es el carrete, que
+ es por donde entraria una foto que no es suya. Dejar la frontal BLOQUEADA de verdad pide
+ una pantalla de captura propia con AVCaptureSession, que es bastante mas obra.
+
+ El permiso se pide con el mismo ayudante que la foto de perfil: sin el, presentar el
+ selector con el permiso sin conceder deja una pantalla negra.
  */
 -(void)su_pedirFoto {
-    UIAlertController *hoja = [UIAlertController alertControllerWithTitle:nil message:nil
-                                                          preferredStyle:UIAlertControllerStyleActionSheet];
-    if ([UIImagePickerController isSourceTypeAvailable:UIImagePickerControllerSourceTypeCamera]) {
-        [hoja addAction:[UIAlertAction actionWithTitle:[LanguageHelper getStringWithKey:@"k_s10_hacer_foto"
-                                                                          defaultValue:@"Hacer una foto"]
-                                                style:UIAlertActionStyleDefault
-                                              handler:^(UIAlertAction *a) {
-            [self su_abrirSelector:YES];
-        }]];
+    if (![UIImagePickerController isSourceTypeAvailable:UIImagePickerControllerSourceTypeCamera]) {
+        /*
+         Sin camara no hay foto, y la foto es OPCIONAL: se dice y se sigue. Pasa en el
+         simulador, que no tiene ninguna, asi que ahi el registro se prueba sin foto.
+         */
+        UIAlertController *aviso = [UIAlertController
+            alertControllerWithTitle:nil
+                             message:[LanguageHelper getStringWithKey:@"k_s10_sin_camara"
+                                                        defaultValue:@"Este teléfono no tiene cámara disponible. Puedes registrarte sin foto y añadirla después en tu perfil."]
+                      preferredStyle:UIAlertControllerStyleAlert];
+        [aviso addAction:[UIAlertAction
+            actionWithTitle:[LanguageHelper getStringWithKey:@"k_18_s4_Ok" defaultValue:@"Entendido"]
+                      style:UIAlertActionStyleDefault handler:nil]];
+        [self presentViewController:aviso animated:YES completion:nil];
+        return;
     }
-    [hoja addAction:[UIAlertAction actionWithTitle:[LanguageHelper getStringWithKey:@"k_s10_elegir_foto"
-                                                                      defaultValue:@"Elegir de la galería"]
-                                            style:UIAlertActionStyleDefault
-                                          handler:^(UIAlertAction *a) {
-        [self su_abrirSelector:NO];
-    }]];
-    [hoja addAction:[UIAlertAction actionWithTitle:[LanguageHelper getStringWithKey:@"k_s10_cerrar"
-                                                                      defaultValue:@"Cerrar"]
-                                            style:UIAlertActionStyleCancel handler:nil]];
-    // En iPad una hoja de acciones sin origen revienta.
-    hoja.popoverPresentationController.sourceView = self.ivFotoDeRegistro;
-    hoja.popoverPresentationController.sourceRect = self.ivFotoDeRegistro.bounds;
-    [self presentViewController:hoja animated:YES completion:nil];
-}
 
--(void)su_abrirSelector:(BOOL)conCamara {
-    UIImagePickerControllerSourceType tipo = conCamara
-        ? UIImagePickerControllerSourceTypeCamera
-        : UIImagePickerControllerSourceTypePhotoLibrary;
     /*
      El ayudante pide TRES tramos, y el tercero no es opcional:
      obtainPermissionForMediaSourceType:withSuccessHandler:andFailure:. Sin andFailure el
@@ -1147,11 +1152,17 @@
      secas deja una pantalla negra; aqui se le dice que esta denegado y se le abre los
      Ajustes, que es lo que ya hace la foto de perfil.
      */
-    [UIImagePickerController obtainPermissionForMediaSourceType:tipo withSuccessHandler:^{
+    [UIImagePickerController obtainPermissionForMediaSourceType:UIImagePickerControllerSourceTypeCamera
+                                            withSuccessHandler:^{
         UIImagePickerController *selector = [[UIImagePickerController alloc] init];
         selector.delegate = self;
         selector.allowsEditing = YES;
-        selector.sourceType = tipo;
+        selector.sourceType = UIImagePickerControllerSourceTypeCamera;
+        // Se comprueba antes de asignarla: un iPad viejo o un telefono sin frontal no la
+        // tiene, y asignarla a ciegas abre una camara que no existe.
+        if ([UIImagePickerController isCameraDeviceAvailable:UIImagePickerControllerCameraDeviceFront]) {
+            selector.cameraDevice = UIImagePickerControllerCameraDeviceFront;
+        }
         [self presentViewController:selector animated:YES completion:nil];
     } andFailure:^{
         UIAlertController *aviso = [UIAlertController
