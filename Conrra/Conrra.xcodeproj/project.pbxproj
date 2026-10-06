@@ -24,6 +24,7 @@
 		C0E57021A4B3421E9D11AE21 /* ConrraDescuento.m in Sources */ = {isa = PBXBuildFile; fileRef = C0E57023A4B3421E9D11AE23 /* ConrraDescuento.m */; };
 		C0E57031A4B3421E9D11AE31 /* ConrraPagoPreferido.m in Sources */ = {isa = PBXBuildFile; fileRef = C0E57033A4B3421E9D11AE33 /* ConrraPagoPreferido.m */; };
 		C0E57041A4B3421E9D11AE41 /* ConrraFotoDeRegistro.m in Sources */ = {isa = PBXBuildFile; fileRef = C0E57043A4B3421E9D11AE43 /* ConrraFotoDeRegistro.m */; };
+		C0E57051A4B3421E9D11AE51 /* ConrraCaraEnLaFoto.m in Sources */ = {isa = PBXBuildFile; fileRef = C0E57053A4B3421E9D11AE53 /* ConrraCaraEnLaFoto.m */; };
 		AA11BB22CC33DD44EE55FF01 /* RequestCardCell.m in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF03 /* RequestCardCell.m */; };
 		AA11BB23CC33DD44EE55FF01 /* OfferCardCell.m in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB23CC33DD44EE55FF03 /* OfferCardCell.m */; };
 		CC0003CC0003CC0003CC0003 /* ConrraButton.m in Sources */ = {isa = PBXBuildFile; fileRef = CC0002CC0002CC0002CC0002 /* ConrraButton.m */; };
@@ -526,6 +527,7 @@
 		C0E57022A4B3421E9D11AE22 /* ConrraDescuento.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraDescuento.h; sourceTree = "<group>"; };
 		C0E57032A4B3421E9D11AE32 /* ConrraPagoPreferido.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraPagoPreferido.h; sourceTree = "<group>"; };
 		C0E57042A4B3421E9D11AE42 /* ConrraFotoDeRegistro.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraFotoDeRegistro.h; sourceTree = "<group>"; };
+		C0E57052A4B3421E9D11AE52 /* ConrraCaraEnLaFoto.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraCaraEnLaFoto.h; sourceTree = "<group>"; };
 		083FC0351047472FA58C03E5 /* RadarAnimationView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RadarAnimationView.h; sourceTree = "<group>"; };
 		1006C26EADC7E7AA5F24C56A /* UserPinAnnotationView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = UserPinAnnotationView.m; sourceTree = "<group>"; };
 		1CAEA31E944C08866695E418 /* Pods-Conrra.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Conrra.debug.xcconfig"; path = "Target Support Files/Pods-Conrra/Pods-Conrra.debug.xcconfig"; sourceTree = "<group>"; };
@@ -547,6 +549,7 @@
 		C0E57023A4B3421E9D11AE23 /* ConrraDescuento.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraDescuento.m; sourceTree = "<group>"; };
 		C0E57033A4B3421E9D11AE33 /* ConrraPagoPreferido.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraPagoPreferido.m; sourceTree = "<group>"; };
 		C0E57043A4B3421E9D11AE43 /* ConrraFotoDeRegistro.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraFotoDeRegistro.m; sourceTree = "<group>"; };
+		C0E57053A4B3421E9D11AE53 /* ConrraCaraEnLaFoto.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraCaraEnLaFoto.m; sourceTree = "<group>"; };
 		92EF1D55C55542EC95B9AEF2 /* ConrraMapaSelectorViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraMapaSelectorViewController.h; sourceTree = "<group>"; };
 		931FD0365220487C9A0D7EDB /* RecargaBotonViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RecargaBotonViewController.h; sourceTree = "<group>"; };
 		973B94A1D14F479FAF590384 /* RecargaC2PViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RecargaC2PViewController.m; sourceTree = "<group>"; };
@@ -2391,6 +2394,8 @@
 				C0E57033A4B3421E9D11AE33 /* ConrraPagoPreferido.m */,
 				C0E57042A4B3421E9D11AE42 /* ConrraFotoDeRegistro.h */,
 				C0E57043A4B3421E9D11AE43 /* ConrraFotoDeRegistro.m */,
+				C0E57052A4B3421E9D11AE52 /* ConrraCaraEnLaFoto.h */,
+				C0E57053A4B3421E9D11AE53 /* ConrraCaraEnLaFoto.m */,
 				D3B7798C2938B8E60052756B /* AutoHideAlert.h */,
 				D3B7798D2938B8E70052756B /* AutoHideAlert.m */,
 				CC0001CC0001CC0001CC0001 /* ConrraButton.h */,
@@ -3821,6 +3826,7 @@
 				C0E57021A4B3421E9D11AE21 /* ConrraDescuento.m in Sources */,
 				C0E57031A4B3421E9D11AE31 /* ConrraPagoPreferido.m in Sources */,
 				C0E57041A4B3421E9D11AE41 /* ConrraFotoDeRegistro.m in Sources */,
+				C0E57051A4B3421E9D11AE51 /* ConrraCaraEnLaFoto.m in Sources */,
 				577B36D90960470B9954A54B /* ConrraDestinoDePlan.m in Sources */,
 				F22D7B3C64574564B7F8F42C /* ConrraCatalogoDePlanes.m in Sources */,
 				57B36B2469D2429187164471 /* PlanesViewController.m in Sources */,

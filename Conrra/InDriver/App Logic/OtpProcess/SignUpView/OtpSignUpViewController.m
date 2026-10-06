@@ -22,6 +22,7 @@
 #import "ConrraButton.h"
 #import "LanguageHelper.h"
 #import "ConrraFotoDeRegistro.h"
+#import "ConrraCaraEnLaFoto.h"
 #import "UIImagePickerController+Extension.h"
 @interface OtpSignUpViewController ()<NIDropDownDelegate, UIImagePickerControllerDelegate, UINavigationControllerDelegate>
 /// El circulo de la foto, para repintarlo cuando el pasajero elige una.
@@ -1186,14 +1187,71 @@
 
 - (void)imagePickerController:(UIImagePickerController *)picker
 didFinishPickingMediaWithInfo:(NSDictionary<UIImagePickerControllerInfoKey, id> *)info {
-    [picker dismissViewControllerAnimated:YES completion:nil];
     // La recortada primero: allowsEditing esta puesto, asi que es la que el usuario encuadro.
+    // Y es la que se comprueba, porque es la que se sube: si al recortar se deja la cara
+    // fuera, lo que llega al servidor no tiene cara aunque la foto original si la tuviera.
     UIImage *elegida = info[UIImagePickerControllerEditedImage] ?: info[UIImagePickerControllerOriginalImage];
-    [ConrraFotoDeRegistro guardarImagen:elegida];
-    UIImage *guardada = [ConrraFotoDeRegistro imagen];
-    if (guardada != nil) {
-        self.ivFotoDeRegistro.image = guardada;
-    }
+
+    /*
+     Se mira la cara DENTRO del completion del cierre, no despues de pedirlo.
+
+     Si no, el aviso de rechazo puede intentar presentarse mientras el selector todavia se
+     esta cerrando, y entonces no sale ninguno de los dos: iOS no presenta sobre una
+     pantalla que se esta yendo. Asi se sabe que ya no hay nada encima.
+     */
+    [picker dismissViewControllerAnimated:YES completion:^{
+        if (elegida == nil) {
+            return;
+        }
+        [ConrraCaraEnLaFoto contarCarasEn:elegida cuandoTermine:^(NSInteger caras, BOOL sePudoMirar) {
+            /*
+             SI NO SE PUDO MIRAR, SE ACEPTA.
+
+             "No lo se" no es "no hay nadie". Rechazar la foto porque Vision fallo seria
+             dejar a alguien sin poder poner su foto por un problema tecnico que no es suyo,
+             y la foto es opcional: el coste de aceptar una mala es mucho menor que el de
+             bloquear a quien hace lo correcto.
+             */
+            if (sePudoMirar && caras == 0) {
+                [self su_rechazarLaFoto:[LanguageHelper getStringWithKey:@"k_s10_foto_sin_cara"
+                    defaultValue:@"No vemos tu cara en la foto. Inténtalo otra vez, con buena luz y mirando a la cámara."]];
+                return;
+            }
+            if (sePudoMirar && caras > 1) {
+                [self su_rechazarLaFoto:[LanguageHelper getStringWithKey:@"k_s10_foto_varias_caras"
+                    defaultValue:@"En la foto hay más de una persona. Hazte la selfie tú solo."]];
+                return;
+            }
+            [ConrraFotoDeRegistro guardarImagen:elegida];
+            UIImage *guardada = [ConrraFotoDeRegistro imagen];
+            if (guardada != nil) {
+                self.ivFotoDeRegistro.image = guardada;
+            }
+        }];
+    }];
+}
+
+/**
+ La foto no vale: se dice por que y se ofrece repetirla ahi mismo.
+
+ NO SE BORRA LA QUE HUBIERA. Si ya tenia una buena y la segunda sale mal, quitarsela
+ castigaria por intentarlo. La mala simplemente no se guarda.
+ */
+-(void)su_rechazarLaFoto:(NSString *)motivo {
+    UIAlertController *aviso = [UIAlertController alertControllerWithTitle:nil
+                                                                  message:motivo
+                                                           preferredStyle:UIAlertControllerStyleAlert];
+    [aviso addAction:[UIAlertAction
+        actionWithTitle:[LanguageHelper getStringWithKey:@"k_s10_reintentar_foto"
+                                           defaultValue:@"Hacerla otra vez"]
+                  style:UIAlertActionStyleDefault
+                handler:^(UIAlertAction *a) {
+        [self su_pedirFoto];
+    }]];
+    [aviso addAction:[UIAlertAction
+        actionWithTitle:[LanguageHelper getStringWithKey:@"k_30_s6_cancel_j" defaultValue:@"Cancelar"]
+                  style:UIAlertActionStyleCancel handler:nil]];
+    [self presentViewController:aviso animated:YES completion:nil];
 }
 
 - (void)imagePickerControllerDidCancel:(UIImagePickerController *)picker {
