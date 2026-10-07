@@ -3287,17 +3287,20 @@
             [self avisarMensajeNuevoSiToca:[_firebaseUnReadChat messageCount]
                                      texto:[_firebaseUnReadChat lastMessagText]];
             /*
-             LA FRANJA SE QUEDA AMARILLA FIJA.
+             LA FRANJA NO SE PINTA DE NINGUN COLOR.
 
-             Antes un temporizador de un segundo la cambiaba de blanco a amarillo y vuelta,
-             y seguia asi todo el viaje mientras quedara un mensaje sin leer. Un parpadeo no
-             se puede ignorar: obliga a volver a mirar cada segundo, y el pasajero va dentro
-             de un coche, no delante de una pantalla.
+             Aqui hubo un temporizador de un segundo que la cambiaba de blanco a amarillo y
+             vuelta, y seguia asi todo el viaje mientras quedara un mensaje sin leer. Primero
+             se quito el parpadeo y se dejo el amarillo fijo; ahora tampoco eso.
 
-             Avisar no necesita moverse. La franja ya se distingue por el color, y lleva el
-             nombre del conductor, el texto del mensaje y el numero en el boton de chat.
+             Se queda con el fondo que se le puso al crearla y no se toca mas. Lo que avisa
+             es que la franja APAREZCA, con la foto del conductor, su nombre, el texto del
+             mensaje y el numero en el boton de chat. Para eso no hace falta color: cambiarlo
+             solo compite con el resto de la pantalla, y el pasajero va dentro de un coche.
+
+             Si algun dia hay que destacarla, el sitio es donde se crea -- una sola linea --
+             y no aqui, que es el camino que se recorre en cada refresco del contador.
              */
-            _viewMessage.backgroundColor = RGB(255, 192, 0);
         }else{
             [self.viewMessage setHidden:YES];
             [self.btnPhone setBadgeString:@""];
