@@ -817,9 +817,32 @@
 }
 
 - (void)setupMessageBanner {
+    /*
+     El color de la app, UNA sola vez: lo llevan el borde de la franja y el icono de chat.
+
+     Estaba escrito dos veces, y una de las dos era un RGB a mano que hay que acordarse de
+     cambiar si cambia el otro. Si manana el ambar de la marca es otro, se toca aqui.
+     */
+    UIColor *colorDeLaApp = [UIColor colorNamed:@"app_theame"]
+                            ?: [UIColor colorWithRed:235/255.0 green:181/255.0 blue:24/255.0 alpha:1];
+
     self.viewMessage = [[UIView alloc] init];
     self.viewMessage.backgroundColor = UIColor.whiteColor;
     self.viewMessage.layer.cornerRadius = 12;
+    /*
+     LA FRANJA SE DISTINGUE POR EL BORDE.
+
+     El fondo se queda blanco -- es una tarjeta sobre el mapa -- y lo que la separa es el
+     filo en el color de la app. Antes el aviso era el relleno amarillo entero, que competia
+     con todo lo que hay en la pantalla; un borde se ve igual de bien y no tapa nada.
+
+     No hace falta masksToBounds: el borde ya sigue el cornerRadius, y ponerlo recortaria la
+     sombra de abajo, que es lo que levanta la tarjeta del mapa.
+
+     1.5 pt a proposito: 1 pt se pierde contra un mapa claro y 2 pt se ve como un marco.
+     */
+    self.viewMessage.layer.borderWidth = 1.5f;
+    self.viewMessage.layer.borderColor = colorDeLaApp.CGColor;
     self.viewMessage.layer.shadowColor   = UIColor.blackColor.CGColor;
     self.viewMessage.layer.shadowOpacity = 0.10f;
     self.viewMessage.layer.shadowRadius  = 8;
@@ -853,8 +876,7 @@
     } else {
         [self.btnPhone setTitle:@"Chat" forState:UIControlStateNormal];
     }
-    self.btnPhone.tintColor = [UIColor colorNamed:@"app_theame"]
-                              ?: [UIColor colorWithRed:235/255.0 green:181/255.0 blue:24/255.0 alpha:1];
+    self.btnPhone.tintColor = colorDeLaApp;
     [self.btnPhone addTarget:self action:@selector(ButtonMakeCall:) forControlEvents:UIControlEventTouchUpInside];
     [self.viewMessage addSubview:self.btnPhone];
 
