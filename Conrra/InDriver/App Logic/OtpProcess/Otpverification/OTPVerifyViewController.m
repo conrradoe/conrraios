@@ -148,33 +148,67 @@
     [self updateTimer];
 }
 
+/**
+ Con la verificacion apagada la pantalla se rellena sola y sigue.
+
+ LOS DIGITOS LOS MANDAN LAS CASILLAS, no el codigo. Estaban escritas las cuatro a mano, una
+ linea por casilla, porque el camino viejo eran cuatro digitos. Con Firebase son seis: se
+ llenaban las cuatro primeras, las otras dos se quedaban vacias y la pantalla parecia
+ esperando algo que nadie iba a teclear.
+
+ La condicion tambien se leia aqui otra vez (otp_off e is_test, a mano). Es la misma regla
+ que otpApagado, asi que se pregunta ahi: dos copias de una regla acaban separandose.
+ */
 -(void)setOtp{
-    ConstantModel *contant=[ConstantModel getConstantsObject];
-    BOOL isTestAccount=NO;
-    if(self.usersigmUpDict){
-        isTestAccount=[[self.usersigmUpDict objectForKey:@"is_test"]boolValue];
+    if (![self otpApagado]) {
+        return;
     }
-    if(contant.otp_off==YES||isTestAccount){
-        NSTimeInterval delayInSeconds = 2.0;
-        dispatch_time_t popTime = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delayInSeconds * NSEC_PER_SEC));
-        dispatch_after(popTime, dispatch_get_main_queue(), ^(void){
-         NSString *string=   [NSString stringWithFormat:@"%d",self.verificationCode];
-            [((OTPTextField *)[self.txtOtpView viewWithTag:1]) setText:[NSString stringWithFormat:@"%c",(char)[string characterAtIndex:0]]];
-            [((OTPTextField *)[self.txtOtpView viewWithTag:2]) setText:[NSString stringWithFormat:@"%c",(char)[string characterAtIndex:1]]];
-            [((OTPTextField *)[self.txtOtpView viewWithTag:3]) setText:[NSString stringWithFormat:@"%c",(char)[string characterAtIndex:2]]];
-            [((OTPTextField *)[self.txtOtpView viewWithTag:4]) setText:[NSString stringWithFormat:@"%c",(char)[string characterAtIndex:3]]];
-//            [self.otpTextfield resignFirstResponder];
-            [self validateAfterDelay];
-            
-        });
+    NSTimeInterval delayInSeconds = 2.0;
+    dispatch_time_t popTime = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delayInSeconds * NSEC_PER_SEC));
+    dispatch_after(popTime, dispatch_get_main_queue(), ^(void){
+        NSString *codigo = [self codigoSimulado];
+        for (NSInteger i = 1; i <= (NSInteger)codigo.length; i++) {
+            OTPTextField *casilla = (OTPTextField *)[self.txtOtpView viewWithTag:i];
+            [casilla setText:[codigo substringWithRange:NSMakeRange(i - 1, 1)]];
+        }
+        [self validateAfterDelay];
+    });
+}
+
+/**
+ Un codigo de exactamente tantos digitos como casillas haya.
+
+ El backend sigue mandando CUATRO -- es el codigo del camino viejo, lo genera el servidor --
+ y las casillas de Firebase son SEIS. Los dos que faltan se rellenan con ceros.
+
+ Y eso no falsea nada: con la verificacion apagada validateOTP sale por su primera rama sin
+ mirar el codigo, asi que esto es lo que se VE, no lo que se comprueba. Si algun dia se
+ comprueba, aqui esta escrito que los ultimos digitos eran relleno.
+
+ Recortar tambien hace falta, no solo rellenar: characterAtIndex: sobre un codigo mas corto
+ que las casillas no deja un hueco en blanco, lanza una excepcion de rango y la app se
+ cierra. Con otp_off y sin codigo del servidor, verificationCode es 0: un solo caracter.
+ */
+-(NSString *)codigoSimulado {
+    const NSInteger casillas = [ConrraVerificacionTelefono casillas];
+    NSMutableString *codigo = [NSMutableString stringWithFormat:@"%d", self.verificationCode];
+    if ((NSInteger)codigo.length > casillas) {
+        return [codigo substringToIndex:casillas];
     }
+    while ((NSInteger)codigo.length < casillas) {
+        [codigo appendString:@"0"];
+    }
+    return codigo;
 }
 
 -(void) validateAfterDelay{
     NSTimeInterval delayInSeconds = 1.0;
     dispatch_time_t popTime = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delayInSeconds * NSEC_PER_SEC));
     dispatch_after(popTime, dispatch_get_main_queue(), ^(void){
-        [self validateOTP: [NSString stringWithFormat:@"%d",self.verificationCode]];
+        // Se valida lo que hay en las casillas, que es lo que el usuario tiene delante.
+        // Antes se mandaba el codigo con %d, que deja de ser lo mismo en cuanto los
+        // digitos del codigo y el numero de casillas no coinciden -- o sea, ahora.
+        [self validateOTP:[self codigoEnLasCasillas]];
     });
 }
 
@@ -560,6 +594,22 @@
     }
 }
 
+
+/**
+ El codigo que hay escrito en las casillas, sean cuatro o seis.
+
+ El boton Validar lo armaba leyendo d1 d2 d3 d4 y pegandolos con %@%@%@%@. Con seis
+ casillas eso manda CUATRO digitos a Firebase, que los rechaza siempre: el usuario teclea
+ bien el codigo, le dice que es invalido, y no hay forma de que funcione tecleando mejor.
+ */
+-(NSString *)codigoEnLasCasillas {
+    NSMutableString *codigo = [NSMutableString string];
+    for (NSInteger i = 1; i <= [ConrraVerificacionTelefono casillas]; i++) {
+        OTPTextField *casilla = (OTPTextField *)[self.txtOtpView viewWithTag:i];
+        [codigo appendString:casilla.text ?: @""];
+    }
+    return codigo;
+}
 
 -(void)setEmptyOTP{
     // En bucle y no cuatro lineas: con Firebase hay seis casillas, y dejar dos sin vaciar
@@ -1170,11 +1220,7 @@
 }
 
 - (IBAction)onValidateButtonTap:(id)sender {
-    NSString *d1 = ((OTPTextField *)[self.txtOtpView viewWithTag:1]).text ?: @"";
-    NSString *d2 = ((OTPTextField *)[self.txtOtpView viewWithTag:2]).text ?: @"";
-    NSString *d3 = ((OTPTextField *)[self.txtOtpView viewWithTag:3]).text ?: @"";
-    NSString *d4 = ((OTPTextField *)[self.txtOtpView viewWithTag:4]).text ?: @"";
-    [self validateOTP:[NSString stringWithFormat:@"%@%@%@%@", d1, d2, d3, d4]];
+    [self validateOTP:[self codigoEnLasCasillas]];
 }
 
 @end
