@@ -33,6 +33,7 @@
 #import "BeginTripViewController.h"
 //#import "UNotificationViewController.h"
 //@import FBSDKCoreKit;
+@import Firebase;   // FIRAuth, para la verificacion del telefono
 @interface AppDelegate ()<FIRMessagingDelegate,AutoHideAlertDelegate>{
     BOOL appLaunched;
     NSTimer *timerForOffScreen;
@@ -302,6 +303,23 @@ didFailToRegisterForRemoteNotificationsWithError:(NSError *)error {
 
 - (void)application:(UIApplication *)application didReceiveRemoteNotification:(NSDictionary *)userInfo fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler
 {
+    /*
+     PRIMERO SE LE OFRECE A AUTH, antes de mirar nada mas.
+
+     El push con el que Firebase comprueba la app llega por aqui como cualquier otro, pero
+     NO es una notificacion nuestra: no tiene viaje, ni mensaje, ni nada que enseñar.
+     canHandleNotification devuelve YES cuando es suyo, y entonces hay que salir sin
+     tratarlo. Si se deja seguir, acaba en manageRemoteNotification intentando leer un
+     viaje que no existe.
+
+     Y si no se le ofrece, Auth nunca se entera de que el push llego: se queda esperando,
+     agota el plazo y la verificacion se cae al reCAPTCHA.
+     */
+    if ([[FIRAuth auth] canHandleNotification:userInfo]) {
+        completionHandler(UIBackgroundFetchResultNoData);
+        return;
+    }
+
     
     if (application.applicationState == UIApplicationStateBackground) {
         
@@ -329,6 +347,20 @@ didFailToRegisterForRemoteNotificationsWithError:(NSError *)error {
 - (void)application:(UIApplication *)application didRegisterForRemoteNotificationsWithDeviceToken:(NSData *) deviceToken {
     
     [FIRMessaging messaging].APNSToken = deviceToken;
+    /*
+     EL MISMO TOKEN TAMBIEN VA A AUTH, y sin esto Phone Auth no funciona.
+
+     Firebase comprueba que quien pide el codigo es de verdad esta app mandandole un push
+     silencioso. Para mandarlo necesita el token de APNs, y hasta ahora solo se lo quedaba
+     Messaging: Auth no lo veia. Sin token no hay push, sin push no hay verificacion de app,
+     y Phone Auth se cae al reCAPTCHA del navegador -- que en esta app tampoco puede volver,
+     porque no hay esquema de URL declarado para eso.
+
+     TokenTypeUnknown a proposito: deja que Firebase averigue si el token es de desarrollo o
+     de produccion. Escribirlo a mano es la forma de que funcione en el telefono del
+     desarrollador y no en el de la tienda, o al reves.
+     */
+    [[FIRAuth auth] setAPNSToken:deviceToken type:FIRAuthAPNSTokenTypeUnknown];
     NSString *strDeviceToken;
     if (SYSTEM_VERSION_GREATER_THAN_OR_EQUAL_TO(@"13.0")) {
         strDeviceToken = [self hexadecimalStringFromData:deviceToken];
