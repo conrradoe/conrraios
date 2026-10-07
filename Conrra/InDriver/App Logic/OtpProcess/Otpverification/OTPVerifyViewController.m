@@ -23,6 +23,7 @@
 #import "SettingsModel.h"
 #import "ConrraButton.h"
 #import "ConrraFotoDeRegistro.h"
+#import "ConrraVerificacionTelefono.h"
 @interface OTPVerifyViewController ()<UITextFieldDelegate,OTPFieldViewDelegate,MFMailComposeViewControllerDelegate>{
     int smsCode;
     CGRect frameOrignal;
@@ -62,7 +63,8 @@
     [self setInitialUi];
     [self startResendTimer];
     
-    self.txtOtpView.fieldsCount = 4;
+    // Firebase manda SEIS digitos; el camino viejo generaba cuatro.
+    self.txtOtpView.fieldsCount = (int)[ConrraVerificacionTelefono casillas];
     self.txtOtpView.fieldBorderWidth = 1;
     self.txtOtpView.fieldSize=46;
     self.txtOtpView.defaultBorderColor=[UIColor colorNamed:@"app_theame"];
@@ -450,27 +452,109 @@
 }
 
 
+/**
+ El numero de esta pantalla en formato internacional. Un solo sitio que lo arma.
+
+ Firebase exige E.164: el mas y digitos, nada mas. Al recuperar contraseña el numero llega
+ ya con su prefijo en self.phoneNum; en registro y entrada se pega el prefijo del pais.
+ */
+-(NSString *)telefonoE164 {
+    NSString *crudo;
+    if (self.isRestPassword) {
+        crudo = isEmpty(self.phoneNum);
+    } else {
+        crudo = [NSString stringWithFormat:@"%@%@",
+                 isEmpty(self.countryDialCode),
+                 isEmpty([NSString stringWithFormat:@"%@", [_usersigmUpDict objectForKey:P_MOBILE]])];
+    }
+    NSMutableString *digitos = [[NSMutableString alloc] init];
+    for (NSUInteger i = 0; i < crudo.length; i++) {
+        unichar c = [crudo characterAtIndex:i];
+        if (c >= '0' && c <= '9') {
+            [digitos appendFormat:@"%C", c];
+        }
+    }
+    return digitos.length > 0 ? [@"+" stringByAppendingString:digitos] : @"";
+}
+
+/**
+ ¿Esta apagado el paso de verificacion?
+
+ Dos fuentes, y las dos significan "no hay codigo que esperar": la constante `otp_off` del
+ backend, que se enciende y se apaga a mano, y `is_test` para las cuentas de prueba.
+
+ VALE PARA CUALQUIER METODO, y eso es el arreglo. Esto solo lo miraba el camino viejo, asi
+ que con Firebase la constante no apagaba nada: el usuario se quedaba delante de unas
+ casillas que nadie iba a rellenar, porque no se habia pedido ningun codigo.
+ */
+-(BOOL)otpApagado {
+    ConstantModel *constantes = [ConstantModel getConstantsObject];
+    BOOL esDePrueba = NO;
+    if (self.usersigmUpDict) {
+        esDePrueba = [[self.usersigmUpDict objectForKey:@"is_test"] boolValue];
+    }
+    return constantes.otp_off || esDePrueba;
+}
+
+/// Lo que pasa cuando el numero queda verificado, venga del camino que venga.
+-(void)continuarTrasVerificar {
+    [self stopResendTimer];
+    if(self.isRestPassword){
+        [self updatePasswordScreen];
+    }else if(self.isFormLogin){
+        [self loginUser:self.usersigmUpDict];
+    }
+    else{
+        [self registerMeWithInfo];
+    }
+}
+
 -(void) validateOTP:(NSString *) string{
     [self.view endEditing:YES];
+
+    /*
+     Apagado: se pasa sin comprobar nada, con el metodo que sea. Va ANTES de la rama de
+     Firebase a proposito -- es el mismo orden que puso Android --, porque si no, con
+     otp_off encendido el usuario se queda encerrado: no se pidio codigo, luego no hay
+     codigo que teclear ni que validar.
+     */
+    if ([self otpApagado]) {
+        [self continuarTrasVerificar];
+        return;
+    }
+
+    if ([ConrraVerificacionTelefono conFirebase]) {
+        NSString *escrito = [string stringByReplacingOccurrencesOfString:@" " withString:@""];
+        if (escrito.length == 0) {
+            [self showWarningWithMessgae:[LanguageHelper getStringWithKey:@"k_r12_s6_invalid_otp"]];
+            return;
+        }
+        NSString *espera = [LanguageHelper getStringWithKey:@"k_r30_s3_loading"];
+        [UtilityClass setLH:NO wt:espera];
+        [ConrraVerificacionTelefono comprobar:escrito cuandoTermine:^(BOOL verificado, NSString *error) {
+            [UtilityClass setLH:YES wt:espera];
+            if (!verificado) {
+                // El motivo viene traducido de ConrraVerificacionTelefono: distingue
+                // "codigo equivocado" de "falta la clave de APNs", que no es culpa suya.
+                [self showWarningWithMessgae:error.length > 0 ? error
+                    : [LanguageHelper getStringWithKey:@"k_r12_s6_invalid_otp"]];
+                return;
+            }
+            [self continuarTrasVerificar];
+        }];
+        return;
+    }
+
+    // ---- El camino viejo: la app compara el codigo consigo misma. ----
     NSString *trimmed = [string stringByReplacingOccurrencesOfString:@" " withString:@""];
     int trimmedInr = [trimmed intValue];
-    ConstantModel *contant=[ConstantModel getConstantsObject];
     BOOL isTestAccount=NO;
     if(self.usersigmUpDict){
         isTestAccount=[[self.usersigmUpDict objectForKey:@"is_test"]boolValue];
     }
     if ( trimmedInr == _verificationCode||(trimmedInr==9009&&isTestAccount==YES))  {
-        [self stopResendTimer];
-        if(self.isRestPassword){
-            [self updatePasswordScreen];
-        }else if(self.isFormLogin){ 
-            [self loginUser:self.usersigmUpDict];
-        }
-        else{
-            [self registerMeWithInfo];
-        }
+        [self continuarTrasVerificar];
     } else {
-//        self.otpTextfield.text=@"";
         [self showWarningWithMessgae:[LanguageHelper getStringWithKey:@"k_r12_s6_invalid_otp"]];
         return;
     }
@@ -478,10 +562,11 @@
 
 
 -(void)setEmptyOTP{
-    [((OTPTextField *)[self.txtOtpView viewWithTag:1]) setText:@""];
-    [((OTPTextField *)[self.txtOtpView viewWithTag:2]) setText:@""];
-    [((OTPTextField *)[self.txtOtpView viewWithTag:3]) setText:@""];
-    [((OTPTextField *)[self.txtOtpView viewWithTag:4]) setText:@""];
+    // En bucle y no cuatro lineas: con Firebase hay seis casillas, y dejar dos sin vaciar
+    // es que el codigo viejo se queda escrito debajo del nuevo.
+    for (NSInteger i = 1; i <= [ConrraVerificacionTelefono casillas]; i++) {
+        [((OTPTextField *)[self.txtOtpView viewWithTag:i]) setText:@""];
+    }
 }
 
 
@@ -615,6 +700,37 @@
 
 
 -(void)verifyMobileNo{
+    /*
+     CON FIREBASE EL CODIGO NO LO GENERA LA APP.
+
+     Se lo pide a Google, que lo manda y lo comprueba. La app no lo conoce nunca, y por eso
+     esto prueba de verdad que quien se registra tiene ese numero. Ver
+     ConrraVerificacionTelefono.
+     */
+    if ([ConrraVerificacionTelefono conFirebase] && ![self otpApagado]) {
+        NSString *telefono = [self telefonoE164];
+        if (telefono.length < 8) {
+            [self showAlertWithMessgae:[LanguageHelper getStringWithKey:@"k_17_s3_phone_number_does_not_exists"]];
+            return;
+        }
+        NSString *espera = [LanguageHelper getStringWithKey:@"k_r30_s3_loading"];
+        [UtilityClass setLH:NO wt:espera];
+        [ConrraVerificacionTelefono enviarA:telefono cuandoTermine:^(BOOL enviado, NSString *error) {
+            [UtilityClass setLH:YES wt:espera];
+            if (!enviado) {
+                [self showAlertWithMessgae:error.length > 0 ? error
+                    : [LanguageHelper getStringWithKey:@"k_17_s3_phone_number_does_not_exists"]];
+                return;
+            }
+            self->isTimeSet = NO;
+            self.scrollView.contentOffset = CGPointMake(0, 50);
+            [self setOtp];
+            [self setEmptyOTP];
+            [self startResendTimer];
+        }];
+        return;
+    }
+
     smsCode = [Utilities getRandomNumberBetween:1000 to:9999];
     ConstantModel *consModel=[ConstantModel getConstantsObject];
     BOOL isTestAccount=NO;
@@ -939,12 +1055,22 @@
         [subtitleLabel.trailingAnchor constraintEqualToAnchor:cardView.trailingAnchor constant:-20],
     ]];
 
-    // fieldSize=72, separatorSpace=12 → total width = 4×72 + 3×12 = 324pt
-    // Figma: each box 68pt wide × 52pt tall, 12pt gap
+    /*
+     EL ANCHO SE CALCULA, NO SE ESCRIBE.
+
+     El diseño eran cuatro casillas de 68 con 12 de hueco: 308 puntos de ancho total. Con
+     Firebase son SEIS, y seis de 68 son 468: no caben ni en un telefono grande, asi que
+     Auto Layout los sacaria del borde o los apretaria sin control.
+
+     Se mantiene el ancho total y se reparte entre las casillas que haya. Con cuatro sale
+     exactamente el diseño de antes (68 y 12); con seis, 44 y 8.
+     */
+    const NSInteger otpCasillas = [ConrraVerificacionTelefono casillas];
     const CGFloat otpFieldH = 52;
-    const CGFloat otpFieldW = 68;
-    const CGFloat otpSepSpace = 12;
-    const CGFloat otpTotalW = 4 * otpFieldW + 3 * otpSepSpace; // = 308pt
+    const CGFloat otpAnchoDisponible = 308;
+    const CGFloat otpSepSpace = (otpCasillas > 4) ? 8 : 12;
+    const CGFloat otpFieldW = floorf((otpAnchoDisponible - (otpCasillas - 1) * otpSepSpace) / otpCasillas);
+    const CGFloat otpTotalW = otpCasillas * otpFieldW + (otpCasillas - 1) * otpSepSpace;
 
     [self.txtOtpView removeFromSuperview];
     [cardView addSubview:self.txtOtpView];

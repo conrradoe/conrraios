@@ -1,0 +1,192 @@
+//
+//  ConrraVerificacionTelefono.m
+//  Conrra
+//
+
+#import "ConrraVerificacionTelefono.h"
+@import Firebase;
+
+/**
+ Como se verifica el telefono. Las tres opciones de Android, aunque iOS solo usa dos:
+
+   "firebase" - El codigo lo genera y lo comprueba Google. La app no lo conoce nunca. Es el
+                unico que prueba de verdad que quien se registra tiene ese numero.
+   "sms"      - El camino viejo con Twilio: la app generaba el codigo, pedia al servidor que
+                lo mandara y lo comparaba consigo misma. Se paga y no verifica nada. Se
+                conserva solo para poder volver atras.
+
+ "sim" no esta: en Android es el Phone Number Hint de Google, que lee el numero de la SIM del
+ aparato. iOS no tiene nada equivalente -- Apple no da el numero del abonado --, asi que ese
+ metodo no se puede ofrecer aqui.
+ */
+static NSString *const kMetodo = @"firebase";
+
+/// La sesion de verificacion y EL NUMERO AL QUE PERTENECE. Los dos juntos, siempre.
+static NSString *gIdVerificacion = nil;
+static NSString *gTelefonoDelEnvio = nil;
+
+@implementation ConrraVerificacionTelefono
+
++ (BOOL)conFirebase {
+    return [kMetodo isEqualToString:@"firebase"];
+}
+
++ (NSInteger)casillas {
+    // Firebase manda seis digitos; el camino viejo generaba cuatro.
+    return [self conFirebase] ? 6 : 4;
+}
+
++ (NSString *)limpio:(NSString *)texto {
+    if (![texto isKindOfClass:[NSString class]]) {
+        return @"";
+    }
+    return [texto stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+}
+
+#pragma mark - Mandar el codigo
+
++ (void)enviarA:(NSString *)telefonoE164
+  cuandoTermine:(void (^)(BOOL, NSString *_Nullable))bloque {
+    NSString *telefono = [self limpio:telefonoE164];
+    if (telefono.length == 0) {
+        [self responder:bloque ok:NO error:@"Número de teléfono vacío"];
+        return;
+    }
+
+    // La sesion que empieza aqui pertenece a ESTE numero y a ningun otro.
+    gTelefonoDelEnvio = telefono;
+    gIdVerificacion = nil;
+
+    /*
+     UIDelegate a nil: Firebase usa la ventana activa si tiene que enseñar el reCAPTCHA.
+
+     Y tendria que enseñarlo solo cuando el push silencioso de APNs no funciona, que es
+     justo el sintoma de que falta subir la clave de APNs a la consola. Si aparece un
+     navegador aqui, el problema es de configuracion, no del usuario.
+     */
+    [[FIRPhoneAuthProvider provider] verifyPhoneNumber:telefono
+                                            UIDelegate:nil
+                                            completion:^(NSString *_Nullable idVerificacion,
+                                                         NSError *_Nullable error) {
+        if (error != nil || idVerificacion.length == 0) {
+            NSLog(@"[VerificacionTelefono] no se pudo pedir el codigo: %@", error.localizedDescription);
+            [self responder:bloque ok:NO error:[self traducir:error]];
+            return;
+        }
+        gIdVerificacion = idVerificacion;
+        [self responder:bloque ok:YES error:nil];
+    }];
+}
+
+#pragma mark - Comprobarlo
+
++ (void)comprobar:(NSString *)codigo
+    cuandoTermine:(void (^)(BOOL, NSString *_Nullable))bloque {
+    if (gIdVerificacion.length == 0) {
+        [self responder:bloque ok:NO error:@"Pide el código otra vez"];
+        return;
+    }
+    NSString *escrito = [self limpio:codigo];
+    if (escrito.length == 0) {
+        [self responder:bloque ok:NO error:@"Escribe el código"];
+        return;
+    }
+
+    FIRAuthCredential *credencial =
+        [[FIRPhoneAuthProvider provider] credentialWithVerificationID:gIdVerificacion
+                                                    verificationCode:escrito];
+    /*
+     ENTRAR ES LA UNICA FORMA DE COMPROBAR. Firebase no tiene un "valida esto y no me metas":
+     la credencial se canjea con signInWithCredential, y eso abre sesion con el telefono.
+
+     CONSECUENCIA, para que quede dicha: esa sesion SUSTITUYE la de Firebase que el app use
+     para el chat (FireAnonymousSigupHelper entra con correo y contraseña). En los tres
+     caminos que llegan aqui -- registro, entrada y recuperar contraseña -- la entrada por
+     correo ocurre despues y la restituye, asi que no se nota. Android hace lo mismo.
+     */
+    [[FIRAuth auth] signInWithCredential:credencial
+                              completion:^(FIRAuthDataResult *_Nullable resultado,
+                                           NSError *_Nullable error) {
+        if (error != nil) {
+            NSLog(@"[VerificacionTelefono] el codigo no paso: %@", error.localizedDescription);
+            [self responder:bloque ok:NO error:[self traducir:error]];
+            return;
+        }
+        [self limpiar];
+        [self responder:bloque ok:YES error:nil];
+    }];
+}
+
+#pragma mark - El estado
+
++ (BOOL)hayEnvioEnCursoPara:(NSString *)telefonoE164 {
+    if (gIdVerificacion.length == 0 || gTelefonoDelEnvio.length == 0) {
+        return NO;
+    }
+    return [gTelefonoDelEnvio isEqualToString:[self limpio:telefonoE164]];
+}
+
++ (void)limpiar {
+    gIdVerificacion = nil;
+    gTelefonoDelEnvio = nil;
+}
+
+#pragma mark - Los avisos
+
+/// Siempre en el hilo principal: quien llama pinta pantalla con esto.
++ (void)responder:(void (^)(BOOL, NSString *_Nullable))bloque
+               ok:(BOOL)ok
+            error:(NSString *)error {
+    if (bloque == nil) {
+        return;
+    }
+    if ([NSThread isMainThread]) {
+        bloque(ok, error);
+    } else {
+        dispatch_async(dispatch_get_main_queue(), ^{ bloque(ok, error); });
+    }
+}
+
+/**
+ Los mensajes de Firebase vienen en ingles y hablan de "credential" y "quota". Lo que el
+ usuario necesita saber es si se equivoco de codigo o si el problema es de la app.
+
+ SE MIRA EL TEXTO Y NO EL CODIGO DE ERROR, igual que en Android. Las constantes de
+ FIRAuthErrorCode viven en los Pods, que no estan en este repositorio: no puedo comprobar
+ como se escriben exactamente y un nombre mal puesto no compila. El texto lo da la misma
+ libreria y es estable. Cuando se tengan los Pods delante, esto se puede cambiar a
+ error.code y queda mas firme.
+ */
++ (NSString *)traducir:(NSError *)error {
+    NSString *bruto = error.localizedDescription ?: @"";
+    NSString *b = [bruto lowercaseString];
+
+    if ([b containsString:@"invalid verification code"] || [b containsString:@"invalid_code"]) {
+        return @"El código no es correcto";
+    }
+    if ([b containsString:@"expired"] || [b containsString:@"session-expired"]) {
+        return @"El código caducó. Pide uno nuevo";
+    }
+    if ([b containsString:@"invalid phone number"] || [b containsString:@"invalid-phone-number"]) {
+        return @"El número no parece válido. Revisa el país y los dígitos";
+    }
+    if ([b containsString:@"quota"] || [b containsString:@"too many"] || [b containsString:@"blocked"]) {
+        return @"Demasiados intentos. Espera unos minutos e inténtalo de nuevo";
+    }
+    if ([b containsString:@"network"] || [b containsString:@"offline"]) {
+        return @"Sin conexión. Revisa tus datos o el wifi";
+    }
+    /*
+     El fallo de configuracion mas comun, y en iOS es la clave de APNs sin subir, no una
+     huella SHA. Conviene distinguirlo porque no tiene nada que ver con el usuario: su
+     telefono y su numero estan bien.
+     */
+    if ([b containsString:@"notification"] || [b containsString:@"apns"]
+        || [b containsString:@"app is not verified"] || [b containsString:@"not authorized"]
+        || [b containsString:@"captcha"]) {
+        return @"La app no está autorizada para verificar teléfonos. Falta subir la clave de APNs a Firebase";
+    }
+    return bruto.length > 0 ? bruto : @"No se pudo verificar el teléfono";
+}
+
+@end

@@ -24,6 +24,7 @@
 #import "ConrraFotoDeRegistro.h"
 #import "ConrraCaraEnLaFoto.h"
 #import "UIImagePickerController+Extension.h"
+#import "ConrraVerificacionTelefono.h"
 @interface OtpSignUpViewController ()<NIDropDownDelegate, UIImagePickerControllerDelegate, UINavigationControllerDelegate>
 /// El circulo de la foto, para repintarlo cuando el pasajero elige una.
 @property (nonatomic, weak) UIImageView *ivFotoDeRegistro;
@@ -350,8 +351,12 @@
     
     smsCode = [Utilities getRandomNumberBetween:1000 to:9999];
     
+    /*
+     Con Firebase el SMS de pago sobra: lo manda Google. Se sigue a la pantalla del codigo,
+     que es la que se lo pide. Mismo molde que la rama de otp_off que ya habia aqui.
+     */
     ConstantModel *consModel=[ConstantModel getConstantsObject];
-    if(consModel.otp_off){
+    if(consModel.otp_off || [ConrraVerificacionTelefono conFirebase]){
         [UtilityClass setLH:YES wt:[LanguageHelper getStringWithKey:@"k_r30_s3_loading"]];
         [self sendMeToVerificationView];
         return ;

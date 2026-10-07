@@ -19,6 +19,7 @@
 #import "OTPVerifyViewController.h"
 #import "OtpSignUpViewController.h"
 #import "ConrraButton.h"
+#import "ConrraVerificacionTelefono.h"
 
 @interface OtpSignInViewController ()<NIDropDownDelegate>
 
@@ -506,7 +507,11 @@
     if(self->dictUserForLogin){
         isTestAccount=[[self->dictUserForLogin objectForKey:@"is_test"]boolValue];
     }
-    if(consModel.otp_off||isTestAccount){
+    /*
+     Con Firebase el SMS de pago sobra: lo manda Google. Se sigue a la pantalla del codigo,
+     que es la que se lo pide. Mismo molde que la rama de otp_off que ya habia aqui.
+     */
+    if(consModel.otp_off||isTestAccount||[ConrraVerificacionTelefono conFirebase]){
         [self sendMeToVerificationView];
         return;
     }
