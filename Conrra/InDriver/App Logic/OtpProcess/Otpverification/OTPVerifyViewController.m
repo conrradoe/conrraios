@@ -188,6 +188,26 @@
  que otpApagado, asi que se pregunta ahi: dos copias de una regla acaban separandose.
  */
 -(void)setOtp{
+    /*
+     ============ DOS CONDICIONES, Y LA PRIMERA FALTABA ============
+
+     Solo se rellena un codigo que EL APP CONOCE, y eso pasa unicamente en el camino viejo,
+     donde se lo inventaba ella misma. Con Didit o con Firebase el codigo lo genera otro y el
+     app no lo ve nunca: no hay nada que escribir en las casillas.
+
+     Aqui solo se miraba `otpApagado`, asi que con la verificacion apagada se rellenaban las
+     seis casillas de Didit con el aleatorio de cuatro digitos del app -- rellenas, y encima
+     con un numero que no es el codigo. Es EXACTAMENTE el fallo que Android ya se encontro y
+     documento: el relleno se cerraba con una lista de negaciones y al entrar Didit se quedo
+     abierta. Alli la condicion es `OTP_LO_GENERA_EL_APP && otpApagado()`, las dos. Yo porte
+     la constante y me olvide de usarla donde se creo para usarse.
+
+     Preguntando en positivo -- "¿lo genera el app?" -- un proveedor nuevo nace SIN relleno,
+     que es el lado seguro del olvido.
+     */
+    if (![ConrraVerificacionTelefono loGeneraElApp]) {
+        return;
+    }
     if (![self otpApagado]) {
         return;
     }
@@ -605,7 +625,17 @@
     ConstantModel *constantes = [ConstantModel getConstantsObject];
     BOOL esDePrueba = NO;
     if (self.usersigmUpDict) {
-        esDePrueba = [[self.usersigmUpDict objectForKey:@"is_test"] boolValue];
+        /*
+         Exactamente "1", igual que otp_off y igual que Android.
+
+         Estaba con boolValue, que dice SI para "true", "yes" o cualquier digito que no sea
+         cero. Android compara con "1" (OTPActivity.otpApagado), asi que un is_test que no
+         fuera "1" pero sonara a verdad apagaria la verificacion solo en iOS -- y apagarla
+         sin querer es dejar pasar a cualquiera.
+         */
+        NSString *valor = [NSString stringWithFormat:@"%@", [self.usersigmUpDict objectForKey:@"is_test"]];
+        esDePrueba = [[valor stringByTrimmingCharactersInSet:
+                       [NSCharacterSet whitespaceAndNewlineCharacterSet]] isEqualToString:@"1"];
     }
     return constantes.otp_off || esDePrueba;
 }

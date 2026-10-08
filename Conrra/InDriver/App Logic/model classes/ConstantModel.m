@@ -113,7 +113,23 @@ static NSDictionary *enableInfo;
         }  else if ([[dict objectForKey:@"ckey"]isEqualToString:@"currency_conversion"]){
             self.currency_conversion=[dict objectForKey:@"cvalue"] ;
         } else if ([[dict objectForKey:@"ckey"]isEqualToString:@"otp_off"]){
-            self.otp_off=[[dict objectForKey:@"cvalue"] boolValue];
+            /*
+             SE LEE COMO LO LEE ANDROID: apagado solo si el valor es exactamente "1".
+
+             Estaba con boolValue, y eso no es lo mismo. boolValue dice SI para "true", "yes",
+             "t", "y" o cualquier digito que no sea cero; Android compara con "1" y nada mas
+             (OTPActivity.otpApagado). O sea que un `otp_off` puesto a "true" en la tabla
+             apagaria la verificacion en iOS y la dejaria encendida en Android, con el mismo
+             servidor. Divergencias asi son las que mandan a buscar el fallo al sitio
+             equivocado.
+
+             Se pasa por stringWithFormat antes de comparar porque cvalue puede llegar como
+             numero y no como texto segun el JSON, y isEqualToString con un NSNumber no
+             compara nada.
+             */
+            NSString *valor = [NSString stringWithFormat:@"%@", [dict objectForKey:@"cvalue"]];
+            self.otp_off = [[valor stringByTrimmingCharactersInSet:
+                             [NSCharacterSet whitespaceAndNewlineCharacterSet]] isEqualToString:@"1"];
         }else if ([[dict objectForKey:@"ckey"]isEqualToString:@"exp_time"]){
             self.exp_time=[[dict objectForKey:@"cvalue"] intValue];
         }else if ([[dict objectForKey:@"ckey"]isEqualToString:@"common_api_ver"]){
@@ -148,11 +164,29 @@ static NSDictionary *enableInfo;
         }
     }
 #if TARGET_OS_SIMULATOR
+    /*
+     AQUI YA NO SE APAGA EL OTP, y antes si: habia un `self.otp_off = YES;`.
+
+     Eso pisaba la constante del servidor sin decir nada. Con la verificacion ENCENDIDA en el
+     backend, el app se comportaba como si estuviera apagada: no le pedia el codigo a nadie,
+     rellenaba las casillas con un numero que ella misma se inventaba y dejaba pasar. Android
+     no tiene ese atajo, asi que el mismo backend daba dos comportamientos y el de iOS parecia
+     un fallo del proveedor.
+
+     Una bandera local que contradice al servidor es una mentira que se cuenta el propio
+     programa, y se paga buscando el fallo en el sitio equivocado -- aqui, en el rele.
+
+     Lo que se pierde: en el simulador ya hay que teclear el codigo de verdad, el que llega
+     por WhatsApp al telefono que se registra. Es lo mismo que hay que hacer en un aparato,
+     que es donde se prueba lo que se va a publicar.
+
+     is_stripe_live SI se queda: no inventa nada, solo evita cobrar de verdad mientras se
+     desarrolla.
+     */
     self.is_stripe_live = NO;
-    self.otp_off = YES;
 #else
 
-#endif 
+#endif
     
     if(is_stripe_live_key_found){
         if(self.is_stripe_live==NO){
