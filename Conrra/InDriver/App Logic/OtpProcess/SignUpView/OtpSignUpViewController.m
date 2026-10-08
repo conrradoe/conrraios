@@ -1222,12 +1222,12 @@ didFinishPickingMediaWithInfo:(NSDictionary<UIImagePickerControllerInfoKey, id> 
              bloquear a quien hace lo correcto.
              */
             if (sePudoMirar && caras == 0) {
-                [self su_rechazarLaFoto:[LanguageHelper getStringWithKey:@"k_s10_foto_sin_cara"
+                [self su_rechazarLaFoto:[LanguageHelper getStringWithKey:@"registro_foto_sin_cara"
                     defaultValue:@"No vemos tu cara en la foto. Inténtalo otra vez, con buena luz y mirando a la cámara."]];
                 return;
             }
             if (sePudoMirar && caras > 1) {
-                [self su_rechazarLaFoto:[LanguageHelper getStringWithKey:@"k_s10_foto_varias_caras"
+                [self su_rechazarLaFoto:[LanguageHelper getStringWithKey:@"registro_foto_varias_caras"
                     defaultValue:@"En la foto hay más de una persona. Hazte la selfie tú solo."]];
                 return;
             }
