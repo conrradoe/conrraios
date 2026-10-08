@@ -18,6 +18,8 @@
 #import "CounrySelectionView.h"
 #import "ConstantModel.h"
 #import "UIView+UpdateAutoLayoutConstraints.h"
+#import "ConrraVerificacionTelefono.h"
+#import "ConrraTelefonoE164.h"
 @interface ForgotPasswordViewController ()<NIDropDownDelegate,CounrySelectionViewDelegate>
 @property (weak, nonatomic) IBOutlet UIView *btContainer;
 
@@ -190,8 +192,21 @@
     
         smsCode = [Utilities getRandomNumberBetween:1000 to:9999];
     
+    /*
+     Si el codigo lo manda otro, el SMS de pago sobra: se sigue a la pantalla del codigo, que
+     es la que se lo pide. Mismo molde que la rama de otp_off que ya habia aqui, y lo mismo
+     que ya hacen registro y entrada.
+
+     ESTA PUERTA SE QUEDO ATRAS. Recuperar contrasena es la tercera que lleva a la pantalla
+     del codigo, y al pasar el envio a un proveedor de fuera solo se convirtieron las otras
+     dos: aqui se seguia mandando -- y pagando -- un SMS de Twilio con un codigo que la propia
+     app se inventaba, y luego la pantalla del codigo pedia OTRO al proveedor. Dos codigos
+     para una verificacion, y el que valia no era el que llegaba por SMS.
+
+     Android lo convirtio en Resetpassword.java con OTP_SIN_SMS_DE_PAGO, la misma idea.
+     */
     ConstantModel *consModel=[ConstantModel getConstantsObject];
-    if(consModel.otp_off){
+    if(consModel.otp_off || [ConrraVerificacionTelefono loVerificaElServidor]){
         [UtilityClass setLH:YES wt:[LanguageHelper getStringWithKey:@"k_r30_s3_loading"]];
         [self sendMeToVerificationView];
         return ;
@@ -234,15 +249,17 @@
     vc.isRestPassword=YES;
     
     
-    NSString *phoneNum = [self.txtEmail.text stringByTrimmingCharactersInSet:
-                          [NSCharacterSet whitespaceAndNewlineCharacterSet]];
-    
-    if([phoneNum hasPrefix:@"0"])
-    {
-        phoneNum = [phoneNum substringFromIndex:1];
-    }
-    phoneNum = [NSString stringWithFormat:@"%@%@",countryCode,phoneNum];
-    vc.phoneNum=phoneNum;
+    /*
+     El numero se arma con la regla de E.164, no a mano.
+
+     Lo que habia quitaba UN cero de delante y pegaba. Quitar uno vale para `0424...`, pero
+     no para `00424...`, que es lo que sale de teclear el cero de troncal y encima el de
+     salida internacional; y no comprobaba largos, asi que un numero a medias llegaba igual
+     a la pantalla siguiente. ConrraTelefonoE164 quita TODOS los ceros de delante y devuelve
+     vacio cuando lo que hay no da para un numero.
+     */
+    NSString *phoneNum = [ConrraTelefonoE164 de:countryCode nacional:self.txtEmail.text];
+    vc.phoneNum = phoneNum.length > 0 ? phoneNum : @"";
     vc.modalPresentationStyle=UIModalPresentationFullScreen;
     [self presentViewController:vc animated:YES completion:nil];
 //    [self.navigationController pushViewController: vc animated:YES];
