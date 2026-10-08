@@ -124,6 +124,18 @@
         && ![self otpApagado]
         && ![ConrraVerificacionTelefono hayEnvioEnCursoPara:[self telefonoE164]]) {
         [self verifyMobileNo];
+    } else {
+        /*
+         No pedir codigo es una decision, asi que se dice cual de las tres la tomo.
+
+         Sin esto el sintoma es una pantalla que no hace nada, y eso no distingue "el
+         proveedor esta apagado" de "la verificacion esta apagada" de "ya hay un envio vivo
+         para este numero". Buscarlo a ciegas costo un dia entero y dos hipotesis falsas.
+         */
+        NSLog(@"[OTP] no se pide codigo: loVerificaElServidor=%@ otpApagado=%@ envioEnCurso=%@",
+              [ConrraVerificacionTelefono loVerificaElServidor] ? @"si" : @"NO",
+              [self otpApagado] ? @"si" : @"NO",
+              [ConrraVerificacionTelefono hayEnvioEnCursoPara:[self telefonoE164]] ? @"si" : @"NO");
     }
 }
 

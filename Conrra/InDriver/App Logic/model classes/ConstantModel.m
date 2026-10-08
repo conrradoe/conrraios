@@ -207,19 +207,48 @@ static NSDictionary *enableInfo;
 }
 
 
+/**
+ Las constantes del servidor, y FRESCAS.
+
+ ================== POR QUE SE COMPRUEBA SI CAMBIARON ==================
+ Antes esto devolvia el objeto en cuanto existia, sin volver a mirar el disco. Y el objeto se
+ construye la PRIMERA vez que alguien lo pide, que es antes de que LoadingViewController haya
+ traido las constantes del servidor y las haya guardado. O sea: durante todo el arranque se
+ leia la copia GUARDADA de la vez anterior, y despues ya nadie volvia a construirlo. El valor
+ de la vez anterior se quedaba puesto hasta matar la app.
+
+ Eso produce una diferencia feisima entre un aparato y un simulador recien instalado. En el
+ simulador no hay copia guardada: devolvia nil, y como en Objective-C una propiedad de nil
+ vale 0, `otp_off` salia NO y la verificacion se pedia bien. En un telefono que ya se habia
+ usado se leia el `otp_off` guardado de otra epoca, y si ahi estaba a 1 el app se saltaba la
+ verificacion entera. Mismo codigo, mismo servidor, dos comportamientos.
+
+ El resto de esta clase ya desconfiaba del singleton: hay tres metodos mas abajo que releen
+ `constantResponse` del disco en CADA llamada. Esto los pone de acuerdo.
+
+ Cuesta poco: NSUserDefaults sirve de memoria despues de la primera lectura, y el array son
+ unas docenas de entradas.
+ =======================================================================
+
+ SIGUE DEVOLVIENDO nil cuando no hay constantes, y conviene saber por que no es un descuido:
+ con nil, `constantes.otp_off` vale NO y la verificacion se da por ENCENDIDA. Si hay que
+ equivocarse, es mejor pedir un codigo de mas que dejar entrar sin comprobar nada.
+ */
 +(ConstantModel *) getConstantsObject{
-    if(instance!=nil){
+    NSArray * arr = defaults_object(@"constantResponse");
+    BOOL hayGuardadas = [arr isKindOfClass:[NSArray class]] && arr.count > 0;
+
+    // Lo que ya hay sirve solo si no han cambiado las de disco.
+    if (instance != nil && (!hayGuardadas || [arr isEqualToArray:arrayConstants])) {
         return instance;
     }
-    NSArray * arr = defaults_object(@"constantResponse");
-    if([arr isKindOfClass:[NSArray class]]&&arr.count>0) {
-        arrayConstants=arr;
-        instance =[[ConstantModel alloc]initItemWithDict:arr];
-        
+    if (hayGuardadas) {
+        arrayConstants = arr;
+        instance = [[ConstantModel alloc] initItemWithDict:arr];
         [instance manageCP];
         return instance;
     }
-    return nil;
+    return instance;
 }
 
 
