@@ -925,6 +925,59 @@
 
 
 
+/**
+ Avisa de que el codigo salio, con un popup y boton de Aceptar.
+
+ Antes no se avisaba de nada: la ruedecita se iba y el usuario se quedaba delante de seis
+ casillas vacias sin saber si tenia que mirar el WhatsApp, esperar un SMS, o si habia pasado
+ algo. En Android era un Toast, que se va solo en tres segundos y deja la misma duda; desde
+ la 1.0.18 es un popup, y aqui se hace igual.
+
+ UN SOLO SITIO PARA LAS DOS RUTAS, y en iOS sale gratis: Didit y Firebase pasan los dos por
+ ConrraVerificacionTelefono, asi que este unico aviso cubre las dos. En Android hubo que
+ ponerlo dos veces, una por proveedor -- y eso es precisamente como se olvida uno el dia que
+ se cambia el predeterminado.
+
+ Los textos llevan su traduccion por omision AQUI, con tildes. Asi salen hoy sin tocar el
+ backend, y si algun dia se definen esas claves en `localisations` el servidor manda. Y las
+ tildes no son un adorno: esto lo lee el usuario, no es un comentario del codigo.
+ */
+-(void)su_avisarCodigoEnviado {
+    /*
+     DOS GUARDIAS, Y LOS DOS HACEN FALTA.
+
+     La respuesta del rele puede llegar con la pantalla ya cerrada -- el usuario le dio atras
+     mientras se mandaba --, y presentar sobre una pantalla que se va no muestra nada y deja
+     un aviso en la consola. Y si ya hay otro aviso puesto (un error del envio anterior, por
+     ejemplo), este se perderia en silencio: mejor no intentarlo y dejarlo dicho.
+     */
+    if (!self.isViewLoaded || self.view.window == nil) {
+        return;
+    }
+    if (self.presentedViewController != nil) {
+        NSLog(@"[OTP] el codigo salio, pero ya hay otro aviso en pantalla: no se enseña");
+        return;
+    }
+    NSString *titulo = [LanguageHelper getStringWithKey:@"k_verificacion_enviada_titulo"
+                                           defaultValue:@"Código enviado"];
+    NSString *texto  = [LanguageHelper getStringWithKey:@"k_verificacion_enviada"
+                                           defaultValue:@"El código de verificación ha sido enviado. Revise su WhatsApp o SMS."];
+    NSString *boton  = [LanguageHelper getStringWithKey:@"k_verificacion_enviada_boton"
+                                           defaultValue:@"Aceptar"];
+    @try {
+        UIAlertController *aviso = [UIAlertController alertControllerWithTitle:titulo
+                                                                      message:texto
+                                                               preferredStyle:UIAlertControllerStyleAlert];
+        [aviso addAction:[UIAlertAction actionWithTitle:boton
+                                                 style:UIAlertActionStyleDefault
+                                               handler:nil]];
+        [self presentViewController:aviso animated:YES completion:nil];
+    } @catch (NSException *e) {
+        // Que un aviso no tumbe la pantalla: el codigo YA salio, que es lo que importa.
+        NSLog(@"[OTP] no se pudo mostrar el aviso de codigo enviado: %@", e.reason);
+    }
+}
+
 /// El id del usuario que viene en el diccionario de esta pantalla, o nil.
 -(NSString *)su_idDelDiccionario {
     if (![self.usersigmUpDict isKindOfClass:[NSDictionary class]]) {
@@ -1015,6 +1068,7 @@
             [self setOtp];
             [self setEmptyOTP];
             [self startResendTimer];
+            [self su_avisarCodigoEnviado];
         }];
         return;
     }

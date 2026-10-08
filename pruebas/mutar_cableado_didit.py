@@ -86,6 +86,16 @@ MUTACIONES = [
   "    if ([ConrraVerificacionTelefono loVerificaElServidor] && ![self otpApagado]) {",
   "    if ([ConrraVerificacionTelefono conFirebase] && ![self otpApagado]) {",
   "el reenviar pide al proveedor, no manda el SMS de pago"),
+
+ ("el texto del aviso pierde las tildes",
+  A + "/OtpProcess/Otpverification/OTPVerifyViewController.m",
+  "@\"Código enviado\"", "@\"Codigo enviado\"",
+  "el texto del aviso lleva las tildes"),
+
+ ("deja de avisar de que el codigo salio",
+  A + "/OtpProcess/Otpverification/OTPVerifyViewController.m",
+  "            [self su_avisarCodigoEnviado];", "            // sin aviso",
+  "avisa de que el codigo salio, tras el envio"),
 ]
 
 def correr_verificador():

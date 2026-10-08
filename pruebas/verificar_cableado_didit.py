@@ -122,6 +122,16 @@ def main():
             and 0 < rev.find("loVerificaElServidor") < rev.find("BASE_URL_OTP"))
     revisar("el boton de reenviar pasa por ese mismo sitio",
             bool(re.search(r"btnResend:\(id\)sender \{\s*\[self verifyMobileNo\];", F["pantalla"], re.S)))
+    revisar("avisa de que el codigo salio, tras el envio",
+            "[self su_avisarCodigoEnviado]" in F["pantalla"])
+    revisar("el aviso se protege de la pantalla que se va y de otro aviso puesto",
+            "self.view.window == nil" in F["pantalla"]
+            and "self.presentedViewController != nil" in F["pantalla"])
+    revisar("el aviso no tumba la pantalla si falla",
+            "@catch" in cuerpo(F["pantalla"], "-(void)su_avisarCodigoEnviado {"))
+    revisar("el texto del aviso lleva las tildes",
+            all(p in F["pantalla"] for p in
+                ("Código enviado", "verificación ha sido enviado", "WhatsApp o SMS")))
 
     print(chr(10) + "=============== LA CONSTANCIA EN EL SERVIDOR ===============")
     revisar("el cliente sabe confirmar (ata el vale al usuario)",
