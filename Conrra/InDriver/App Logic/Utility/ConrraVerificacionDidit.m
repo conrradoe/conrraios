@@ -135,6 +135,15 @@ cuandoTermine:(void (^)(NSDictionary *_Nullable cuerpo, NSString *_Nullable fall
                                                         NSError *error) {
         NSDictionary *cuerpo = [self jsonDe:datos];
         if (cuerpo != nil) {
+            /*
+             Lo que contesto el rele, siempre. Sin esto, "no llega el codigo" es un sintoma
+             sin dato: no se distingue un numero que Didit rechaza de un bloqueo del
+             antifraude, de una clave mal puesta en el servidor o de que la peticion no
+             llego a salir. El cuerpo ya viene sin nada sensible -- el rele no devuelve el
+             telefono ni su clave de API -- y el numero no se escribe aqui.
+             */
+            NSLog(@"[VerificacionDidit] %@ -> HTTP %ld %@", accion,
+                  (long)[(NSHTTPURLResponse *)respuesta statusCode], cuerpo);
             bloque(cuerpo, nil);
             return;
         }

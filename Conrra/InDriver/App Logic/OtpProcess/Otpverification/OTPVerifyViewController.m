@@ -541,9 +541,54 @@
         NSString *digitos = [ConrraTelefonoE164 soloDigitos:crudo];
         return digitos.length > 0 ? [@"+" stringByAppendingString:digitos] : @"";
     }
-    NSString *nacional = [NSString stringWithFormat:@"%@", [_usersigmUpDict objectForKey:P_MOBILE]];
-    NSString *armado = [ConrraTelefonoE164 de:isEmpty(self.countryDialCode) nacional:isEmpty(nacional)];
+    NSString *armado = [ConrraTelefonoE164 de:isEmpty(self.countryDialCode)
+                                        nacional:[self su_telefonoDelDiccionario]];
+    if (armado.length == 0) {
+        /*
+         Sin numero no hay nada que pedir, y quien llama solo ve una cadena vacia. Que quede
+         en el log POR QUE, porque el sintoma -- "no manda el codigo" -- no dice nada: se
+         apunta si falta el prefijo y cual de las dos claves del telefono llego.
+
+         Las CLAVES, nunca el numero: un telefono es un dato personal y el log no es sitio
+         para el. Android hace lo mismo y solo registra el numero en depuracion.
+         */
+        NSLog(@"[OTP] no se pudo armar el numero en E.164: prefijo=%@ u_phone=%@ d_phone=%@",
+              self.countryDialCode.length > 0 ? @"si" : @"NO",
+              [_usersigmUpDict objectForKey:P_U_MOBILE] != nil ? @"si" : @"NO",
+              [_usersigmUpDict objectForKey:P_MOBILE] != nil ? @"si" : @"NO");
+    }
     return armado.length > 0 ? armado : @"";
+}
+
+/**
+ El telefono del diccionario, probando las claves que DE VERDAD llegan.
+
+ ===================== EL FALLO QUE ESTO ARREGLA =====================
+ Aqui se leia solo P_MOBILE, que es `d_phone`: la clave del CONDUCTOR. Y las dos pantallas
+ que empujan esta mandan `u_phone` (P_U_MOBILE), la del pasajero -- registro en la linea 270
+ de OtpSignUpViewController y entrada en la 439 de OtpSignInViewController, las dos con
+ P_U_MOBILE.
+
+ O sea que el numero salia nil, telefonoE164 devolvia vacio, verifyMobileNo se paraba en su
+ propio `length < 8` y NO LLEGABA A PEDIR NINGUN CODIGO. Con Didit y con Firebase igual: el
+ envio nunca salia del telefono.
+
+ Se prueban las dos claves porque esta pantalla la comparten los dos papeles. El orden es el
+ que importa: primero la del pasajero, que es la que llega en los dos caminos de hoy.
+ =====================================================================
+ */
+-(NSString *)su_telefonoDelDiccionario {
+    for (NSString *clave in @[P_U_MOBILE, P_MOBILE]) {
+        id valor = [_usersigmUpDict objectForKey:clave];
+        if ([valor isKindOfClass:[NSString class]] && [valor length] > 0) {
+            return valor;
+        }
+        // Por si alguna respuesta del servidor lo manda como numero y no como texto.
+        if ([valor isKindOfClass:[NSNumber class]]) {
+            return [valor stringValue];
+        }
+    }
+    return @"";
 }
 
 /**
