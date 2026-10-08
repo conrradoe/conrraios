@@ -623,7 +623,13 @@
         // ConrraTelefonoE164 se queda con los digitos.
         NSString *crudo = isEmpty(self.phoneNum);
         NSString *digitos = [ConrraTelefonoE164 soloDigitos:crudo];
-        return digitos.length > 0 ? [@"+" stringByAppendingString:digitos] : @"";
+        if (digitos.length == 0) {
+            // Tambien aqui, no solo en la otra rama: si no, recuperar contrasena con un
+            // numero que no se pudo armar es una pantalla que no hace nada y un log mudo.
+            NSLog(@"[OTP] recuperar contrasena sin numero: phoneNum llego vacio");
+            return @"";
+        }
+        return [@"+" stringByAppendingString:digitos];
     }
     NSString *armado = [ConrraTelefonoE164 de:isEmpty(self.countryDialCode)
                                         nacional:[ConrraTelefonoE164 nacionalDe:_usersigmUpDict]];
@@ -731,10 +737,9 @@
     // ---- El camino viejo: la app compara el codigo consigo misma. ----
     NSString *trimmed = [string stringByReplacingOccurrencesOfString:@" " withString:@""];
     int trimmedInr = [trimmed intValue];
-    BOOL isTestAccount=NO;
-    if(self.usersigmUpDict){
-        isTestAccount=[[self.usersigmUpDict objectForKey:@"is_test"]boolValue];
-    }
+    // La misma lectura exacta que el resto: con boolValue, un is_test a "true" habria abierto
+    // el atajo del 9009 en iOS y no en Android.
+    BOOL isTestAccount = [ConrraVerificacionTelefono esCuentaDePrueba:self.usersigmUpDict];
     if ( trimmedInr == _verificationCode||(trimmedInr==9009&&isTestAccount==YES))  {
         [self continuarTrasVerificar];
     } else {
@@ -935,12 +940,8 @@
     }
 
     smsCode = [Utilities getRandomNumberBetween:1000 to:9999];
-    ConstantModel *consModel=[ConstantModel getConstantsObject];
-    BOOL isTestAccount=NO;
-    if(self.usersigmUpDict){
-        isTestAccount=[[self.usersigmUpDict objectForKey:@"is_test"]boolValue];
-    }
-    if(consModel.otp_off||isTestAccount){
+    // Esta condicion era `otp_off || is_test` escrita a mano, que es literalmente otpApagado.
+    if([self otpApagado]){
         [self startResendTimer];
         [self setOtp];
         [self setEmptyOTP];

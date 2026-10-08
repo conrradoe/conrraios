@@ -359,8 +359,10 @@
      entrada: preguntando `conFirebase`, cambiar el predeterminado a Didit habria devuelto el
      registro al SMS de pago de Twilio.
      */
-    ConstantModel *consModel=[ConstantModel getConstantsObject];
-    if(consModel.otp_off || [ConrraVerificacionTelefono loVerificaElServidor]){
+    // self->dict y no `dict`: mas abajo en este mismo metodo hay una local con ese
+    // nombre, y leerlo a secas obliga a saber que la local se declara despues.
+    if([ConrraVerificacionTelefono apagadaPara:self->dict]
+       || [ConrraVerificacionTelefono loVerificaElServidor]){
         [UtilityClass setLH:YES wt:[LanguageHelper getStringWithKey:@"k_r30_s3_loading"]];
         [self sendMeToVerificationView];
         return ;

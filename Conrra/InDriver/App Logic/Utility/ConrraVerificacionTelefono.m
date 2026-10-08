@@ -59,10 +59,14 @@ static NSString *gTelefonoDelEnvio = nil;
     if ([ConstantModel getConstantsObject].otp_off) {
         return YES;
     }
-    if ([usuario isKindOfClass:[NSDictionary class]]) {
-        return [self unoExacto:[usuario objectForKey:@"is_test"]];
+    return [self esCuentaDePrueba:usuario];
+}
+
++ (BOOL)esCuentaDePrueba:(NSDictionary *)usuario {
+    if (![usuario isKindOfClass:[NSDictionary class]]) {
+        return NO;
     }
-    return NO;
+    return [self unoExacto:[usuario objectForKey:@"is_test"]];
 }
 
 /// Exactamente "1", venga como texto o como numero.

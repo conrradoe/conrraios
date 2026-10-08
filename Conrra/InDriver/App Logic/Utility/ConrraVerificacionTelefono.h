@@ -97,6 +97,16 @@ NS_ASSUME_NONNULL_BEGIN
  */
 + (BOOL)apagadaPara:(nullable NSDictionary *)usuario NS_SWIFT_NAME(apagadaPara(_:));
 
+/**
+ ¿Es una cuenta de prueba?
+
+ Suelta, porque hay un sitio que la necesita SIN la constante: el camino viejo deja pasar el
+ codigo 9009 en las cuentas de prueba, y eso no tiene nada que ver con que la verificacion
+ este apagada. Misma lectura exacta -- "1" y nada mas -- para que las dos preguntas no puedan
+ contestar cosas distintas sobre el mismo campo.
+ */
++ (BOOL)esCuentaDePrueba:(nullable NSDictionary *)usuario NS_SWIFT_NAME(esCuentaDePrueba(_:));
+
 /** Cuantas casillas tiene el codigo: 6 con Firebase y con Didit, 4 con el camino viejo. */
 + (NSInteger)casillas;
 

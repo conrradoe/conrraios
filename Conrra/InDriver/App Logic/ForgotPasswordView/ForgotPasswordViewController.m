@@ -205,8 +205,8 @@
 
      Android lo convirtio en Resetpassword.java con OTP_SIN_SMS_DE_PAGO, la misma idea.
      */
-    ConstantModel *consModel=[ConstantModel getConstantsObject];
-    if(consModel.otp_off || [ConrraVerificacionTelefono loVerificaElServidor]){
+    if([ConrraVerificacionTelefono apagadaPara:dictUserRestPassword]
+       || [ConrraVerificacionTelefono loVerificaElServidor]){
         [UtilityClass setLH:YES wt:[LanguageHelper getStringWithKey:@"k_r30_s3_loading"]];
         [self sendMeToVerificationView];
         return ;

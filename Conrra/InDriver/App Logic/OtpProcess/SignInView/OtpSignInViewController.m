@@ -502,11 +502,7 @@
 
 -(void)verifyMobileNo{
     smsCode = [Utilities getRandomNumberBetween:1000 to:9999];
-    ConstantModel *consModel=[ConstantModel getConstantsObject];
-    BOOL isTestAccount=NO;
-    if(self->dictUserForLogin){
-        isTestAccount=[[self->dictUserForLogin objectForKey:@"is_test"]boolValue];
-    }
+
     /*
      Si el codigo lo manda otro, el SMS de pago sobra: se sigue a la pantalla del codigo, que
      es la que se lo pide. Mismo molde que la rama de otp_off que ya habia aqui.
@@ -516,7 +512,8 @@
      app vuelve a mandar -- y a PAGAR -- un SMS de Twilio con un codigo que ella misma se
      inventa. Preguntando asi, un proveedor nuevo entra bien sin tocar esta linea.
      */
-    if(consModel.otp_off||isTestAccount||[ConrraVerificacionTelefono loVerificaElServidor]){
+    if([ConrraVerificacionTelefono apagadaPara:self->dictUserForLogin]
+       || [ConrraVerificacionTelefono loVerificaElServidor]){
         [self sendMeToVerificationView];
         return;
     }
