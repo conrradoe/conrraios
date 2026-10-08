@@ -76,6 +76,32 @@ int main(void) {
               @"4006454012", [ConrraTelefonoE164 sinCeroDeTroncal:@"04006454012"]);
         igual(@"sinCeroDeTroncal con todo ceros", @"", [ConrraTelefonoE164 sinCeroDeTroncal:@"000"]);
 
+        printf("\n--- la clave del telefono: el fallo que dejo sin enviar a Didit ---\n");
+        // Leia `d_phone` (conductor) y las pantallas mandan `u_phone` (pasajero): salia
+        // vacio y no se pedia ningun codigo. Estas suspenden si alguien lo deshace.
+        igual(@"la del pasajero, que es la que llega",
+              @"4246454012", [ConrraTelefonoE164 nacionalDe:@{@"u_phone": @"4246454012"}]);
+        igual(@"la del conductor, si es la unica",
+              @"66314100", [ConrraTelefonoE164 nacionalDe:@{@"d_phone": @"66314100"}]);
+        igual(@"con las dos, manda la del pasajero",
+              @"4246454012", [ConrraTelefonoE164 nacionalDe:@{@"u_phone": @"4246454012",
+                                                              @"d_phone": @"66314100"}]);
+        igual(@"si viene como numero y no como texto",
+              @"4246454012", [ConrraTelefonoE164 nacionalDe:@{@"u_phone": @(4246454012)}]);
+        igual(@"ninguna de las dos", @"",
+              [ConrraTelefonoE164 nacionalDe:@{@"email": @"a@b.c"}]);
+        igual(@"diccionario nulo", @"", [ConrraTelefonoE164 nacionalDe:nil]);
+        igual(@"cadena vacia no cuenta como clave puesta",
+              @"66314100", [ConrraTelefonoE164 nacionalDe:@{@"u_phone": @"",
+                                                            @"d_phone": @"66314100"}]);
+
+        printf("\n--- de punta a punta, como lo hace la pantalla del codigo ---\n");
+        NSDictionary *delRegistro = @{@"u_phone": @"04246454012", @"c_code": @"58"};
+        igual(@"usuario venezolano tal y como llega del registro",
+              @"+584246454012",
+              [ConrraTelefonoE164 de:delRegistro[@"c_code"]
+                               nacional:[ConrraTelefonoE164 nacionalDe:delRegistro]]);
+
         printf("\n");
         if (fallos == 0) {
             printf("  TELEFONO E.164: todas en verde\n\n");

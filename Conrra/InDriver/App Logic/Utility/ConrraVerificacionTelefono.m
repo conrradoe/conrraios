@@ -5,6 +5,7 @@
 
 #import "ConrraVerificacionTelefono.h"
 #import "ConrraVerificacionDidit.h"
+#import "ConstantModel.h"
 @import Firebase;
 
 /**
@@ -48,6 +49,27 @@ static NSString *gTelefonoDelEnvio = nil;
 
 + (BOOL)loVerificaElServidor {
     return ![self loGeneraElApp];
+}
+
++ (BOOL)apagadaPara:(NSDictionary *)usuario {
+    // La constante no se reinterpreta aqui: ConstantModel ya la lee con esta misma regla, "1" y
+    // nada mas, y devolverla a texto para volver a compararla solo daria dos sitios que pueden
+    // separarse. Si getConstantsObject da nil, una propiedad de nil vale 0 y sale NO, que es el
+    // lado seguro: mejor pedir un codigo de mas que dejar entrar sin comprobar.
+    if ([ConstantModel getConstantsObject].otp_off) {
+        return YES;
+    }
+    if ([usuario isKindOfClass:[NSDictionary class]]) {
+        return [self unoExacto:[usuario objectForKey:@"is_test"]];
+    }
+    return NO;
+}
+
+/// Exactamente "1", venga como texto o como numero.
++ (BOOL)unoExacto:(id)valor {
+    NSString *texto = [NSString stringWithFormat:@"%@", valor];
+    return [[texto stringByTrimmingCharactersInSet:
+             [NSCharacterSet whitespaceAndNewlineCharacterSet]] isEqualToString:@"1"];
 }
 
 + (NSInteger)casillas {

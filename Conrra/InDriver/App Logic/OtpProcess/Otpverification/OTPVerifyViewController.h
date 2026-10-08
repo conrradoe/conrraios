@@ -31,6 +31,16 @@ NS_ASSUME_NONNULL_BEGIN
 @property (weak, nonatomic) IBOutlet UITextView *txtTerms;
 @property (weak, nonatomic) IBOutlet UILabel *lblMsg4; 
 @property (weak, nonatomic) IBOutlet OTPFieldView *txtOtpView;
+
+/**
+ Esta pantalla esta verificando el numero de una sesion YA ABIERTA, no un alta ni una entrada.
+
+ Es el bloqueo al actualizar: quien ya estaba dentro nunca paso por ninguna de las tres puertas
+ que verifican, asi que se le pide el codigo una vez y despues sigue su sesion normal. En este
+ modo no se registra a nadie ni se vuelve a entrar: se anota que el numero quedo verificado y
+ se abre la casa. Ver ConrraNumeroVerificado.
+ */
+@property (nonatomic, assign) BOOL esVerificacionDeSesion;
 @property (weak, nonatomic) IBOutlet UILabel *lblResendOtpTimer;
 @property (weak, nonatomic) IBOutlet NSLayoutConstraint *bottomScroll;
 @property (weak, nonatomic) IBOutlet UITextView *txtDidNotGetOtp;

@@ -82,6 +82,21 @@ NS_ASSUME_NONNULL_BEGIN
  */
 + (BOOL)loVerificaElServidor;
 
+/**
+ ¿Esta apagado el paso de verificacion para este usuario?
+
+ Dos fuentes, y las dos significan "no hay codigo que esperar": la constante `otp_off` del
+ backend, que se enciende y se apaga a mano, y `is_test` de la cuenta.
+
+ Las dos se leen como las lee Android: apagado solo si el valor es exactamente "1". Con
+ boolValue no era lo mismo -- decia SI para "true", "yes" o cualquier digito que no fuera
+ cero --, y con el mismo valor en la tabla una plataforma apagaba la verificacion y la otra no.
+
+ Vive aqui porque lo pregunta mas de una pantalla, y una regla de seguridad escrita dos veces
+ acaba contestando cosas distintas.
+ */
++ (BOOL)apagadaPara:(nullable NSDictionary *)usuario NS_SWIFT_NAME(apagadaPara(_:));
+
 /** Cuantas casillas tiene el codigo: 6 con Firebase y con Didit, 4 con el camino viejo. */
 + (NSInteger)casillas;
 

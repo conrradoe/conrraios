@@ -60,6 +60,23 @@ NS_ASSUME_NONNULL_BEGIN
  */
 + (NSString *)sinCeroDeTroncal:(nullable NSString *)nacional NS_SWIFT_NAME(sinCeroDeTroncal(_:));
 
+/**
+ El telefono nacional de un diccionario de usuario, probando las claves que DE VERDAD llegan.
+
+ ===================== EL FALLO QUE ESTO ARREGLO =====================
+ La pantalla del codigo leia solo `d_phone`, que es la clave del CONDUCTOR, y las pantallas
+ que la empujan mandan `u_phone`, la del pasajero. El numero salia nil, el E.164 salia vacio y
+ NO SE PEDIA NINGUN CODIGO: ni a Didit ni a Firebase. El sintoma era el mismo que si el
+ mensaje no llegara nunca.
+
+ Vive aqui porque hay mas de un sitio que necesita la respuesta -- la pantalla del codigo y el
+ bloqueo al actualizar -- y una clave escrita dos veces se desvia una de las dos.
+ =====================================================================
+
+ El orden importa: primero la del pasajero, que es la que llega en los caminos de hoy.
+ */
++ (NSString *)nacionalDe:(nullable NSDictionary *)usuario NS_SWIFT_NAME(nacionalDe(_:));
+
 @end
 
 NS_ASSUME_NONNULL_END

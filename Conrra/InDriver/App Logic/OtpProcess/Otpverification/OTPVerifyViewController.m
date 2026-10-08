@@ -25,6 +25,7 @@
 #import "ConrraFotoDeRegistro.h"
 #import "ConrraVerificacionTelefono.h"
 #import "ConrraTelefonoE164.h"
+#import "ConrraNumeroVerificado.h"
 @interface OTPVerifyViewController ()<UITextFieldDelegate,OTPFieldViewDelegate,MFMailComposeViewControllerDelegate>{
     int smsCode;
     CGRect frameOrignal;
@@ -365,8 +366,59 @@
 }
 
 - (IBAction)btnBack:(id)sender {
+    /*
+     BLOQUEA, PERO NO DEJA ENCERRADO.
+
+     En el modo de verificar la sesion esta pantalla es la raiz: atras no lleva a ningun sitio.
+     Pero si el numero que tiene la cuenta ya no es suyo -- cambio de telefono, numero viejo --,
+     el codigo no va a llegar NUNCA, y un bloqueo sin salida es un app que hay que borrar para
+     poder usar. Asi que atras ofrece cerrar sesion y entrar con otro numero, que es la unica
+     cosa sensata que puede querer ahi.
+     */
+    if (self.esVerificacionDeSesion) {
+        [self su_ofrecerCerrarSesion];
+        return;
+    }
     [self stopResendTimer];
     [self.navigationController popViewControllerAnimated:YES];
+}
+
+/// Cerrar sesion desde el bloqueo, para quien ya no tiene ese numero.
+-(void)su_ofrecerCerrarSesion {
+    UIAlertController *aviso = [UIAlertController
+        alertControllerWithTitle:[LanguageHelper getStringWithKey:@"k_33_s7_alert" defaultValue:@"Aviso"]
+                         message:[LanguageHelper getStringWithKey:@"verificar_numero_obligatorio"
+                             defaultValue:@"Para seguir usando la app tienes que verificar tu número. Si ya no es tu número, cierra sesión y entra con el nuevo."]
+                  preferredStyle:UIAlertControllerStyleAlert];
+    [aviso addAction:[UIAlertAction
+        actionWithTitle:[LanguageHelper getStringWithKey:@"k_3_s4_logout" defaultValue:@"Cerrar sesión"]
+                  style:UIAlertActionStyleDestructive
+                handler:^(UIAlertAction *a) {
+        [self su_cerrarSesionYVolverAlInicio];
+    }]];
+    [aviso addAction:[UIAlertAction
+        actionWithTitle:[LanguageHelper getStringWithKey:@"k_30_s6_cancel_j" defaultValue:@"Cancelar"]
+                  style:UIAlertActionStyleCancel handler:nil]];
+    [self presentViewController:aviso animated:YES completion:nil];
+}
+
+-(void)su_cerrarSesionYVolverAlInicio {
+    [self stopResendTimer];
+    // Lo mismo que borra el cierre de sesion del menu (afterLogutWork), para no dejar
+    // media sesion viva: con P_USER_DICT puesto, el arranque volveria a creer que hay usuario.
+    defaults_remove(P_API_KEY);
+    defaults_remove(TRIP_ID);
+    defaults_remove(TRIP_STATUS);
+    defaults_remove(P_USER_DICT);
+    defaults_remove(P_USER_DICT_LOGGED);
+    defaults_remove(P_IS_USER_LOGIN);
+    [UtilityClass setLH:YES wt:@""];
+    [UtilityClass SetAllLoadersHidden];
+    UIViewController *vc = [StoryBoardUtiles viewContollerWithIdentifier:@"HelperViewControllerNav"
+                                                                    name:StoryBoardUtiles.STORYBOARD_SIGNUP];
+    [[APP_DELEGATE window] setRootViewController:vc];
+    [[APP_DELEGATE window] makeKeyAndVisible];
+    [APP_DELEGATE setNavigationController:vc];
 }
 - (IBAction)btnResend:(id)sender {
     [self verifyMobileNo];
@@ -574,7 +626,7 @@
         return digitos.length > 0 ? [@"+" stringByAppendingString:digitos] : @"";
     }
     NSString *armado = [ConrraTelefonoE164 de:isEmpty(self.countryDialCode)
-                                        nacional:[self su_telefonoDelDiccionario]];
+                                        nacional:[ConrraTelefonoE164 nacionalDe:_usersigmUpDict]];
     if (armado.length == 0) {
         /*
          Sin numero no hay nada que pedir, y quien llama solo ve una cadena vacia. Que quede
@@ -592,36 +644,7 @@
     return armado.length > 0 ? armado : @"";
 }
 
-/**
- El telefono del diccionario, probando las claves que DE VERDAD llegan.
 
- ===================== EL FALLO QUE ESTO ARREGLA =====================
- Aqui se leia solo P_MOBILE, que es `d_phone`: la clave del CONDUCTOR. Y las dos pantallas
- que empujan esta mandan `u_phone` (P_U_MOBILE), la del pasajero -- registro en la linea 270
- de OtpSignUpViewController y entrada en la 439 de OtpSignInViewController, las dos con
- P_U_MOBILE.
-
- O sea que el numero salia nil, telefonoE164 devolvia vacio, verifyMobileNo se paraba en su
- propio `length < 8` y NO LLEGABA A PEDIR NINGUN CODIGO. Con Didit y con Firebase igual: el
- envio nunca salia del telefono.
-
- Se prueban las dos claves porque esta pantalla la comparten los dos papeles. El orden es el
- que importa: primero la del pasajero, que es la que llega en los dos caminos de hoy.
- =====================================================================
- */
--(NSString *)su_telefonoDelDiccionario {
-    for (NSString *clave in @[P_U_MOBILE, P_MOBILE]) {
-        id valor = [_usersigmUpDict objectForKey:clave];
-        if ([valor isKindOfClass:[NSString class]] && [valor length] > 0) {
-            return valor;
-        }
-        // Por si alguna respuesta del servidor lo manda como numero y no como texto.
-        if ([valor isKindOfClass:[NSNumber class]]) {
-            return [valor stringValue];
-        }
-    }
-    return @"";
-}
 
 /**
  ¿Esta apagado el paso de verificacion?
@@ -634,27 +657,25 @@
  casillas que nadie iba a rellenar, porque no se habia pedido ningun codigo.
  */
 -(BOOL)otpApagado {
-    ConstantModel *constantes = [ConstantModel getConstantsObject];
-    BOOL esDePrueba = NO;
-    if (self.usersigmUpDict) {
-        /*
-         Exactamente "1", igual que otp_off y igual que Android.
-
-         Estaba con boolValue, que dice SI para "true", "yes" o cualquier digito que no sea
-         cero. Android compara con "1" (OTPActivity.otpApagado), asi que un is_test que no
-         fuera "1" pero sonara a verdad apagaria la verificacion solo en iOS -- y apagarla
-         sin querer es dejar pasar a cualquiera.
-         */
-        NSString *valor = [NSString stringWithFormat:@"%@", [self.usersigmUpDict objectForKey:@"is_test"]];
-        esDePrueba = [[valor stringByTrimmingCharactersInSet:
-                       [NSCharacterSet whitespaceAndNewlineCharacterSet]] isEqualToString:@"1"];
-    }
-    return constantes.otp_off || esDePrueba;
+    // La regla vive en ConrraVerificacionTelefono: la pregunta la hacen varias pantallas y
+    // una regla de seguridad escrita dos veces acaba contestando cosas distintas.
+    return [ConrraVerificacionTelefono apagadaPara:self.usersigmUpDict];
 }
 
 /// Lo que pasa cuando el numero queda verificado, venga del camino que venga.
 -(void)continuarTrasVerificar {
     [self stopResendTimer];
+    /*
+     Verificar una sesion ya abierta no registra a nadie ni vuelve a entrar: solo deja constancia
+     de que el numero quedo probado y abre la casa. Va PRIMERO porque en este modo los otros tres
+     desenlaces no aplican, y registerMeWithInfo con un usuario que ya existe daria de alta un
+     duplicado.
+     */
+    if (self.esVerificacionDeSesion) {
+        [ConrraNumeroVerificado anotarVerificado];
+        [self loadUserHomeViewController];
+        return;
+    }
     if(self.isRestPassword){
         [self updatePasswordScreen];
     }else if(self.isFormLogin){

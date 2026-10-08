@@ -15,6 +15,8 @@
 #import "UIHelper.h"
 #import "ConstantModel.h" 
 #import "SettingsModel.h"
+#import "OTPVerifyViewController.h"
+#import "ConrraNumeroVerificado.h"
 #import "UIImage+GIF.h"
 @import Stripe;
 
@@ -343,6 +345,27 @@
             defaults_set_object(is_availability_on, @"1");
         }
 
+        /*
+         ============ EL BLOQUEO AL ACTUALIZAR ============
+
+         Quien ya tenia la sesion abierta nunca paso por ninguna de las tres puertas que
+         verifican el telefono -- registro, entrada y recuperar contrasena --, asi que de toda
+         la base instalada no habia prueba de que el numero exista ni de que sea suyo. Se le
+         pide el codigo UNA vez, aqui, antes de dejarle entrar; despues su sesion sigue normal y
+         no se le vuelve a molestar.
+
+         Va antes de navigateHome a proposito: si se dejara entrar primero y se pidiera despues,
+         habria un momento con la casa cargada y el conductor podria recibir un viaje sin estar
+         verificado.
+
+         ConrraNumeroVerificado decide, y dice NO en todos los casos en los que pedirlo seria
+         encerrar al usuario: sin proveedor que verifique, con la verificacion apagada, o si del
+         usuario guardado no sale un numero al que mandar nada.
+         */
+        if ([ConrraNumeroVerificado haceFalta]) {
+            [self su_pedirVerificacionDelNumero];
+            return;
+        }
         [self navigateHome];
     }else{
         UIViewController *vc=[StoryBoardUtiles viewContollerWithIdentifier:@"HelperViewControllerNav" name:StoryBoardUtiles.STORYBOARD_SIGNUP];
@@ -357,6 +380,32 @@
 -(void)navigateHome{
     [self loadUserHomeViewController];
     [UtilityClass setLH:YES wt:[LanguageHelper getStringWithKey:@"k_r30_s3_loading"]];
+}
+
+/**
+ La pantalla del codigo COMO RAIZ, que es lo que hace que el bloqueo sea un bloqueo.
+
+ Presentarla encima de la casa no serviria: la casa quedaria cargada y corriendo debajo, con
+ sus avisos y su localizacion, y bastaria con que un dia un dismiss se colara para estar dentro
+ sin verificar. De raiz no hay nada debajo.
+
+ Envuelta en un navigation controller porque la pantalla usa self.navigationController, y sin
+ el la salida por cerrar sesion y los empujes internos no tendrian donde ir.
+ */
+-(void)su_pedirVerificacionDelNumero{
+    OTPVerifyViewController *vc = (OTPVerifyViewController *)
+        [StoryBoardUtiles viewContollerWithIdentifier:StoryBoardUtiles.OTP_VERIFY
+                                                 name:StoryBoardUtiles.STORYBOARD_SIGNUP];
+    vc.usersigmUpDict        = defaults_object(P_USER_DICT);
+    vc.countryDialCode       = [ConrraNumeroVerificado prefijoDelUsuario];
+    vc.esVerificacionDeSesion = YES;
+
+    UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:vc];
+    [nav setNavigationBarHidden:YES];
+    [[APP_DELEGATE window] setRootViewController:nav];
+    [[APP_DELEGATE window] makeKeyAndVisible];
+    [APP_DELEGATE setNavigationController:nav];
+    [[LanguageHelper sharedInstance] configureLanguage];
 }
 
 
