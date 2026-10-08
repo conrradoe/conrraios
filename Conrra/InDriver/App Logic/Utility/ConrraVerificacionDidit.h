@@ -79,6 +79,27 @@ NS_ASSUME_NONNULL_BEGIN
  verificacion es REAL -- el codigo lo genera y lo comprueba Didit -- pero no es EXIGIBLE:
  un cliente modificado podria saltarse el paso. Eso se cierra en la fase 2, no antes.
  */
+/**
+ Gasta el vale y deja apuntado EN EL SERVIDOR que este usuario controla su numero.
+
+ ================== LA ATADURA, Y POR QUE HACE FALTA ==================
+ Sin esta llamada la verificacion ocurre y se olvida: el codigo se manda, el usuario lo
+ teclea, Didit lo aprueba y no queda constancia en ninguna parte. El rele solo marca al
+ usuario X si el vale demuestra control del numero que X tiene guardado, asi que alguien con
+ el id de otro no puede hacer nada sin recibir el codigo en el telefono de ese otro.
+
+ El rele gasta el vale ANTES de comprobar si el usuario cuadra, a proposito: asi no se puede
+ probar el mismo vale con un id detras de otro. Si no cuadra, el usuario vuelve a verificar,
+ que es barato.
+ ======================================================================
+
+ SI FALLA, NO SE LE PARA. Acaba de demostrar su numero; que el apunte llegue es cosa nuestra.
+ Quien llama lo trata como aviso al log, nunca a la cara.
+ */
++ (void)confirmarUsuario:(nullable NSString *)usuarioId
+           cuandoTermine:(void (^)(BOOL confirmado, NSString *_Nullable error))bloque
+    NS_SWIFT_NAME(confirmarUsuario(_:cuandoTermine:));
+
 + (nullable NSString *)token;
 
 + (void)limpiar;

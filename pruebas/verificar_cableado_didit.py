@@ -21,6 +21,10 @@ FICHEROS = {
     "didit":      A + "/Utility/ConrraVerificacionDidit.m",
     "e164":       A + "/Utility/ConrraTelefonoE164.m",
     "keys":       RAIZ + "/Configurable/Keys/Keys.h",
+    "puerta":     A + "/Utility/ConrraPuertaVerificacion.m",
+    "memoria":    A + "/Utility/ConrraNumeroVerificado.m",
+    "arranque":   A + "/SideMenu/Language/LoadingViewController.m",
+    "constantes": A + "/model classes/ConstantModel.m",
 }
 
 def sin_comentarios(texto):
@@ -112,6 +116,38 @@ def main():
     revisar("el relleno solo si el codigo lo genero el app",
             bool(re.search(r"if \(!\[ConrraVerificacionTelefono loGeneraElApp\]\)",
                            cuerpo(F["pantalla"], "-(void)setOtp{"))))
+
+    print(chr(10) + "=============== LA CONSTANCIA EN EL SERVIDOR ===============")
+    revisar("el cliente sabe confirmar (ata el vale al usuario)",
+            "confirmarUsuario:" in F["didit"] and 'pedir:@"confirmar"' in F["didit"])
+    revisar("confirmar manda el vale Y el usuario",
+            bool(re.search(r'@"token"\s*:\s*gToken,\s*@"usuario"', F["didit"])))
+    revisar("el veredicto de confirmar son ok Y verificado",
+            bool(re.search(r'verdad:cuerpo\[@"ok"\]\]\s*&&\s*\[self verdad:cuerpo\[@"verificado"\]\]', F["didit"])))
+    revisar("el vale se tira al gastarlo (es de un solo uso)",
+            bool(re.search(r'verificado"\]\]\).*?gToken = nil;', F["didit"], re.S)))
+    revisar("los cuatro desenlaces confirman",
+            F["pantalla"].count("su_confirmarVerificacionDe:") == 5)
+
+    print(chr(10) + "=============== LA PUERTA ===============")
+    revisar("el interruptor del servidor se lee exacto",
+            "verificacion_obligatoria" in F["constantes"]
+            and "self.verificacion_obligatoria" in F["constantes"])
+    revisar("la puerta pregunta por el interruptor",
+            "verificacion_obligatoria" in F["memoria"])
+    revisar("la decision la toma la clase pura, no la memoria",
+            "[ConrraPuertaVerificacion hayQueVerificarConPuerta:" in F["memoria"])
+    revisar("avisa de quien se quedaria sin salida",
+            "seQuedaSinSalidaConPuerta:" in F["memoria"])
+    revisar("sin numero NO se bloquea",
+            "return numeroE164.length > 0;" in F["puerta"])
+    revisar("el interruptor manda sobre todo lo demas",
+            bool(re.search(r"if \(!puertaEncendida\).*?return NO;", F["puerta"], re.S)))
+    revisar("si la puerta revienta, deja pasar",
+            "@try" in F["arranque"] and "@catch" in F["arranque"])
+    revisar("la puerta apunta ANTES de confirmar (no puede quedar en bucle)",
+            0 < F["pantalla"].find("[ConrraNumeroVerificado anotarVerificado]")
+            < F["pantalla"].find("apuntarAlVolver:NO"))
 
     print("\n=============== LA REGLA DE APAGADO ===============")
     revisar("is_test no se lee con boolValue en ningun sitio",

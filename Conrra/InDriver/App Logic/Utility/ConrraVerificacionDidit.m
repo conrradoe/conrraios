@@ -87,6 +87,39 @@ static NSString *gToken = nil;
     }];
 }
 
++ (void)confirmarUsuario:(NSString *)usuarioId
+           cuandoTermine:(void (^)(BOOL, NSString *_Nullable))bloque {
+    NSString *usuario = [self limpio:usuarioId];
+    if (gToken.length == 0) {
+        [self responder:bloque ok:NO error:@"No hay una verificación reciente que confirmar."];
+        return;
+    }
+    if (usuario.length == 0) {
+        [self responder:bloque ok:NO error:@"Falta el usuario."];
+        return;
+    }
+    [self pedir:@"confirmar"
+         campos:@{ @"token" : gToken, @"usuario" : usuario }
+  cuandoTermine:^(NSDictionary *cuerpo, NSString *falloDeRed) {
+        if (cuerpo == nil) {
+            [self responder:bloque ok:NO error:falloDeRed];
+            return;
+        }
+        if ([self verdad:cuerpo[@"ok"]] && [self verdad:cuerpo[@"verificado"]]) {
+            /*
+             El vale es de UN SOLO USO y el rele ya lo gasto: guardarlo seria quedarse con
+             una llave que no abre. Y peor, invitaria a reintentar con el mismo vale, que el
+             rele ya rechaza -- y cada reintento parece un fallo nuevo en el log.
+             */
+            gToken = nil;
+            [self responder:bloque ok:YES error:nil];
+            return;
+        }
+        [self responder:bloque ok:NO
+                  error:[self mensajeDe:cuerpo porOmision:@"No se pudo confirmar la verificación."]];
+    }];
+}
+
 + (BOOL)hayEnvioEnCursoPara:(NSString *)telefonoE164 {
     NSString *telefono = [self limpio:telefonoE164];
     if (gTelefonoDelEnvio.length == 0 || telefono.length == 0) {

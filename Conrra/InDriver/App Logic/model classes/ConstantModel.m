@@ -130,6 +130,13 @@ static NSDictionary *enableInfo;
             NSString *valor = [NSString stringWithFormat:@"%@", [dict objectForKey:@"cvalue"]];
             self.otp_off = [[valor stringByTrimmingCharactersInSet:
                              [NSCharacterSet whitespaceAndNewlineCharacterSet]] isEqualToString:@"1"];
+        } else if ([[dict objectForKey:@"ckey"]isEqualToString:@"verificacion_obligatoria"]){
+            // Exacto "1", como todo lo demas y como Android. Y si la fila no existe, queda
+            // en NO: una puerta que se enciende sola el dia que alguien añade la constante
+            // mal escrita seria la peor forma de enterarse.
+            NSString *valor = [NSString stringWithFormat:@"%@", [dict objectForKey:@"cvalue"]];
+            self.verificacion_obligatoria = [[valor stringByTrimmingCharactersInSet:
+                             [NSCharacterSet whitespaceAndNewlineCharacterSet]] isEqualToString:@"1"];
         }else if ([[dict objectForKey:@"ckey"]isEqualToString:@"exp_time"]){
             self.exp_time=[[dict objectForKey:@"cvalue"] intValue];
         }else if ([[dict objectForKey:@"ckey"]isEqualToString:@"common_api_ver"]){

@@ -26,6 +26,7 @@
 #import "ConrraVerificacionTelefono.h"
 #import "ConrraTelefonoE164.h"
 #import "ConrraNumeroVerificado.h"
+#import "ConrraVerificacionDidit.h"
 @interface OTPVerifyViewController ()<UITextFieldDelegate,OTPFieldViewDelegate,MFMailComposeViewControllerDelegate>{
     int smsCode;
     CGRect frameOrignal;
@@ -459,6 +460,17 @@
                defaults_set_object(P_USER_DICT_LOGGED, [results objectForKey:P_RESPONSE]);
                defaults_set_object(@"isFBLogin", @"No");
                defaults_set_object(P_IS_USER_LOGIN, @"1");
+               /*
+                AQUI es donde el usuario existe por primera vez con un id. Hasta este punto
+                no hay a quien atar el vale: el telefono se verifica ANTES de crear la cuenta.
+
+                Sin esta llamada la verificacion ocurre y se olvida -- se manda el codigo, el
+                usuario lo teclea, Didit lo aprueba y no queda constancia en ninguna parte.
+                */
+               [self su_confirmarVerificacionDe:
+                   [NSString stringWithFormat:@"%@",
+                    [[results objectForKey:P_RESPONSE] objectForKey:P_USER_ID]]
+                               apuntarAlVolver:YES];
                [self loadUserHomeViewController];
            } else if (isStatusError(results)) {
                [self showAlertWithMessgae:[LanguageHelper getStringWithKey:errorMessage(results)]];
@@ -678,11 +690,30 @@
      duplicado.
      */
     if (self.esVerificacionDeSesion) {
+        /*
+         EL APUNTE LOCAL VA ANTES DE CONFIRMAR, y no al revés.
+
+         Si dependiera de que el servidor conteste, un fallo suyo mandaria a este usuario a
+         esta misma pantalla en cada arranque: un bucle del que no puede salir. Ha demostrado
+         su numero; que el apunte en users llegue o no es cosa nuestra. El precio es que la
+         constancia del servidor puede faltar, y eso se ve en los datos -- lo otro se ve en
+         la tienda.
+         */
         [ConrraNumeroVerificado anotarVerificado];
+        [self su_confirmarVerificacionDe:[ConrraNumeroVerificado idEnSesion] apuntarAlVolver:NO];
         [self loadUserHomeViewController];
         return;
     }
     if(self.isRestPassword){
+        /*
+         Esta rama tambien tiene que dejar constancia, y antes no lo hacia.
+
+         Recuperar contrasena se va a cambiar la clave y nunca pasa por el alta ni por la
+         entrada, que es donde esta el aviso al servidor. El usuario probaba su telefono y no
+         constaba en ninguna parte. Aqui el id ya viene en el diccionario, asi que no hay que
+         buscarlo.
+         */
+        [self su_confirmarVerificacionDe:[self su_idDelDiccionario] apuntarAlVolver:YES];
         [self updatePasswordScreen];
     }else if(self.isFormLogin){
         [self loginUser:self.usersigmUpDict];
@@ -794,6 +825,11 @@
                     defaults_set_object(P_API_KEY, [[results objectForKey:P_RESPONSE] objectForKey:P_API_KEY]);
                     defaults_set_object(P_USER_DICT, [results objectForKey:P_RESPONSE]);
                     defaults_set_object(P_USER_DICT_LOGGED, [results objectForKey:P_RESPONSE]);
+                    // Igual que en el alta: el vale se ata al usuario que acaba de entrar.
+                    [self su_confirmarVerificacionDe:
+                        [NSString stringWithFormat:@"%@",
+                         [[results objectForKey:P_RESPONSE] objectForKey:P_USER_ID]]
+                                    apuntarAlVolver:YES];
                     NSString *language=[[results objectForKey:P_RESPONSE] objectForKey:@"u_language"];
                     if(language!=nil&&language.length>0)   {
                         NSString * location=[[LanguageHelper sharedInstance] getlcidForCode:language];
@@ -888,6 +924,50 @@
 }
 
 
+
+/// El id del usuario que viene en el diccionario de esta pantalla, o nil.
+-(NSString *)su_idDelDiccionario {
+    if (![self.usersigmUpDict isKindOfClass:[NSDictionary class]]) {
+        return nil;
+    }
+    NSString *id_ = [NSString stringWithFormat:@"%@", [self.usersigmUpDict objectForKey:P_USER_ID]];
+    id_ = [id_ stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    return (id_.length == 0 || [id_ isEqualToString:@"(null)"]) ? nil : id_;
+}
+
+/**
+ Deja constancia EN EL SERVIDOR de que este usuario demostro su numero.
+
+ `apuntarAlVolver` decide cuando se pone la marca local, y la diferencia importa:
+
+   NO  -- ya se puso antes de llamar. Es el caso de la puerta: si se esperara a la respuesta
+          y el servidor fallara, el arranque devolveria al usuario a la pantalla una y otra
+          vez.
+   SI  -- se pone solo si el servidor confirma. Es el caso del alta, la entrada y recuperar
+          contrasena: ahi el respaldo de que falle es que la puerta se lo pida en el
+          siguiente arranque, que es un coste pequeño y deja los datos limpios.
+
+ SI FALLA, NO SE LE PARA NI SE LE DICE. Acaba de registrarse, entrar o cambiar su clave
+ correctamente; dejarle fuera porque nuestro apunte no llego seria castigarle por un fallo
+ nuestro. Al log, que es donde se puede actuar.
+ */
+-(void)su_confirmarVerificacionDe:(NSString *)idUsuario apuntarAlVolver:(BOOL)apuntarAlVolver {
+    if ([ConrraVerificacionDidit token].length == 0 || idUsuario.length == 0) {
+        // Sin vale no hay nada que atar: pasa con el OTP apagado y con el camino viejo.
+        return;
+    }
+    [ConrraVerificacionDidit confirmarUsuario:idUsuario
+                                cuandoTermine:^(BOOL confirmado, NSString *error) {
+        if (!confirmado) {
+            NSLog(@"[OTP] no se pudo confirmar la verificacion de %@: %@", idUsuario, error);
+            return;
+        }
+        if (apuntarAlVolver) {
+            [ConrraNumeroVerificado anotarVerificadoDelUsuario:idUsuario];
+        }
+        NSLog(@"[OTP] verificacion confirmada en el servidor para %@", idUsuario);
+    }];
+}
 
 -(void) updatePasswordScreen{
     ChangePasswordViewController *vc = (ChangePasswordViewController *)[StoryBoardUtiles viewContollerWithIdentifier:StoryBoardUtiles.CHANGE_PASSWORD_VC name:StoryBoardUtiles.STORYBOARD_SIGNUP];

@@ -40,6 +40,15 @@
 @property(nonatomic,strong) NSString *ios_app_ver;
 @property(nonatomic,assign) float constant_driver_radius; 
 @property(nonatomic,assign) BOOL otp_off;
+
+/**
+ ¿Hay que exigir el telefono verificado a quien ya tiene sesion abierta?
+
+ Es la constante `verificacion_obligatoria`, y es el seguro: si el WhatsApp dejara de
+ entregar, se apaga desde el servidor sin publicar una version nueva. Sin ella, un fallo del
+ proveedor dejaria a toda la base instalada delante de una pantalla que no puede pasar.
+ */
+@property(nonatomic,assign) BOOL verificacion_obligatoria;
 @property(nonatomic,assign) int max_time_span;
 @property(nonatomic,assign) BOOL enable_aboutus;
 @property(nonatomic,assign) BOOL enable_pp;

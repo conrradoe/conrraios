@@ -50,6 +50,36 @@ MUTACIONES = [
   'if ([self verdad:cuerpo[@"ok"]] && [self verdad:cuerpo[@"aprobado"]]) {',
   'if ([self verdad:cuerpo[@"ok"]]) {',
   "el veredicto son ok Y aprobado, no el HTTP"),
+
+ ("la puerta deja de mirar el interruptor del servidor",
+  A + "/Utility/ConrraNumeroVerificado.m",
+  "[ConstantModel getConstantsObject].verificacion_obligatoria",
+  "YES",
+  "la puerta pregunta por el interruptor"),
+
+ ("confirmar se queda solo en ok",
+  A + "/Utility/ConrraVerificacionDidit.m",
+  'if ([self verdad:cuerpo[@"ok"]] && [self verdad:cuerpo[@"verificado"]]) {',
+  'if ([self verdad:cuerpo[@"ok"]]) {',
+  "el veredicto de confirmar son ok Y verificado"),
+
+ ("la puerta apunta DESPUES de confirmar (bucle posible)",
+  A + "/OtpProcess/Otpverification/OTPVerifyViewController.m",
+  "        [ConrraNumeroVerificado anotarVerificado];",
+  "        // apuntado mas tarde",
+  "la puerta apunta ANTES de confirmar (no puede quedar en bucle)"),
+
+ ("bloquear aunque no haya numero (dejar sin salida)",
+  A + "/Utility/ConrraPuertaVerificacion.m",
+  "return numeroE164.length > 0;",
+  "return YES;",
+  "sin numero NO se bloquea"),
+
+ ("el alta deja de confirmar en el servidor",
+  A + "/OtpProcess/Otpverification/OTPVerifyViewController.m",
+  "               [self su_confirmarVerificacionDe:",
+  "               if (NO) [self su_confirmarNada:",
+  "los cuatro desenlaces confirman"),
 ]
 
 def correr_verificador():

@@ -40,20 +40,40 @@ NS_ASSUME_NONNULL_BEGIN
 /**
  ¿Hay que pedir el codigo AHORA, antes de dejar entrar?
 
- Dice NO -- y deja pasar -- en todos los casos en los que pedirlo seria encerrar al usuario:
- si no hay sesion, si el proveedor no verifica, si la verificacion esta apagada, si ya se
- verifico, o si del usuario guardado no se puede sacar un numero al que mandar nada.
+ La decision la toma ConrraPuertaVerificacion, que es pura y tiene sus dieciseis
+ combinaciones probadas; aqui solo se reunen los datos. Dice NO -- y deja pasar -- en todos
+ los casos en los que pedirlo seria encerrar al usuario: con la puerta apagada desde el
+ servidor (`verificacion_obligatoria`), sin sesion, si el proveedor no verifica, si la
+ verificacion esta apagada, si ya se verifico, o si del usuario guardado no sale un numero al
+ que mandar nada.
+
+ SE LLAMA CUANDO LAS CONSTANTES YA HAN LLEGADO, no antes. El interruptor vive en ellas, y
+ leerlo de la copia de la sesion anterior es decidir con datos viejos.
  */
 + (BOOL)haceFalta;
 
 /// Se acaba de verificar el numero del usuario que hay en sesion.
 + (void)anotarVerificado;
 
+/**
+ Lo mismo, pero para un usuario del que todavia no hay sesion guardada.
+
+ Hace falta porque en el registro el telefono se verifica ANTES de que la cuenta exista: el
+ id aparece por primera vez en la respuesta del alta, cuando el diccionario de sesion aun no
+ se ha escrito. Sin esto, quien acaba de registrarse no quedaria apuntado y la puerta se lo
+ volveria a pedir en el siguiente arranque.
+ */
++ (void)anotarVerificadoDelUsuario:(nullable NSString *)usuarioId
+    NS_SWIFT_NAME(anotarVerificadoDelUsuario(_:));
+
 /// El numero al que hay que mandar el codigo, en E.164, o nil si no se puede armar.
 + (nullable NSString *)telefonoDelUsuario;
 
 /// El prefijo de pais del usuario guardado, para la pantalla del codigo.
 + (nullable NSString *)prefijoDelUsuario;
+
+/// El id del usuario que hay en sesion, o nil. Lo necesita quien ata el vale al usuario.
++ (nullable NSString *)idEnSesion;
 
 /// Vuelve a exigirlo. Para pruebas, y para el dia que haya que forzar una ronda nueva.
 + (void)olvidar;

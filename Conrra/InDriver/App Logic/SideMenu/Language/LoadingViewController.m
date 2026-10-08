@@ -362,7 +362,21 @@
          encerrar al usuario: sin proveedor que verifique, con la verificacion apagada, o si del
          usuario guardado no sale un numero al que mandar nada.
          */
-        if ([ConrraNumeroVerificado haceFalta]) {
+        /*
+         SI LA PUERTA REVIENTA, NO SE QUEDA NADIE FUERA.
+
+         Decidir implica leer constantes, el usuario guardado y su telefono: datos que vienen
+         del servidor y que pueden llegar con una forma que no se espera. Una excepcion aqui,
+         sin red, seria un arranque que no termina -- y eso es peor que no verificar. Se
+         registra y se sigue como siempre.
+         */
+        BOOL hayQueVerificar = NO;
+        @try {
+            hayQueVerificar = [ConrraNumeroVerificado haceFalta];
+        } @catch (NSException *e) {
+            NSLog(@"[Puerta] fallo al decidir, se deja pasar: %@", e.reason);
+        }
+        if (hayQueVerificar) {
             [self su_pedirVerificacionDelNumero];
             return;
         }
