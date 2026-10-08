@@ -116,6 +116,12 @@ def main():
     revisar("el relleno solo si el codigo lo genero el app",
             bool(re.search(r"if \(!\[ConrraVerificacionTelefono loGeneraElApp\]\)",
                            cuerpo(F["pantalla"], "-(void)setOtp{"))))
+    rev = cuerpo(F["pantalla"], "-(void)verifyMobileNo{")
+    revisar("el reenviar pide al proveedor, no manda el SMS de pago",
+            "[ConrraVerificacionTelefono loVerificaElServidor]" in rev
+            and 0 < rev.find("loVerificaElServidor") < rev.find("BASE_URL_OTP"))
+    revisar("el boton de reenviar pasa por ese mismo sitio",
+            bool(re.search(r"btnResend:\(id\)sender \{\s*\[self verifyMobileNo\];", F["pantalla"], re.S)))
 
     print(chr(10) + "=============== LA CONSTANCIA EN EL SERVIDOR ===============")
     revisar("el cliente sabe confirmar (ata el vale al usuario)",

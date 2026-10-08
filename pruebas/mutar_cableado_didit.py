@@ -80,6 +80,12 @@ MUTACIONES = [
   "               [self su_confirmarVerificacionDe:",
   "               if (NO) [self su_confirmarNada:",
   "los cuatro desenlaces confirman"),
+
+ ("el reenviar vuelve a preguntar por el proveedor",
+  A + "/OtpProcess/Otpverification/OTPVerifyViewController.m",
+  "    if ([ConrraVerificacionTelefono loVerificaElServidor] && ![self otpApagado]) {",
+  "    if ([ConrraVerificacionTelefono conFirebase] && ![self otpApagado]) {",
+  "el reenviar pide al proveedor, no manda el SMS de pago"),
 ]
 
 def correr_verificador():
