@@ -352,11 +352,15 @@
     smsCode = [Utilities getRandomNumberBetween:1000 to:9999];
     
     /*
-     Con Firebase el SMS de pago sobra: lo manda Google. Se sigue a la pantalla del codigo,
-     que es la que se lo pide. Mismo molde que la rama de otp_off que ya habia aqui.
+     Si el codigo lo manda otro, el SMS de pago sobra: se sigue a la pantalla del codigo, que
+     es la que se lo pide. Mismo molde que la rama de otp_off que ya habia aqui.
+
+     Se pregunta por quien verifica y no por el proveedor, por lo mismo que en la pantalla de
+     entrada: preguntando `conFirebase`, cambiar el predeterminado a Didit habria devuelto el
+     registro al SMS de pago de Twilio.
      */
     ConstantModel *consModel=[ConstantModel getConstantsObject];
-    if(consModel.otp_off || [ConrraVerificacionTelefono conFirebase]){
+    if(consModel.otp_off || [ConrraVerificacionTelefono loVerificaElServidor]){
         [UtilityClass setLH:YES wt:[LanguageHelper getStringWithKey:@"k_r30_s3_loading"]];
         [self sendMeToVerificationView];
         return ;

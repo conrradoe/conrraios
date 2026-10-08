@@ -4,22 +4,28 @@
 //
 
 #import "ConrraVerificacionTelefono.h"
+#import "ConrraVerificacionDidit.h"
 @import Firebase;
 
 /**
- Como se verifica el telefono. Las tres opciones de Android, aunque iOS solo usa dos:
+ Como se verifica el telefono. Una linea, y es la unica que hay que tocar para cambiarlo.
 
-   "firebase" - El codigo lo genera y lo comprueba Google. La app no lo conoce nunca. Es el
-                unico que prueba de verdad que quien se registra tiene ese numero.
-   "sms"      - El camino viejo con Twilio: la app generaba el codigo, pedia al servidor que
-                lo mandara y lo comparaba consigo misma. Se paga y no verifica nada. Se
+   "didit"    - Didit por WhatsApp, con SMS de respaldo automatico, a traves del rele de
+                conrraservices.com. El codigo lo genera y lo comprueba Didit; el app no lo
+                conoce. Es el unico que funciona en Panama, donde Firebase no entrega el SMS
+                (Error code 39, 2026-10-06). PREDETERMINADO.
+   "firebase" - Firebase Phone Auth. El codigo lo genera y lo comprueba Google, el app no lo
+                conoce nunca. Prueba igual de bien que quien se registra tiene ese numero;
+                lo que falla en Panama es la ENTREGA, no el metodo.
+   "sms"      - El camino viejo con Twilio: el app generaba el codigo, pedia al servidor que
+                lo mandara y lo comparaba consigo mismo. Se paga y no verifica nada. Se
                 conserva solo para poder volver atras.
 
- "sim" no esta: en Android es el Phone Number Hint de Google, que lee el numero de la SIM del
- aparato. iOS no tiene nada equivalente -- Apple no da el numero del abonado --, asi que ese
- metodo no se puede ofrecer aqui.
+ "sim" no esta, y ya tampoco en Android: era el Phone Number Hint de Google leyendo el numero
+ de la SIM, solo funcionaba en algunos telefonos y su pantalla se quito el 2026-10-07. iOS
+ nunca pudo ofrecerlo -- Apple no da el numero del abonado.
  */
-static NSString *const kMetodo = @"firebase";
+static NSString *const kMetodo = @"didit";
 
 /// La sesion de verificacion y EL NUMERO AL QUE PERTENECE. Los dos juntos, siempre.
 static NSString *gIdVerificacion = nil;
@@ -31,9 +37,22 @@ static NSString *gTelefonoDelEnvio = nil;
     return [kMetodo isEqualToString:@"firebase"];
 }
 
++ (BOOL)conDidit {
+    return [kMetodo isEqualToString:@"didit"];
+}
+
++ (BOOL)loGeneraElApp {
+    // En positivo: solo el camino viejo. Ver el porque en la cabecera.
+    return [kMetodo isEqualToString:@"sms"];
+}
+
++ (BOOL)loVerificaElServidor {
+    return ![self loGeneraElApp];
+}
+
 + (NSInteger)casillas {
-    // Firebase manda seis digitos; el camino viejo generaba cuatro.
-    return [self conFirebase] ? 6 : 4;
+    // Didit y Firebase mandan seis digitos; el camino viejo generaba cuatro.
+    return ([self conDidit] || [self conFirebase]) ? 6 : 4;
 }
 
 + (NSString *)limpio:(NSString *)texto {
@@ -47,6 +66,10 @@ static NSString *gTelefonoDelEnvio = nil;
 
 + (void)enviarA:(NSString *)telefonoE164
   cuandoTermine:(void (^)(BOOL, NSString *_Nullable))bloque {
+    if ([self conDidit]) {
+        [ConrraVerificacionDidit enviarA:telefonoE164 cuandoTermine:bloque];
+        return;
+    }
     NSString *telefono = [self limpio:telefonoE164];
     if (telefono.length == 0) {
         [self responder:bloque ok:NO error:@"Número de teléfono vacío"];
@@ -82,6 +105,10 @@ static NSString *gTelefonoDelEnvio = nil;
 
 + (void)comprobar:(NSString *)codigo
     cuandoTermine:(void (^)(BOOL, NSString *_Nullable))bloque {
+    if ([self conDidit]) {
+        [ConrraVerificacionDidit comprobar:codigo cuandoTermine:bloque];
+        return;
+    }
     if (gIdVerificacion.length == 0) {
         [self responder:bloque ok:NO error:@"Pide el código otra vez"];
         return;
@@ -120,15 +147,26 @@ static NSString *gTelefonoDelEnvio = nil;
 #pragma mark - El estado
 
 + (BOOL)hayEnvioEnCursoPara:(NSString *)telefonoE164 {
+    if ([self conDidit]) {
+        return [ConrraVerificacionDidit hayEnvioEnCursoPara:telefonoE164];
+    }
     if (gIdVerificacion.length == 0 || gTelefonoDelEnvio.length == 0) {
         return NO;
     }
     return [gTelefonoDelEnvio isEqualToString:[self limpio:telefonoE164]];
 }
 
+/**
+ Se limpian LOS DOS, sin preguntar por el metodo.
+
+ Limpiar de mas no rompe nada -- borrar una sesion que no existe no hace daño -- y limpiar de
+ menos deja estado vivo del proveedor que no esta en uso. Si algun dia se cambia la constante
+ con el app en marcha, esto es lo que evita que una sesion vieja conteste por la nueva.
+ */
 + (void)limpiar {
     gIdVerificacion = nil;
     gTelefonoDelEnvio = nil;
+    [ConrraVerificacionDidit limpiar];
 }
 
 #pragma mark - Los avisos

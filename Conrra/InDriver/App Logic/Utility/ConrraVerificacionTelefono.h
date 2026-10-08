@@ -10,7 +10,18 @@
 NS_ASSUME_NONNULL_BEGIN
 
 /**
- Verificacion del telefono con Firebase Phone Auth.
+ Verificacion del telefono: de donde sale el codigo y quien dice si es bueno.
+
+ ESTA CLASE ES EL REPARTIDOR. La pantalla no sabe quien esta detras: pide `enviarA:` y
+ `comprobar:` aqui, y aqui se decide si eso va a Didit o a Firebase. Añadir un proveedor es
+ tocar este fichero, no las cuatro pantallas que lo usan.
+
+ EL PREDETERMINADO ES DIDIT desde el 2026-10-08, por WhatsApp con SMS de respaldo, a traves
+ del rele de conrraservices.com. El motivo no es una preferencia: en Panama Firebase NO
+ entrega el SMS (Error code 39, visto el 2026-10-06), asi que alli Phone Auth no sirve
+ aunque este bien configurado. Ver ConrraVerificacionDidit.
+
+ Lo de abajo describe el camino de Firebase, que sigue entero y a un cambio de constante.
 
  ================================ QUE ARREGLA ================================
  Hasta ahora el codigo lo generaba LA PROPIA APP:
@@ -44,12 +55,34 @@ NS_ASSUME_NONNULL_BEGIN
 @interface ConrraVerificacionTelefono : NSObject
 
 /**
- El metodo con el que se verifica el telefono, igual que Constants.Values.OTP_METODO de
- Android. Para volver a Twilio se cambia la constante del .m y nada mas.
+ Con que proveedor se verifica, igual que Constants.Values.OTP_METODO de Android. Para
+ cambiarlo se toca la constante del .m y nada mas.
  */
 + (BOOL)conFirebase;
++ (BOOL)conDidit;
 
-/** Cuantas casillas tiene el codigo: 6 con Firebase, 4 con el camino viejo. */
+/**
+ ¿Conoce el app el codigo? Solo en el camino viejo, donde lo generaba el propio telefono.
+
+ VA EN POSITIVO A PROPOSITO, y esto no es estilo: en Android el autorrelleno se cerraba con
+ `!OTP_CON_FIREBASE`, una lista de negaciones que hay que acordarse de ampliar. Al entrar
+ Didit se quedo abierta y la pantalla escribia el aleatorio de 4 digitos del app en las 6
+ casillas de Didit. Preguntando en positivo, un proveedor nuevo nace SIN relleno y SIN SMS
+ de pago, que es el lado seguro del olvido.
+ */
++ (BOOL)loGeneraElApp;
+
+/**
+ Lo contrario, para que quien llama no tenga que escribir la negacion.
+
+ Responde SI con Firebase y con Didit: en los dos el codigo lo genera y lo comprueba otro,
+ el app solo manda lo que el usuario teclea. Es la pregunta que de verdad quieren hacer las
+ pantallas -- "¿me ocupo yo del codigo o no?" --, y la unica que sigue siendo correcta
+ cuando se añade un proveedor.
+ */
++ (BOOL)loVerificaElServidor;
+
+/** Cuantas casillas tiene el codigo: 6 con Firebase y con Didit, 4 con el camino viejo. */
 + (NSInteger)casillas;
 
 /**

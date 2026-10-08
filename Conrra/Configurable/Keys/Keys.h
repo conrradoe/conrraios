@@ -67,6 +67,16 @@
  */
 #define URL_RECARGAS        @"https://www.conrraservices.com/recargas/index.php"
 
+/**
+ Rele de verificacion telefonica. El app NO habla con Didit: la clave de esa API es de
+ servidor, y metida en el ejecutable la extrae cualquiera y manda mensajes a tu cuenta.
+
+ Mismo host y mismo contrato que el de Android (Constants.Urls.VERIFICACION_HOST), porque
+ detras hay un solo rele y las dos apps tienen que pedirle lo mismo.
+ Ver ConrraVerificacionDidit.
+ */
+#define VERIFICACION_HOST   @"https://conrraservices.com/verificacion"
+
 #define BASE_URL_OTP        @"https://apps.conrra.com/webservices/tw_sms/index2.php"
 #define BASE_URL_OTP_NO        @"https://apps.conrra.com/webservices/tw_sms/index.php"
 #define url_base_app_images             @"https://apps.conrra.com/webservices/images/app_images/"    // Image Base URL

@@ -508,10 +508,15 @@
         isTestAccount=[[self->dictUserForLogin objectForKey:@"is_test"]boolValue];
     }
     /*
-     Con Firebase el SMS de pago sobra: lo manda Google. Se sigue a la pantalla del codigo,
-     que es la que se lo pide. Mismo molde que la rama de otp_off que ya habia aqui.
+     Si el codigo lo manda otro, el SMS de pago sobra: se sigue a la pantalla del codigo, que
+     es la que se lo pide. Mismo molde que la rama de otp_off que ya habia aqui.
+
+     La pregunta es "¿lo verifica el servidor?" y no "¿es Firebase?" a proposito. Preguntando
+     por el proveedor, el dia que se cambia el predeterminado esta rama se queda fuera y la
+     app vuelve a mandar -- y a PAGAR -- un SMS de Twilio con un codigo que ella misma se
+     inventa. Preguntando asi, un proveedor nuevo entra bien sin tocar esta linea.
      */
-    if(consModel.otp_off||isTestAccount||[ConrraVerificacionTelefono conFirebase]){
+    if(consModel.otp_off||isTestAccount||[ConrraVerificacionTelefono loVerificaElServidor]){
         [self sendMeToVerificationView];
         return;
     }

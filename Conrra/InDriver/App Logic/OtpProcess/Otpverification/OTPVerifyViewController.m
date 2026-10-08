@@ -24,6 +24,7 @@
 #import "ConrraButton.h"
 #import "ConrraFotoDeRegistro.h"
 #import "ConrraVerificacionTelefono.h"
+#import "ConrraTelefonoE164.h"
 @interface OTPVerifyViewController ()<UITextFieldDelegate,OTPFieldViewDelegate,MFMailComposeViewControllerDelegate>{
     int smsCode;
     CGRect frameOrignal;
@@ -97,6 +98,33 @@
     // Do any additional setup after loading the view.
 
     [self setupOTPScreenLayout];
+
+    /*
+     ============ EL PRIMER CODIGO SE PIDE AQUI ============
+
+     Y hasta ahora NO SE PEDIA EN NINGUNA PARTE. verifyMobileNo solo lo llamaban los dos
+     botones de reenviar -- el de la ruedecita y el enlace del texto --, asi que con un
+     proveedor de fuera el usuario llegaba a esta pantalla, veia seis casillas vacias y no
+     recibia nada hasta que se le ocurria pulsar "reenviar". Visto desde el telefono eso es
+     indistinguible de "el mensaje no llega".
+
+     Antes no se notaba porque el codigo lo generaba el app y lo mandaba la pantalla
+     ANTERIOR: aqui no habia nada que pedir. Al pasar el envio a Firebase se quito de alli
+     sin ponerlo en ningun sitio, y el hueco quedo abierto.
+
+     EL GUARDIA NO ES ADORNO. Sin el, volver atras y entrar otra vez pide un codigo nuevo:
+     cada envio se paga, y repetir es justo lo que dispara el antifraude de Didit -- que
+     contesta "Blocked" y, dice su rele, no se debe reintentar. Se pregunta por el NUMERO y
+     no por "¿hay alguna sesion?", que es como se acaba verificando un telefono y entrando
+     con otro.
+
+     Con el OTP apagado no se pide nada, claro: no hay codigo que esperar.
+     */
+    if ([ConrraVerificacionTelefono loVerificaElServidor]
+        && ![self otpApagado]
+        && ![ConrraVerificacionTelefono hayEnvioEnCursoPara:[self telefonoE164]]) {
+        [self verifyMobileNo];
+    }
 }
 
 -(void)appWillEnterForeground:(NSNotification *)paramNotification
@@ -489,26 +517,33 @@
 /**
  El numero de esta pantalla en formato internacional. Un solo sitio que lo arma.
 
- Firebase exige E.164: el mas y digitos, nada mas. Al recuperar contraseña el numero llega
- ya con su prefijo en self.phoneNum; en registro y entrada se pega el prefijo del pais.
+ Al recuperar contraseña el numero llega ya con su prefijo en self.phoneNum; en registro y
+ entrada vienen por separado el prefijo del pais y lo que tecleo el usuario.
+
+ QUITAR LO QUE NO ES DIGITO NO BASTA, y era lo unico que se hacia aqui. En Venezuela -- el
+ 90% del volumen -- se marca `0424 645 4012`, con el cero de troncal delante: pegado daba
+ `+5804246454012`, trece digitos que pasan cualquier comprobacion de forma y no son ningun
+ telefono. El rele de verificacion lo rechaza con `numero_invalido` en cuanto ve que el
+ nacional empieza por cero, asi que el venezolano no podia pasar de esta pantalla.
+
+ La regla vive en ConrraTelefonoE164, no aqui: la misma clase, la misma tabla de casos y la
+ misma respuesta que en Android, y se puede probar sin arrancar la app.
+
+ Devuelve cadena vacia y no un numero a medias cuando no hay numero: quien llama ya
+ comprueba el largo antes de mandar nada.
  */
 -(NSString *)telefonoE164 {
-    NSString *crudo;
     if (self.isRestPassword) {
-        crudo = isEmpty(self.phoneNum);
-    } else {
-        crudo = [NSString stringWithFormat:@"%@%@",
-                 isEmpty(self.countryDialCode),
-                 isEmpty([NSString stringWithFormat:@"%@", [_usersigmUpDict objectForKey:P_MOBILE]])];
+        // Aqui el prefijo ya viene dentro, asi que no hay nada que pegar: se parte el
+        // numero en codigo de pais y resto no, se pasa entero como nacional y
+        // ConrraTelefonoE164 se queda con los digitos.
+        NSString *crudo = isEmpty(self.phoneNum);
+        NSString *digitos = [ConrraTelefonoE164 soloDigitos:crudo];
+        return digitos.length > 0 ? [@"+" stringByAppendingString:digitos] : @"";
     }
-    NSMutableString *digitos = [[NSMutableString alloc] init];
-    for (NSUInteger i = 0; i < crudo.length; i++) {
-        unichar c = [crudo characterAtIndex:i];
-        if (c >= '0' && c <= '9') {
-            [digitos appendFormat:@"%C", c];
-        }
-    }
-    return digitos.length > 0 ? [@"+" stringByAppendingString:digitos] : @"";
+    NSString *nacional = [NSString stringWithFormat:@"%@", [_usersigmUpDict objectForKey:P_MOBILE]];
+    NSString *armado = [ConrraTelefonoE164 de:isEmpty(self.countryDialCode) nacional:isEmpty(nacional)];
+    return armado.length > 0 ? armado : @"";
 }
 
 /**
@@ -557,7 +592,13 @@
         return;
     }
 
-    if ([ConrraVerificacionTelefono conFirebase]) {
+    /*
+     Lo verifica el servidor: Didit o Firebase, da igual cual. ConrraVerificacionTelefono
+     reparte. Antes esto preguntaba `conFirebase` y por tanto, al pasar el predeterminado a
+     Didit, se habria ido por el camino viejo: comparar el codigo con uno que el app se
+     invento, que es exactamente lo que se quito.
+     */
+    if ([ConrraVerificacionTelefono loVerificaElServidor]) {
         NSString *escrito = [string stringByReplacingOccurrencesOfString:@" " withString:@""];
         if (escrito.length == 0) {
             [self showWarningWithMessgae:[LanguageHelper getStringWithKey:@"k_r12_s6_invalid_otp"]];
@@ -749,15 +790,19 @@
 
 
 
+/**
+ Pide el codigo. Se llama al abrir la pantalla y al pulsar reenviar.
+ */
 -(void)verifyMobileNo{
     /*
-     CON FIREBASE EL CODIGO NO LO GENERA LA APP.
+     EL CODIGO NO LO GENERA LA APP.
 
-     Se lo pide a Google, que lo manda y lo comprueba. La app no lo conoce nunca, y por eso
-     esto prueba de verdad que quien se registra tiene ese numero. Ver
+     Se lo pide al proveedor de turno -- hoy Didit, antes Firebase --, que lo manda y lo
+     comprueba. El app no lo conoce nunca, y por eso esto prueba de verdad que quien se
+     registra tiene ese numero. Cual de los dos sea se decide en un solo sitio:
      ConrraVerificacionTelefono.
      */
-    if ([ConrraVerificacionTelefono conFirebase] && ![self otpApagado]) {
+    if ([ConrraVerificacionTelefono loVerificaElServidor] && ![self otpApagado]) {
         NSString *telefono = [self telefonoE164];
         if (telefono.length < 8) {
             [self showAlertWithMessgae:[LanguageHelper getStringWithKey:@"k_17_s3_phone_number_does_not_exists"]];
