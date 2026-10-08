@@ -47,6 +47,29 @@ int main(void) {
               [ConrraTelefonoE164 de:@"58" nacional:@"4246454012"],
               [ConrraTelefonoE164 de:@"58" nacional:@"04246454012"]);
 
+        // Los paises que de verdad hay en la base, con sus usuarios: es la MISMA tabla que
+        // pruebas-panel/telefono_java_vs_php.php de Android, que compara el calculo de Java
+        // con el de PHP. Ahora hay TRES implementaciones del mismo calculo -- Java, PHP y
+        // esta --, y tres implementaciones se separan solas si nadie les pregunta lo mismo.
+        igual(@"Venezuela (4.777 usuarios)", @"+584246454012",
+              [ConrraTelefonoE164 de:@"58" nacional:@"4246454012"]);
+        igual(@"Panama (31)", @"+50766314100",
+              [ConrraTelefonoE164 de:@"507" nacional:@"66314100"]);
+        igual(@"India (21)", @"+919876543210",
+              [ConrraTelefonoE164 de:@"91" nacional:@"9876543210"]);
+        igual(@"Chile (8)", @"+56912345678",
+              [ConrraTelefonoE164 de:@"56" nacional:@"912345678"]);
+        igual(@"EEUU (7), con un cero DENTRO del area", @"+12025551234",
+              [ConrraTelefonoE164 de:@"1" nacional:@"2025551234"]);
+        igual(@"Peru (5)", @"+51987654321",
+              [ConrraTelefonoE164 de:@"51" nacional:@"987654321"]);
+        igual(@"Espana (4)", @"+34600123456",
+              [ConrraTelefonoE164 de:@"34" nacional:@"600123456"]);
+        igual(@"Colombia (4)", @"+573001234567",
+              [ConrraTelefonoE164 de:@"57" nacional:@"3001234567"]);
+        igual(@"Venezuela de 9 digitos, raro pero real", @"+58424645401",
+              [ConrraTelefonoE164 de:@"58" nacional:@"00424645401"]);
+
         printf("\n--- lo que la gente teclea ---\n");
         igual(@"Panama normal", @"+50766314100", [ConrraTelefonoE164 de:@"507" nacional:@"66314100"]);
         igual(@"codigo con el mas", @"+50766314100", [ConrraTelefonoE164 de:@"+507" nacional:@"66314100"]);
