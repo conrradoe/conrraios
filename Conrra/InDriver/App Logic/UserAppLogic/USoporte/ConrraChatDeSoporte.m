@@ -502,7 +502,8 @@
     /*
      TRES INTENTOS, EN ESTE ORDEN, Y EL ORDEN ES EL ARREGLO.
 
-       1. whatsapp://send?phone=...&text=...   el bueno: abre el chat con soporte.
+       0. whatsapp-consumer://send?phone=...   la WhatsApp NORMAL, pedida por su nombre.
+       1. whatsapp://send?phone=...&text=...   el ambiguo: lo atienden la normal Y Business.
        2. whatsapp://send?text=...            sin numero. WhatsApp SE ABRE igual y el
                                               usuario elige el chat, con el texto escrito.
        3. https://wa.me/...                   la red, para cuando WhatsApp no esta puesto.
@@ -528,6 +529,24 @@
             [cadena addObject:u];
         }
     };
+    /*
+     ============ LA NORMAL PRIMERO, PEDIDA POR SU NOMBRE ============
+     whatsapp:// lo declaran LAS DOS apps, la normal y Business. Y cuando dos apps instaladas
+     declaran el mismo esquema, iOS entrega la peticion a cualquiera de las dos: no hay
+     prioridad prometida ni forma de elegir. En un telefono con Business puesta, el soporte
+     se abria ahi -- una app en la que el usuario normalmente ni ha entrado.
+
+     whatsapp-consumer:// es el esquema de la normal (y whatsapp-smb:// el de Business). OJO:
+     esto NO esta documentado por WhatsApp ni por Apple; es un dato observado, asi que se
+     trata como lo que es -- un intento, no una garantia. Va primero porque si no existe,
+     openURL devuelve NO, la cascada sigue y no se pierde nada: el peor caso es exactamente
+     el comportamiento de antes.
+
+     Y el log dice con cual abrio, asi que la primera prueba en un telefono real zanja si la
+     pista sirve:  [Soporte] abrio con whatsapp-consumer://...
+     =================================================================
+     */
+    meter([NSString stringWithFormat:@"whatsapp-consumer://send?phone=%@&text=%@", digitos, texto]);
     meter([NSString stringWithFormat:@"whatsapp://send?phone=%@&text=%@", digitos, texto]);
     meter([NSString stringWithFormat:@"whatsapp://send?text=%@", texto]);
     meter([NSString stringWithFormat:@"https://wa.me/%@?text=%@", digitos, texto]);
