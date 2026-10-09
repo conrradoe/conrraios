@@ -98,10 +98,32 @@
     tarjeta.layer.cornerRadius = 20;
     tarjeta.layer.maskedCorners = kCALayerMinXMinYCorner | kCALayerMaxXMinYCorner;
     tarjeta.clipsToBounds = YES;
-    // Se traga los toques: sin esto, tocar dentro de la hoja la cerraria, porque el gesto
-    // del fondo tambien recibe los toques de sus hijas.
-    [tarjeta addGestureRecognizer:[[UITapGestureRecognizer alloc] initWithTarget:self
-                                                                          action:@selector(noHacerNada)]];
+    /*
+     Se traga el gesto del fondo, NO los toques de sus hijas.
+
+     ============ EL BOTON DE WHATSAPP NO RESPONDIA POR ESTO ============
+     Este reconocedor existe solo para ganarle al del fondo: de los dos gestos que reciben un
+     toque dentro de la tarjeta, gana el de la vista mas profunda, asi que este se lleva el
+     toque y la hoja no se cierra. Eso funcionaba.
+
+     Lo que no se puso es cancelsTouchesInView = NO, y por omision vale YES: al reconocer,
+     CANCELA la entrega del toque a todo lo que hay debajo. Un UIButton no usa gestos, usa
+     seguimiento de toques (touchesBegan/Ended), asi que su touchUpInside nunca llegaba:
+     "Escribir por WhatsApp" y "Cerrar" quedaban mudos. Escribir si funcionaba, porque el
+     UITextView trae sus propios gestos y esos no se cancelan -- de ahi lo desconcertante del
+     sintoma: la pantalla responde al teclear y no al pulsar.
+
+     Y no se notaba que "Cerrar" tambien estaba muerto porque tocar el fondo cierra igual.
+
+     Con NO, este gesto sigue reconociendo -- sigue impidiendo que el fondo cierre la hoja --
+     y ademas el toque llega al boton. Es lo que ya tiene el gesto del fondo cuatro lineas
+     mas arriba; aqui se olvido.
+     ====================================================================
+     */
+    UITapGestureRecognizer *dentro = [[UITapGestureRecognizer alloc] initWithTarget:self
+                                                                            action:@selector(noHacerNada)];
+    dentro.cancelsTouchesInView = NO;
+    [tarjeta addGestureRecognizer:dentro];
     [self.view addSubview:tarjeta];
     self.tarjeta = tarjeta;
 
