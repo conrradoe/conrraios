@@ -65,8 +65,27 @@
     [super viewDidLoad];
     self.view.backgroundColor = [UIColor colorWithWhite:0 alpha:0.45];
 
+    /*
+     UN SOLO GESTO, Y EN EL FONDO. Decide por la POSICION del toque, no por quien lo recibe.
+
+     Antes habia dos: este, y otro sobre la tarjeta que no hacia nada, cuyo unico trabajo era
+     ganarle a este para que tocar dentro no cerrase la hoja. Funcionaba para eso y rompia
+     otra cosa: un reconocedor cancela por omision la entrega del toque a lo que hay debajo,
+     y un UIButton no usa gestos sino seguimiento de toques, asi que "Escribir por WhatsApp"
+     y "Cerrar" no llegaban a dispararse nunca. Escribir si funcionaba -- el UITextView trae
+     sus propios gestos --, que es lo que hacia el sintoma tan raro.
+
+     Se puede arreglar con cancelsTouchesInView = NO, y eso fue el primer intento. Pero
+     entonces el comportamiento de los botones depende de dos reglas finas de UIKit a la vez:
+     que el gesto de la vista mas profunda gane, y que ninguno de los dos cancele. Dos reglas
+     que hay que recordar cada vez que alguien añada un control a esta tarjeta.
+
+     Preguntar por la posicion no depende de nada de eso: sin gesto sobre la tarjeta, NADA
+     puede cancelar los toques de sus hijas, y la unica regla que queda escrita es la que se
+     lee aqui mismo.
+     */
     UITapGestureRecognizer *fuera = [[UITapGestureRecognizer alloc] initWithTarget:self
-                                                                            action:@selector(cerrar)];
+                                                                            action:@selector(tocaronElFondo:)];
     fuera.cancelsTouchesInView = NO;
     [self.view addGestureRecognizer:fuera];
 
@@ -98,32 +117,8 @@
     tarjeta.layer.cornerRadius = 20;
     tarjeta.layer.maskedCorners = kCALayerMinXMinYCorner | kCALayerMaxXMinYCorner;
     tarjeta.clipsToBounds = YES;
-    /*
-     Se traga el gesto del fondo, NO los toques de sus hijas.
-
-     ============ EL BOTON DE WHATSAPP NO RESPONDIA POR ESTO ============
-     Este reconocedor existe solo para ganarle al del fondo: de los dos gestos que reciben un
-     toque dentro de la tarjeta, gana el de la vista mas profunda, asi que este se lleva el
-     toque y la hoja no se cierra. Eso funcionaba.
-
-     Lo que no se puso es cancelsTouchesInView = NO, y por omision vale YES: al reconocer,
-     CANCELA la entrega del toque a todo lo que hay debajo. Un UIButton no usa gestos, usa
-     seguimiento de toques (touchesBegan/Ended), asi que su touchUpInside nunca llegaba:
-     "Escribir por WhatsApp" y "Cerrar" quedaban mudos. Escribir si funcionaba, porque el
-     UITextView trae sus propios gestos y esos no se cancelan -- de ahi lo desconcertante del
-     sintoma: la pantalla responde al teclear y no al pulsar.
-
-     Y no se notaba que "Cerrar" tambien estaba muerto porque tocar el fondo cierra igual.
-
-     Con NO, este gesto sigue reconociendo -- sigue impidiendo que el fondo cierre la hoja --
-     y ademas el toque llega al boton. Es lo que ya tiene el gesto del fondo cuatro lineas
-     mas arriba; aqui se olvido.
-     ====================================================================
-     */
-    UITapGestureRecognizer *dentro = [[UITapGestureRecognizer alloc] initWithTarget:self
-                                                                            action:@selector(noHacerNada)];
-    dentro.cancelsTouchesInView = NO;
-    [tarjeta addGestureRecognizer:dentro];
+    // SIN GESTO AQUI, a proposito: ver el comentario del gesto del fondo, en viewDidLoad.
+    // Cualquier reconocedor en esta tarjeta puede dejar mudos sus botones.
     [self.view addSubview:tarjeta];
     self.tarjeta = tarjeta;
 
@@ -238,7 +233,21 @@
     ]];
 }
 
-- (void)noHacerNada { }
+/**
+ Tocar FUERA de la tarjeta cierra la hoja; tocar dentro, no.
+
+ La comprobacion es la posicion, no el gesto: lo unico que hay que saber para entender esto
+ es que `bounds` de la tarjeta es lo que se ve de ella.
+ */
+- (void)tocaronElFondo:(UITapGestureRecognizer *)gesto {
+    if (self.tarjeta != nil) {
+        CGPoint donde = [gesto locationInView:self.tarjeta];
+        if (CGRectContainsPoint(self.tarjeta.bounds, donde)) {
+            return;
+        }
+    }
+    [self cerrar];
+}
 
 - (void)textViewDidChange:(UITextView *)textView {
     self.pistaDelCampo.hidden = textView.text.length > 0;
@@ -264,6 +273,12 @@
 }
 
 - (void)enviar {
+    /*
+     Este renglon es el primero a proposito: separa "el boton no responde" de "el boton
+     responde y luego algo falla", que son dos problemas en sitios distintos y costaron dos
+     vueltas de diagnostico por no poder distinguirlos.
+     */
+    NSLog(@"[Soporte] pulsado 'Escribir por WhatsApp'");
     NSString *escrito = [self.campo.text stringByTrimmingCharactersInSet:
                          [NSCharacterSet whitespaceAndNewlineCharacterSet]];
     if (escrito.length == 0) {
