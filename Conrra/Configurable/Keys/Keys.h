@@ -77,6 +77,18 @@
  */
 #define VERIFICACION_HOST   @"https://conrraservices.com/verificacion"
 
+/**
+ Las propinas del taxi. Mismo host y mismas rutas que Android (Constants.Urls.URL_TAXI_*),
+ porque detras hay un solo servidor y las dos apps tienen que pedirle lo mismo.
+
+ EL DINERO LO MUEVE EL SERVIDOR: aqui se pide y se cuenta, nada mas. Ver ConrraPropinas.
+ */
+#define TAXI_HOST                     @"https://conrraservices.com/taxi"
+#define URL_TAXI_PROPINA              TAXI_HOST @"/api/propina.php"
+#define URL_TAXI_PROPINAS_PENDIENTES  TAXI_HOST @"/api/propinas_pendientes.php"
+#define URL_TAXI_PROPINA_CERRAR       TAXI_HOST @"/api/propina_cerrar.php"
+#define URL_TAXI_GRACIAS_PENDIENTES   TAXI_HOST @"/api/gracias_pendientes.php"
+
 #define BASE_URL_OTP        @"https://apps.conrra.com/webservices/tw_sms/index2.php"
 #define BASE_URL_OTP_NO        @"https://apps.conrra.com/webservices/tw_sms/index.php"
 #define url_base_app_images             @"https://apps.conrra.com/webservices/images/app_images/"    // Image Base URL
