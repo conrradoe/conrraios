@@ -30,6 +30,7 @@
 #import <AVFoundation/AVFoundation.h>
 #import <AudioToolbox/AudioToolbox.h>
 #import "ConrraCelebracionPropina.h"
+#import "ConrraBonos.h"
 #include <math.h>
 #import "LeftViewController.h"
 #import <MessageUI/MFMailComposeViewController.h>
@@ -606,6 +607,9 @@
      seria perder propinas sin que nadie se enterara.
      */
     [ConrraCelebracionPropina atender:self comoConductor:YES];
+    // El conductor tambien invita, y su bono se paga igual. La bienvenida no: esa es del
+    // pasajero, y ConrraBonos la descarta sola si la sesion es de conductor.
+    [ConrraBonos buscarYCelebrarReferidoEn:self];
     [super viewWillAppear:animated];
     [Utilities applyTintOnButton:self.btnDirection color:[UIColor colorNamed:@"color_app_label"] name:@"ic_menu_map"];
     [self setUIFiels];

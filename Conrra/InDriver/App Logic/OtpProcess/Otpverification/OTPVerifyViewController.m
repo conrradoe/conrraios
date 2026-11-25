@@ -16,6 +16,7 @@
 #import "UploadDocumentViewController.h"
 #import "Utilities.h"
 #import "ConstantModel.h"
+#import "ConrraBonos.h"
 #define  PHONE_NUMBER_FORMAT @"#         #        #         #"
 #import "IQKeyboardManager.h"
 #import <MessageUI/MFMailComposeViewController.h>
@@ -467,10 +468,18 @@
                 Sin esta llamada la verificacion ocurre y se olvida -- se manda el codigo, el
                 usuario lo teclea, Didit lo aprueba y no queda constancia en ninguna parte.
                 */
-               [self su_confirmarVerificacionDe:
-                   [NSString stringWithFormat:@"%@",
-                    [[results objectForKey:P_RESPONSE] objectForKey:P_USER_ID]]
-                               apuntarAlVolver:YES];
+               NSString *idNuevo = [NSString stringWithFormat:@"%@",
+                   [[results objectForKey:P_RESPONSE] objectForKey:P_USER_ID]];
+               [self su_confirmarVerificacionDe:idNuevo apuntarAlVolver:YES];
+               /*
+                La bienvenida se marca AQUI y no en la pantalla que la ensena.
+
+                Es el unico momento en que se sabe que esta cuenta acaba de nacer. Quien ya
+                existia no pasa por este renglon, asi que no vera la fiesta aunque tenga saldo
+                -- y eso es lo que se quiere: una bienvenida que salga a todo el mundo con
+                saldo no es una bienvenida. Ver ConrraBonos.
+                */
+               [ConrraBonos marcarCuentaNueva:idNuevo];
                [self loadUserHomeViewController];
            } else if (isStatusError(results)) {
                [self showAlertWithMessgae:[LanguageHelper getStringWithKey:errorMessage(results)]];

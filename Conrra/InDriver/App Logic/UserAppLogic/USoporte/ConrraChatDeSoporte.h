@@ -56,6 +56,16 @@ typedef NS_ENUM(NSInteger, ConrraMotivoDeSoporte) {
           monto:(nullable NSString *)monto
        alCerrar:(nullable void (^)(void))alCerrar;
 
+/**
+ ¿La sesion abierta es de pasajero?
+
+ Estaba en el .m, privada, y la saco aqui porque ahora la pregunta un segundo sitio: los bonos,
+ para no darle la bienvenida del pasajero a un conductor. Lo que no se puede hacer es volver a
+ deducir el rol en otra clase -- dos formas de contestar lo mismo acaban contestando distinto,
+ y de eso ya hubo bastante con los metodos de pago.
+ */
++ (BOOL)esPasajero;
+
 @end
 
 NS_ASSUME_NONNULL_END

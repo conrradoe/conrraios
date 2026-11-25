@@ -89,6 +89,13 @@
 #define URL_TAXI_PROPINA_CERRAR       TAXI_HOST @"/api/propina_cerrar.php"
 #define URL_TAXI_GRACIAS_PENDIENTES   TAXI_HOST @"/api/gracias_pendientes.php"
 
+/**
+ Los bonos por referido. El backend original no paga nada por referir -- solo un descuento de
+ comision entre conductores --, asi que paga este: al preguntar, acredita a quien ya cumplio la
+ condicion y devuelve lo que no se ha celebrado. Ver ConrraBonos.
+ */
+#define URL_TAXI_REFERIDOS            TAXI_HOST @"/api/referidos.php"
+
 #define BASE_URL_OTP        @"https://apps.conrra.com/webservices/tw_sms/index2.php"
 #define BASE_URL_OTP_NO        @"https://apps.conrra.com/webservices/tw_sms/index.php"
 #define url_base_app_images             @"https://apps.conrra.com/webservices/images/app_images/"    // Image Base URL

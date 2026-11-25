@@ -54,6 +54,7 @@
 #import "DatePickerViewController.h"
 #import "EstimateFareInfoViewController.h"
 #import "ConrraCelebracionPropina.h"
+#import "ConrraBonos.h"
 #define DROP_LOCATION @"drop_loc"
 #define PICK_LOCATION @"pickup"
 #import "HomePaymentViewModel.h"
@@ -367,6 +368,16 @@
      aqui. Lo que el pasajero ve es "te dio las gracias", y si el push se perdio sale ahora.
      */
     [ConrraCelebracionPropina atender:self comoConductor:NO];
+    /*
+     Los dos bonos se preguntan aqui, en la primera pantalla del pasajero.
+
+     Juntos y en este orden: la bienvenida es de una cuenta recien creada y el referido puede
+     llegar meses despues, asi que no compiten. Si llegaran los dos a la vez -- registrarse con
+     un codigo y completar el primer viaje en la misma sesion --, la segunda tarjeta sale al
+     volver a esta pantalla, porque el servidor ya la dejo marcada y no se pierde.
+     */
+    [ConrraBonos revisarBienvenidaEn:self];
+    [ConrraBonos buscarYCelebrarReferidoEn:self];
     [super viewWillAppear:animated];
     // Restore bottom sheet and GPS button whenever we reappear (e.g. after popping Screen 2)
     if (isSheetSetup) {
