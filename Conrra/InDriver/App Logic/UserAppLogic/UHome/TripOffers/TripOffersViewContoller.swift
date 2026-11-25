@@ -190,6 +190,9 @@ private class TripOffersRootView: UIView {
         if trip?.is_ride_later == false {
             startTimer()
             startRefreshOffersTimer()
+            // Una vez ya, sin esperar el primer tic: si no, el primer segundo de la espera
+            // sale con el texto de siempre y luego cambia, que se ve como un parpadeo.
+            actualizarCuentaDeBusqueda()
             arrancarSondeoDeEstado()
         }
     }
@@ -1152,6 +1155,10 @@ private class TripOffersRootView: UIView {
     }
 
     @objc private func timerTick() {
+        // La cuenta va primero y fuera del guard: no depende de que haya ofertas. Dentro del
+        // guard, un viaje sin ofertas -- que es el caso normal al principio -- se quedaria sin
+        // cronometro justo cuando mas se mira.
+        actualizarCuentaDeBusqueda()
         guard let vm = tripOfferViewModel else { return }
         for offer in vm.tripOffer.value {
             offer.count -= 1
@@ -1164,6 +1171,128 @@ private class TripOffersRootView: UIView {
         }
     }
 
+
+    // MARK: - La cuenta de la busqueda
+
+    /// El minuto que se le ensena al pasajero.
+    private static let segundosDeCuenta = 60
+
+    /**
+     Lo que tarda la solicitud en caducar, en segundos.
+
+     ES UNA COPIA DE `TRIP_EXPIRE_TIME` (Keys.h), y se dice aqui porque Swift no importa ese
+     macro: esta escrito como `5*60` y solo entran los macros que son un literal pelado. Si
+     alguien cambia el de Keys.h, hay que cambiar este. No hay forma de leerlo desde aqui sin
+     montar una clase de Objective-C para cargar un numero, que seria peor.
+     */
+    private static let segundosParaCaducar: TimeInterval = 5 * 60
+
+    /**
+     La cuenta atras del minuto, y despues el tiempo que queda hasta que caduque.
+
+     CUENTA DESDE QUE SE CREO EL VIAJE, no desde que se abrio esta pantalla. Es el mismo reloj
+     que usa isTripMarkAsExpire para caducar la solicitud, asi que salir de la pantalla y volver
+     no reinicia el minuto -- y si lo reiniciara, el pasajero veria un minuto nuevo cada vez que
+     mira el mapa y creeria que la busqueda acaba de empezar.
+
+     AL LLEGAR A CERO LA SOLICITUD SIGUE VIVA hasta los cinco minutos, asi que no se dice que se
+     acabo: se dice que se sigue buscando, y se ensena lo que queda. Decir "se acabo" cuando aun
+     puede llegar un conductor es la peor de las dos mentiras posibles.
+     */
+    private func actualizarCuentaDeBusqueda() {
+        let creado = trip?.trip_created ?? ""
+        guard !creado.isEmpty,
+              let fecha = Utilities.getGMTDatetoLocalTZ1(creado) else {
+            // Sin fecha no se inventa una cuenta: se deja el texto de siempre. Un cronometro
+            // que empieza en el segundo en que se abrio la pantalla seria mentira.
+            searchingLabel.text = "Buscando Conductor..."
+            return
+        }
+        let transcurrido = Date().timeIntervalSince(fecha)
+        let quedanDelMinuto = Double(Self.segundosDeCuenta) - transcurrido
+
+        if quedanDelMinuto > 0 {
+            searchingLabel.text = "Buscando Conductor · " + Self.comoReloj(quedanDelMinuto)
+            return
+        }
+        let paraCaducar = max(0, Self.segundosParaCaducar - transcurrido)
+        searchingLabel.text = "Seguimos buscando · " + Self.comoReloj(paraCaducar)
+        sugerirSubidaSiToca()
+    }
+
+    /// Ya se le pregunto por la tarifa en este viaje: una vez y no mas.
+    private var seSugirioLaSubida: Bool {
+        get { Self.viajeConTarifaDecidida == (trip?.trip_Id ?? "") && !(trip?.trip_Id ?? "").isEmpty }
+        set { Self.viajeConTarifaDecidida = newValue ? (trip?.trip_Id ?? "") : "" }
+    }
+
+    /**
+     El viaje al que ya se le pregunto, no una simple bandera.
+
+     Es estatico porque esta pantalla se cierra y se vuelve a abrir mientras la solicitud sigue
+     viva -- el pasajero mira el mapa y vuelve --, y una propiedad de instancia se reiniciaria
+     con ella: se le preguntaria otra vez en cada vuelta. Y guarda el ID y no un si/no para que
+     el viaje siguiente SI pregunte, que es lo que se quiere.
+     */
+    private static var viajeConTarifaDecidida = ""
+
+    /**
+     Pasado el minuto, se le ofrece subir la tarifa un paso.
+
+     ANDROID LO PINTA EN EL SITIO DEL SELECTOR DE PRECIO y aqui es un aviso: la hoja de esta
+     pantalla esta medida y montada por codigo, y meterle un panel que aparece y desaparece es
+     mas riesgo que el que corrige. El aviso dice lo mismo y se puede mejorar luego sin tocar
+     la cuenta.
+
+     SE PREGUNTA UNA VEZ POR VIAJE. Si la tarifa ya esta en el maximo de la categoria no hay
+     nada que ofrecer y no se pregunta: un aviso cuyo boton no cambia nada es peor que ninguno.
+
+     LA SOLICITUD SIGUE VIVA detras del aviso. Elegir "mantener" no la cancela ni la renueva,
+     solo quita el aviso.
+     */
+    private func sugerirSubidaSiToca() {
+        guard !seSugirioLaSubida, presentedViewController == nil, let trip = trip else { return }
+        let sugerido = min(montoOfrecido + pasoDeOferta, ofertaMaxima)
+        guard sugerido > montoOfrecido else { return }
+
+        seSugirioLaSubida = true
+        // Con el tipo escrito, como las otras dos veces que se usa en este fichero:
+        // getCityByCityId esta sin anotar en Objective-C, asi que Swift lo trae como
+        // implicitamente desenvuelto y usarlo a secas revienta si la ciudad no esta
+        // cargada.
+        let ciudad: CityModel? = CityModel.getCityByCityId(Int(trip.city_id))
+        let texto = Utilities.formatAmountAndCurrency(sugerido, currency: ciudad?.city_cur)
+        let alerta = UIAlertController(
+            title: LanguageHelper.getStringWithKey("tarifa_sugerir_titulo",
+                                                   defaultValue: "¿Subes la tarifa?"),
+            message: LanguageHelper.getStringWithKey("tarifa_sugerir_mensaje",
+                                                     defaultValue: "Llevas un rato esperando. "
+                                                     + "Subiendo un poco la tarifa es más probable "
+                                                     + "que un conductor acepte."),
+            preferredStyle: .alert)
+        alerta.addAction(UIAlertAction(
+            title: String(format: LanguageHelper.getStringWithKey("tarifa_aumentar",
+                                                                  defaultValue: "Subir a %@"), texto),
+            style: .default) { [weak self] _ in
+                guard let self = self else { return }
+                // Se reusa el camino de siempre: pone el monto en el ajustador y manda la
+                // oferta. Asi la comprobacion de saldo y los limites de la categoria siguen
+                // valiendo, en vez de escribir aqui una segunda forma de cambiar la tarifa.
+                self.montoDelAjustador = sugerido
+                self.enviarOferta()
+            })
+        alerta.addAction(UIAlertAction(
+            title: LanguageHelper.getStringWithKey("tarifa_mantener",
+                                                   defaultValue: "Mantener"),
+            style: .cancel))
+        present(alerta, animated: true)
+    }
+
+    /// Segundos a m:ss. Siempre dos cifras en los segundos: "3:7" no se lee como un reloj.
+    private static func comoReloj(_ segundos: TimeInterval) -> String {
+        let s = Int(max(0, segundos.rounded(.down)))
+        return String(format: "%d:%02d", s / 60, s % 60)
+    }
 
     @objc private func didTapCancel() {
         let alert = UIAlertController(title: "",
