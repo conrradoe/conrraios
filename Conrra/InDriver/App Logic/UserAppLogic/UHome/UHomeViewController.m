@@ -195,25 +195,27 @@
         self.marginTopPrePayment.constant = 0;
     }
     /*
-     EL METODO DE PAGO ARRANCA EN EL QUE SE USO LA ULTIMA VEZ.
+     ============ EL METODO DE PAGO NO VIENE PRESELECCIONADO ============
 
-     Esto era `init:1` fijo -- el 1 es billetera --, asi que quien paga en efectivo todos
-     los dias lo tenia que cambiar en CADA viaje. Y el u_pay_mode del perfil no servia de
-     nada, porque lo unico que escribia ahi era la pantalla de tarjetas y siempre ponia
-     "card". Ver ConrraPagoPreferido.
+     Decision del 2026-11-12, la misma que tomo Android: el pasajero elige el metodo EN CADA
+     VIAJE. Antes arrancaba en `init:1` -- el 1 es billetera -- y despues en el ultimo metodo
+     usado, y las dos cosas tienen el mismo problema: el que no mira el selector viaja con un
+     metodo que no eligio. Con la billetera puesta de salida eso significa pagar del saldo sin
+     enterarse, que es justo la mezcla de metodos que habia que cortar.
 
-     El 1 se queda como respaldo para la primera vez, que es lo que habia.
+     El -1 es el estado "sin elegir" que ya existia en HomePaymentViewModel: pone tripPayMode
+     en vacio y el texto en "Selecciona el metodo de pago". No hay que inventar nada.
+
+     Y NO SE QUEDA NADIE SIN PODER PEDIR: la comprobacion de que hay metodo ya estaba puesta
+     antes de este cambio (lineas 2341 y 2472 de este fichero), asi que al pedir el viaje salta
+     el aviso de elegir. Se comprobo antes de tocar esto, no despues.
+
+     LA PREFERENCIA SE SIGUE GUARDANDO. ConrraPagoPreferido anota el ultimo metodo en los dos
+     sitios de siempre; lo que se quita es RESTAURARLA. Asi, si manana se decide lo contrario,
+     es volver a leerla aqui y no reconstruir nada -- y Android esta igual, con su clase
+     PagoPreferido intacta y el restaurar desactivado.
      */
-    paymentViewModel = [[HomePaymentViewModel alloc]
-                        init:[ConrraPagoPreferido modoParaElSelectorOPorOmision:1]];
-    NSString *tarjetaRecordada = [ConrraPagoPreferido tarjeta];
-    if (tarjetaRecordada.length > 0) {
-        // Con tarjeta hace falta tambien el identificador de Stripe: sin el, al volver se
-        // sabria "tarjeta" pero no CUAL, y el cobro no se podria hacer.
-        paymentViewModel.paymentMethod = tarjetaRecordada;
-        [paymentViewModel updatePaymentModeText:paymentViewModel.paymentMode
-                                     cardNumber:[ConrraPagoPreferido tarjetaVisible]];
-    }
+    paymentViewModel = [[HomePaymentViewModel alloc] init:-1];
     [self.btnMenu setHidden:YES];
     [self.btnMenu setHideWhenZero:YES];
     [self.btnMenu setBadgeBackgroundColor:[UIColor clearColor]];
