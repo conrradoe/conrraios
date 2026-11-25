@@ -20,6 +20,7 @@
 #import "StarRatingView.h"
 #import "NSString+URLEncoding.h"
 #import "FareReviewViewController.h"
+#import "ConrraPagoDeViaje.h"
 #define kLabelAllowance 50.0f
 #define kStarViewHeight 35.0f
 #define kStarViewWidth 180.0f
@@ -466,7 +467,10 @@
                      */
                     NSString *messgae=[LanguageHelper getStringWithKey:@"k_17_s8_promo_comp_success"];
                     NSString *importe = [self importeCobradoConMoneda];
-                    if([self.curr_trip.trip_pay_mode isEqualToString:HIRE_ME_WALLET_PAY]){
+                    // Por la regla y no con isEqualToString: el modo llega del servidor y
+                    // un "wallet" en minusculas dejaba al conductor con el mensaje generico,
+                    // sin enterarse de que el dinero ya estaba en su saldo.
+                    if([ConrraPagoDeViaje esBilletera:self.curr_trip.trip_pay_mode]){
                         messgae = importe.length > 0
                             ? [NSString stringWithFormat:@"Se acreditaron %@ a tu billetera por este viaje.", importe]
                             : @"El pago de este viaje se acreditó a tu billetera.";

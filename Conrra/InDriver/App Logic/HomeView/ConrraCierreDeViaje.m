@@ -9,6 +9,7 @@
 #import "LanguageHelper.h"
 #import "WebCallConstants.h"
 #import "ConrraChatDeSoporte.h"
+#import "ConrraPagoDeViaje.h"
 #import "CityModel.h"
 #import "Utilities.h"
 #import <GIKit/GIKit.h>
@@ -99,6 +100,11 @@ static NSMutableArray *gCobrosEnVuelo = nil;
 
  NO SE TOCA `trip_pay_mode`. El viaje ya lo trae con lo que eligio el pasajero -- "Pago Movil"
  en la ultima prueba -- y sobreescribirlo borraria como se pago de verdad.
+
+ Y AQUI NO LLEGA NINGUN VIAJE DE BILLETERA: preguntarPorElPagoDesde los aparta antes, porque
+ esos los liquida el servidor. Marcar uno como pagado desde la app dejaria al conductor sin
+ cobrar. Si algun dia alguien llama a liquidar() desde otro sitio, esa comprobacion se repite
+ ahi o se sube aqui.
  */
 + (void)liquidar:(NSString *)tripId
            viaje:(TripModel *)viaje
@@ -310,6 +316,28 @@ static NSMutableArray *gCobrosEnVuelo = nil;
     // Sin viaje, sin id, o ya liquidado: no hay nada que preguntar y se sigue. Nunca se deja
     // al que llama esperando un bloque que no llega.
     if (viaje == nil || id_.length == 0 || [self yaSeLiquido:id_]) {
+        seguir();
+        return;
+    }
+    /*
+     ============ UN VIAJE DE BILLETERA NO SE PREGUNTA NI SE LIQUIDA ============
+
+     Lo cobra el servidor al completar, y si al pasajero no le alcanza el servidor mismo pasa
+     el viaje a efectivo -- con lo cual ya no llega aqui como billetera. Asi que un viaje que
+     sigue siendo de billetera no necesita nada de esta app.
+
+     Preguntar era ademas peligroso, no solo inutil: liquidar() escribe trip_pay_status=Paid
+     pase lo que pase, y en un viaje de billetera eso le dice al servidor "ya esta cobrado".
+     El pasajero no pagaria y el conductor no cobraria -- el fallo contrario al del cobro
+     doble, y mas silencioso, porque nadie reclama un cobro que no le hicieron.
+
+     Y preguntarle al conductor "¿recibiste el pago?" por un viaje que se paga del saldo es
+     pedirle que conteste por algo que no pasa por sus manos.
+     */
+    if ([ConrraPagoDeViaje esBilletera:viaje.trip_pay_mode]) {
+        NSLog(@"[CierreDeViaje] viaje %@ es de billetera: lo liquida el servidor, no se pregunta",
+              id_);
+        [self apuntarLiquidado:id_];
         seguir();
         return;
     }

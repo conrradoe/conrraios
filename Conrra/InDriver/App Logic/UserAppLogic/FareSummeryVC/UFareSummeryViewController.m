@@ -624,80 +624,35 @@
 
 
 -(void) payWithHireMeWallet{
-    NSDictionary *dict1 = [[NSUserDefaults standardUserDefaults]objectForKey:P_USER_DICT];
-    
-    
-    NSDictionary * dictCurrency=[self JSONFromFile];
-    CityModel *  cityModel= [CityModel getCityByCityId:[UserProfile shared].cityID];
-    CityModel *  cityModelTrip= [CityModel getCityByCityId:_curr_trip.city_id];
-    float currencyMul=1;
-    if(cityModel)
-    {
-        
-        NSString * mul=[dictCurrency objectForKey:[NSString stringWithFormat:@"%@%@",cityModelTrip.city_cur,cityModel.city_cur]];
-        if(mul)
-        {
-            currencyMul=   [mul floatValue];
-        }
-    }
-    
-    if ((([_curr_trip.trip_fare floatValue])*currencyMul) <= [[dict1 objectForKey:P_USER_WAlLET_AMOUNT]floatValue]){
-        
-        float driverCommission=0;
-        if(cityModelTrip)
-        {
-            driverCommission =[_curr_trip.trip_fare doubleValue]*(100-cityModelTrip.city_comm)/100;
-        }
-//        else
-//        {
-//            driverCommission =[_curr_trip.trip_fare doubleValue]*(100-_constantModel.connstant_appicial_commission)/100;
-//        }
-        //         float driverCommission =[_curr_trip.trip_fare doubleValue]*(100-cityModelTrip.city_comm)/100;
-        NSMutableDictionary *dict = [NSMutableDictionary dictionaryWithDictionary:@{
-            @"user_id":[dict1 objectForKey:P_USER_ID],
-            @"total_amt":[Utilities formatAmount:[_curr_trip.trip_fare floatValue]],
-            @"rider_amt":[Utilities formatAmount:currencyMul*([_curr_trip.trip_fare floatValue])],
-            @"pay_amount":[Utilities formatAmount:[_curr_trip.trip_fare floatValue]],
-            @"api_key":[ dict1 objectForKey:P_API_KEY],
-            @"trip_id":[NSString stringWithFormat:@"%@",_curr_trip.trip_Id],
-            P_DRIVER_ID:[NSString stringWithFormat:@"%@",_curr_trip.trip_Driver_Id],
-            @"city_id":[NSString stringWithFormat:@"%d",_curr_trip.city_id],
-            //                                                                                    @"pay_status":PAID,
-            @"trip_driver_commision":[Utilities formatAmount:driverCommission],
-            @"pay_mode":HIRE_ME_WALLET_PAY,
-            @"trans_description":@"Trip Payment",
-            @"promo_amt":[Utilities formatAmount:[self.curr_trip.trip_promo_amt floatValue]],
-            @"commission_amt":[Utilities formatAmount:([[Utilities formatAmount:[_curr_trip.trip_fare floatValue]] floatValue]-driverCommission)]
-        }];
-        [UtilityClass setLH:NO wt:[LanguageHelper getStringWithKey:@"k_r30_s3_loading"]];
-        
-        [GIC mkwu:GET_WALLET_ADD_TRIP_TRAN
-                      d:dict
-          isa:NO
-               cb:^(id results, NSError *error) {
-            
-            if ([[[results objectForKey:P_STATUS] uppercaseString] isEqualToString:@"OK"]) {
-                // success
-                if ([[results objectForKey:P_RESPONSE] isKindOfClass:[NSDictionary class]]) {
-                    //                       NSDictionary *arrtrip = [results objectForKey:P_RESPONSE];
-                    NSMutableDictionary *WalletAmtDict = [[[NSUserDefaults standardUserDefaults]objectForKey:P_USER_DICT] mutableCopy];
-                    float toatalAmt=[[WalletAmtDict  objectForKey:P_USER_WAlLET_AMOUNT] floatValue];
-                    [WalletAmtDict setObject:[Utilities formatAmount:(toatalAmt-[self->_curr_trip.trip_fare intValue])] forKey:P_USER_WAlLET_AMOUNT ];
-                    [[NSUserDefaults standardUserDefaults] setObject:WalletAmtDict forKey:P_USER_DICT];
-                    [[NSUserDefaults standardUserDefaults] setObject:WalletAmtDict forKey:P_USER_DICT_LOGGED];
-                    [[NSUserDefaults standardUserDefaults] synchronize];
-                }
-                [self payWithHireMeWallet: YES];
-                [UtilityClass setLH:YES wt:[LanguageHelper getStringWithKey:@"k_r30_s3_loading"]];
-            }else {}
-            
-        }];
-    }
-    else{
-        [self showAddMoneyAlert ];
-    }
-    
-    
+    /*
+     ============ LA APP NO COBRA LA BILLETERA. LA COBRA EL SERVIDOR ============
+
+     Aqui habia un addtriptrans con pay_mode=Wallet y un descuento del saldo guardado en el
+     telefono: el pasajero se cobraba su propia billetera. Y el servidor cobra esa misma
+     billetera al completar el viaje (tripapi -> TransactionModel::stripePayment), asi que se
+     cobraba DOS VECES.
+
+     Medido en produccion el 2026-11-24, no deducido: el viaje 6431 tiene dos cobros de
+     billetera separados por SEIS segundos -- uno con descripcion 'Trip Payment' (esta app) y
+     otro con la descripcion vacia (el servidor). Y el 6446, con pasajero iOS, tiene un cobro
+     de billetera Y un registro de efectivo por el mismo viaje. Es el fallo que en Android
+     costo 67 viajes y se borro en su 1.0.30; en iOS seguia abierto por este otro sitio.
+
+     TAMPOCO SE MARCA PAGADO, y eso importa igual: lo que habia seguia con
+     payWithHireMeWallet:YES, que escribe trip_pay_status=Paid. Eso le dice al servidor "ya
+     esta cobrado", y entonces el pasajero no paga y el conductor no cobra. Marcar un pago que
+     no se ha hecho es peor que no hacer nada.
+
+     SE BORRO, no se dejo detras de un return: codigo muerto que parece vivo es como vuelve.
+     Quien lo necesite lo tiene en el historial.
+
+     LO QUE SI SE HACE es releer el viaje y mostrar lo que diga el servidor. Cuando el pasajero
+     llega a esta pantalla el viaje ya esta completado, asi que el servidor ya decidio: o lo
+     cobro del saldo y lo dejo en Paid, o no le alcanzaba y paso el viaje a efectivo. Las dos
+     cosas se ven releyendo; ninguna se arregla cobrando desde aqui.
+     */
+    NSLog(@"[Billetera] el cobro lo hace el servidor al completar; la app solo relee el viaje");
+    [self getTripDetails];
 }
 
 

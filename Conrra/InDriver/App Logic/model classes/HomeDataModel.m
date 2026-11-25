@@ -7,6 +7,7 @@
 //
 
 #import "HomeDataModel.h"
+#import "ConrraPagoDeViaje.h"
 #import "ConstantModel.h"
 #import "AppDelegate.h"
 #import "Utilities.h"
@@ -157,6 +158,31 @@
 //        [dict setObject:[Utilities formatAmount:comCommission] forKey:@"trip_comp_commision"];
         [dict setObject:[NSString stringWithFormat:@"%d",trip_total_time] forKey:@"trip_total_time"];
         [dict setObject:[Utilities formatDistance:distanceConvertedInUnit] forKey:@"trip_distance"];
+    }
+
+    /*
+     ============ EFECTIVO NO TOCA LA BILLETERA ============
+
+     El servidor cobra la billetera en TODO viaje que llega a "completed" sin estar pagado, si
+     al pasajero le alcanza, SIN mirar lo que eligio. Asi que un viaje en efectivo o en Pago
+     Movil de un pasajero con saldo se le cobraba del saldo -- y el conductor cobraba ademas en
+     mano. Medido en produccion el 2026-11-24: los viajes 6446 y 6451 tienen un cobro de
+     billetera Y un registro de efectivo por el mismo viaje.
+
+     El arreglo es el orden: el viaje que no es de billetera se manda YA pagado en su metodo, en
+     ESTA MISMA peticion. El servidor lo ve pagado y lo salta. Marcarlo despues, en otra
+     peticion, no sirve: entre las dos ya cobro.
+
+     El de billetera va sin marcar, a proposito: ese lo cobra el servidor una vez, y marcarlo
+     aqui le diria "ya esta pagado" -- el pasajero no pagaria y el conductor no cobraria.
+
+     Mismo arreglo y mismo sitio que Android en TripModel.getParams (su 1.0.30).
+     */
+    if (![ConrraPagoDeViaje esBilletera:self.trip.trip_pay_mode]) {
+        [dict setObject:[ConrraPagoDeViaje metodoNoBilletera:self.trip.trip_pay_mode]
+                 forKey:@"trip_pay_mode"];
+        [dict setObject:TS_PAID forKey:@"trip_pay_status"];
+        [dict setObject:[Utilities getStringFromDate:[NSDate date]] forKey:@"trip_pay_date"];
     }
     return dict;
 }

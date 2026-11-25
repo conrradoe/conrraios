@@ -6,6 +6,7 @@
 #import "UserModel.h"
 #import <SDWebImage/UIImageView+WebCache.h>
 #import "Keys.h"
+#import "ConrraPagoDeViaje.h"
 
 #define CARD_GREEN [UIColor colorWithRed:0.18 green:0.65 blue:0.40 alpha:1.0]
 
@@ -324,9 +325,21 @@
     if (notes.length > 0) {
         NSArray<NSString *> *parts = [notes componentsSeparatedByString:@"|"];
 
-        // Part 0: payment method → always "Paga en Efectivo"
-        if (parts.count > 0 && [parts[0] stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceCharacterSet].length > 0)
-            [tags addObject:@{@"asset": @"ic_trip_cash", @"text": @"Paga en Efectivo"}];
+        /*
+         El metodo de pago DE VERDAD, no "Efectivo" siempre.
+
+         Aqui estaba clavado: un viaje con billetera le decia al conductor "Paga en Efectivo",
+         y el conductor lo cobraba en mano por segunda vez -- el pasajero ya lo habia pagado
+         del saldo. Es el mismo fallo que SingleRequestView ya habia corregido, y esta tarjeta
+         se quedo atras: dos sitios pintando lo mismo y solo uno arreglado.
+
+         El modo sale de trip_pay_mode, que es lo que eligio el pasajero; el trozo 0 de
+         pickup_notes solo dice SI hay que pintar la etiqueta, no cual.
+         */
+        if (parts.count > 0 && [parts[0] stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceCharacterSet].length > 0) {
+            [tags addObject:@{@"asset": @"ic_trip_cash",
+                              @"text": [self su_textoDelMetodo:trip.trip_pay_mode]}];
+        }
 
         // Part 1: pet or delivery
         if (parts.count > 1) {
@@ -345,9 +358,9 @@
                                   @"text": [NSString stringWithFormat:@"%d Persona%@", count, count == 1 ? @"" : @"s"]}];
         }
     } else {
-        // Fallback: static cash tag
+        // Sin notas: igual, el modo manda. Antes esta rama tambien decia efectivo a secas.
         [tags addObject:@{@"asset": @"ic_trip_cash",
-                          @"text": [LanguageHelper getStringWithKey:@"k_r39_s9_cash" defaultValue:@"Paga en Efectivo"]}];
+                          @"text": [self su_textoDelMetodo:trip.trip_pay_mode]}];
         if (trip.is_share)
             [tags addObject:@{@"asset": @"ic_trip_person", @"text": @"Compartido"}];
     }
@@ -478,6 +491,27 @@
     _destTitleLabel.text    = nil;
     _destSubLabel.text      = nil;
     [_tagsStackView.arrangedSubviews makeObjectsPerformSelector:@selector(removeFromSuperview)];
+}
+
+/**
+ El nombre que ve el conductor para el metodo de pago de este viaje.
+
+ Un solo sitio para las dos ramas -- con notas de recogida y sin ellas --, que es donde
+ estaba el fallo: las dos pintaban "Paga en Efectivo" a secas y solo una se habria arreglado.
+
+ "Pago Movil" se dice tal cual, porque es lo que el pasajero eligio y lo que el conductor
+ tiene que esperar. No se traduce el valor del servidor palabra por palabra a proposito: si
+ manana aparece un metodo nuevo, se vera su nombre en vez de una etiqueta equivocada.
+ */
+-(NSString *)su_textoDelMetodo:(NSString *)modo {
+    if ([ConrraPagoDeViaje esBilletera:modo]) {
+        return @"Paga con Wallet";
+    }
+    NSString *m = [ConrraPagoDeViaje metodoNoBilletera:modo];
+    if ([m caseInsensitiveCompare:ConrraPagoDeViaje.efectivo] == NSOrderedSame) {
+        return [LanguageHelper getStringWithKey:@"k_r39_s9_cash" defaultValue:@"Paga en Efectivo"];
+    }
+    return [NSString stringWithFormat:@"Paga con %@", m];
 }
 
 @end
