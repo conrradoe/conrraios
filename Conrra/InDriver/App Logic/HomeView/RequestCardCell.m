@@ -7,6 +7,7 @@
 #import <SDWebImage/UIImageView+WebCache.h>
 #import "Keys.h"
 #import "ConrraPagoDeViaje.h"
+#import "ConrraVistaDeSolicitud.h"
 
 #define CARD_GREEN [UIColor colorWithRed:0.18 green:0.65 blue:0.40 alpha:1.0]
 
@@ -246,6 +247,18 @@
 #pragma mark - Configure
 
 - (void)configureWithTrip:(TripModel *)trip {
+    /*
+     El conductor avisa de que esta solicitud le aparecio delante.
+
+     Aqui y no al aceptarla: lo que el pasajero quiere saber mientras espera es cuanta gente la
+     esta MIRANDO, no cuanta la cogio. Y no sale del trip_requests del backend porque ese dice a
+     quien se le MANDO -- a un conductor con la app cerrada se le manda y no la ve.
+
+     Se llama en cada dibujado de la celda, que son muchos por la misma fila; el filtro de "una
+     vez por solicitud" esta dentro de ConrraVistaDeSolicitud, que es donde tiene que estar: asi
+     da igual desde cuantos sitios se avise.
+     */
+    [ConrraVistaDeSolicitud avisarQueLaVioElConductor:trip.trip_Id];
     // Avatar — u_profile_image_path is a relative path; prepend base URL
     NSString *imgURL = trip.user.u_profile_image_path;
     if (imgURL.length > 0) {

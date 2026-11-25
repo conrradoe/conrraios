@@ -96,6 +96,15 @@
  */
 #define URL_TAXI_REFERIDOS            TAXI_HOST @"/api/referidos.php"
 
+/**
+ "N conductores vieron tu solicitud": el conductor avisa en vista.php y el pasajero pregunta en
+ vistas.php. Aqui y no en apps.conrra.com porque su trip_requests dice a quien se MANDO la
+ solicitud, no quien la tuvo delante -- y es lo segundo lo que le sirve al pasajero.
+ Ver ConrraVistaDeSolicitud.
+ */
+#define URL_TAXI_VISTA                TAXI_HOST @"/api/vista.php"
+#define URL_TAXI_VISTAS               TAXI_HOST @"/api/vistas.php"
+
 #define BASE_URL_OTP        @"https://apps.conrra.com/webservices/tw_sms/index2.php"
 #define BASE_URL_OTP_NO        @"https://apps.conrra.com/webservices/tw_sms/index.php"
 #define url_base_app_images             @"https://apps.conrra.com/webservices/images/app_images/"    // Image Base URL

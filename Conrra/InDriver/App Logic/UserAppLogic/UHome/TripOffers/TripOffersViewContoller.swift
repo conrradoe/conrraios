@@ -111,6 +111,8 @@ private class TripOffersRootView: UIView {
     private let txtMonto        = UITextField()
     private let btnMas          = UIButton(type: .custom)
     private let lblConversion   = UILabel()
+    /// "N conductores vieron tu solicitud". Oculta hasta que hay un numero de verdad.
+    private let lblVistas       = UILabel()
     private let btnEnviarOferta = UIButton(type: .custom)
 
     /// Lo que el viaje tiene ofrecido AHORA, ya confirmado por el servidor.
@@ -478,6 +480,14 @@ private class TripOffersRootView: UIView {
         lblConversion.textAlignment = .center
         sheetPanel.addSubview(lblConversion)
 
+        lblVistas.font = UIFont(name: "NotoSans-Bold", size: 13) ?? UIFont.boldSystemFont(ofSize: 13)
+        lblVistas.textColor = Tinta.textoTerciario
+        lblVistas.textAlignment = .center
+        // Empieza oculta: hasta que el servidor diga un numero no hay nada que contar, y un
+        // "0 conductores" de arranque le diria al pasajero que esta solo cuando aun no se sabe.
+        lblVistas.isHidden = true
+        sheetPanel.addSubview(lblVistas)
+
         btnEnviarOferta.titleLabel?.font = UIFont(name: "NotoSans-Bold", size: 16) ?? UIFont.boldSystemFont(ofSize: 16)
         btnEnviarOferta.setTitleColor(Tinta.textoPrimario, for: .normal)
         btnEnviarOferta.setTitleColor(Tinta.textoPrimario, for: .disabled)
@@ -651,7 +661,7 @@ private class TripOffersRootView: UIView {
     /// Todo lo que vive dentro de la hoja mientras se espera.
     private var contenidoDeLaHoja: [UIView] {
         return [asa, bannerCard, tarjetaViaje, lblTuOferta,
-                btnMenos, lblMoneda, txtMonto, btnMas, lblConversion, btnEnviarOferta]
+                btnMenos, lblMoneda, txtMonto, btnMas, lblConversion, lblVistas, btnEnviarOferta]
     }
 
 
@@ -742,6 +752,9 @@ private class TripOffersRootView: UIView {
         // Sin tasa configurada la conversion no se enseña y tampoco deja hueco, igual
         // que el GONE de Android: un blanco a media hoja se lee como que falta algo.
         y += lblConversion.isHidden ? 0 : (4 + 16)
+        // Mismo patron que la conversion: si no se ensena, no deja hueco. Un blanco a media
+        // hoja se lee como que falta algo.
+        y += lblVistas.isHidden ? 0 : (6 + 16)
         y += 16 + 56
         y += 20
         return y
@@ -817,6 +830,13 @@ private class TripOffersRootView: UIView {
                                  width: max(0, anchoPar - anchoMoneda - 4), height: ladoBoton)
         y += ladoBoton
 
+        if lblVistas.isHidden {
+            lblVistas.frame = CGRect(x: pad, y: y, width: cw, height: 0)
+        } else {
+            y += 6
+            lblVistas.frame = CGRect(x: pad, y: y, width: cw, height: 16)
+            y += 16
+        }
         if lblConversion.isHidden {
             lblConversion.frame = CGRect(x: pad, y: y, width: cw, height: 0)
         } else {
@@ -1218,6 +1238,7 @@ private class TripOffersRootView: UIView {
         let paraCaducar = max(0, Self.segundosParaCaducar - transcurrido)
         searchingLabel.text = "Seguimos buscando · " + Self.comoReloj(paraCaducar)
         sugerirSubidaSiToca()
+        consultarVistasSiToca()
     }
 
     /// Ya se le pregunto por la tarifa en este viaje: una vez y no mas.
@@ -1286,6 +1307,50 @@ private class TripOffersRootView: UIView {
                                                    defaultValue: "Mantener"),
             style: .cancel))
         present(alerta, animated: true)
+    }
+
+    /// Cada cuanto se le pregunta al servidor por las vistas.
+    private static let segundosEntreConsultasDeVistas: TimeInterval = 5
+
+    private var ultimaConsultaDeVistas: Date?
+
+    /**
+     Pregunta cuantos conductores vieron la solicitud, sin pasarse de preguntar.
+
+     Se cuelga del tic de un segundo que ya existe en vez de montar otro temporizador, y se
+     limita a uno cada cinco: el numero cambia despacio -- lo mueve un conductor abriendo la app
+     -- y preguntarlo cada segundo seria sesenta peticiones por minuto para enseñar lo mismo.
+
+     Si el servidor no contesta, la etiqueta se queda como estaba. Ver ConrraVistaDeSolicitud:
+     no llamar al bloque es deliberado, porque "no lo se" no es "nadie la vio".
+     */
+    private func consultarVistasSiToca() {
+        guard let tripId = trip?.trip_Id, !tripId.isEmpty else { return }
+        let ahora = Date()
+        if let ultima = ultimaConsultaDeVistas,
+           ahora.timeIntervalSince(ultima) < Self.segundosEntreConsultasDeVistas {
+            return
+        }
+        ultimaConsultaDeVistas = ahora
+        ConrraVistaDeSolicitud.cuantosLaVieron(tripId) { [weak self] cuantos in
+            guard let self = self else { return }
+            guard cuantos > 0 else {
+                // Con cero no se ensena nada. "0 conductores vieron tu solicitud" es la frase
+                // que hace cancelar un viaje que si iba a llegar.
+                self.lblVistas.isHidden = true
+                self.view.setNeedsLayout()
+                return
+            }
+            let eraVisible = !self.lblVistas.isHidden
+            self.lblVistas.text = cuantos == 1
+                ? "1 conductor vio tu solicitud"
+                : String(format: "%d conductores vieron tu solicitud", cuantos)
+            self.lblVistas.isHidden = false
+            if !eraVisible {
+                // Al aparecer cambia el alto de la hoja, asi que hay que volver a medirla.
+                self.view.setNeedsLayout()
+            }
+        }
     }
 
     /// Segundos a m:ss. Siempre dos cifras en los segundos: "3:7" no se lee como un reloj.

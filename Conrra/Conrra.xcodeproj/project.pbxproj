@@ -33,6 +33,7 @@
 		CE1EB7A0001B4C0A00000001 /* ConrraCelebracionPropina.m in Sources */ = {isa = PBXBuildFile; fileRef = CE1EB7A0001B4C0A00000003 /* ConrraCelebracionPropina.m */; };
 		F1E57A0001B4C0A000000001 /* ConrraFiesta.m in Sources */ = {isa = PBXBuildFile; fileRef = F1E57A0001B4C0A000000003 /* ConrraFiesta.m */; };
 		B0D057A0001B4C0A00000001 /* ConrraBonos.m in Sources */ = {isa = PBXBuildFile; fileRef = B0D057A0001B4C0A00000003 /* ConrraBonos.m */; };
+		V1575A0001B4C0A000000001 /* ConrraVistaDeSolicitud.m in Sources */ = {isa = PBXBuildFile; fileRef = V1575A0001B4C0A000000003 /* ConrraVistaDeSolicitud.m */; };
 		D1D17A0001B4C0A000000001 /* ConrraVerificacionDidit.m in Sources */ = {isa = PBXBuildFile; fileRef = D1D17A0001B4C0A000000003 /* ConrraVerificacionDidit.m */; };
 		E1641A0001B4C0A000000001 /* ConrraTelefonoE164.m in Sources */ = {isa = PBXBuildFile; fileRef = E1641A0001B4C0A000000003 /* ConrraTelefonoE164.m */; };
 		AA11BB22CC33DD44EE55FF01 /* RequestCardCell.m in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF03 /* RequestCardCell.m */; };
@@ -546,6 +547,7 @@
 		CE1EB7A0001B4C0A00000002 /* ConrraCelebracionPropina.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraCelebracionPropina.h; sourceTree = "<group>"; };
 		F1E57A0001B4C0A000000002 /* ConrraFiesta.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraFiesta.h; sourceTree = "<group>"; };
 		B0D057A0001B4C0A00000002 /* ConrraBonos.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraBonos.h; sourceTree = "<group>"; };
+		V1575A0001B4C0A000000002 /* ConrraVistaDeSolicitud.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraVistaDeSolicitud.h; sourceTree = "<group>"; };
 		D1D17A0001B4C0A000000002 /* ConrraVerificacionDidit.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraVerificacionDidit.h; sourceTree = "<group>"; };
 		E1641A0001B4C0A000000002 /* ConrraTelefonoE164.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraTelefonoE164.h; sourceTree = "<group>"; };
 		083FC0351047472FA58C03E5 /* RadarAnimationView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RadarAnimationView.h; sourceTree = "<group>"; };
@@ -578,6 +580,7 @@
 		CE1EB7A0001B4C0A00000003 /* ConrraCelebracionPropina.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraCelebracionPropina.m; sourceTree = "<group>"; };
 		F1E57A0001B4C0A000000003 /* ConrraFiesta.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraFiesta.m; sourceTree = "<group>"; };
 		B0D057A0001B4C0A00000003 /* ConrraBonos.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraBonos.m; sourceTree = "<group>"; };
+		V1575A0001B4C0A000000003 /* ConrraVistaDeSolicitud.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraVistaDeSolicitud.m; sourceTree = "<group>"; };
 		D1D17A0001B4C0A000000003 /* ConrraVerificacionDidit.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraVerificacionDidit.m; sourceTree = "<group>"; };
 		E1641A0001B4C0A000000003 /* ConrraTelefonoE164.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraTelefonoE164.m; sourceTree = "<group>"; };
 		92EF1D55C55542EC95B9AEF2 /* ConrraMapaSelectorViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraMapaSelectorViewController.h; sourceTree = "<group>"; };
@@ -2442,6 +2445,8 @@
 				F1E57A0001B4C0A000000003 /* ConrraFiesta.m */,
 				B0D057A0001B4C0A00000002 /* ConrraBonos.h */,
 				B0D057A0001B4C0A00000003 /* ConrraBonos.m */,
+				V1575A0001B4C0A000000002 /* ConrraVistaDeSolicitud.h */,
+				V1575A0001B4C0A000000003 /* ConrraVistaDeSolicitud.m */,
 				D1D17A0001B4C0A000000002 /* ConrraVerificacionDidit.h */,
 				D1D17A0001B4C0A000000003 /* ConrraVerificacionDidit.m */,
 				E1641A0001B4C0A000000002 /* ConrraTelefonoE164.h */,
@@ -3885,6 +3890,7 @@
 				CE1EB7A0001B4C0A00000001 /* ConrraCelebracionPropina.m in Sources */,
 				F1E57A0001B4C0A000000001 /* ConrraFiesta.m in Sources */,
 				B0D057A0001B4C0A00000001 /* ConrraBonos.m in Sources */,
+				V1575A0001B4C0A000000001 /* ConrraVistaDeSolicitud.m in Sources */,
 				D1D17A0001B4C0A000000001 /* ConrraVerificacionDidit.m in Sources */,
 				E1641A0001B4C0A000000001 /* ConrraTelefonoE164.m in Sources */,
 				577B36D90960470B9954A54B /* ConrraDestinoDePlan.m in Sources */,
