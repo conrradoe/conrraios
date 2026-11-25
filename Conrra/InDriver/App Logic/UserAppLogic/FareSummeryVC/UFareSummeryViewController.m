@@ -23,6 +23,7 @@
 #import "StarRatingView.h"  
 #import "Utilities.h"
 #import "UAddMoneyWalletVC.h"
+#import "ConrraPropinas.h"
 #define kLabelAllowance 50.0f
 #define kStarViewHeight 35.0f
 #define kStarViewWidth 180.0f
@@ -72,6 +73,9 @@
 @property (strong, nonatomic) UITextView        *ndFeedbackView;
 @property (strong, nonatomic) UIView            *ndTicketView;
 @property (assign, nonatomic) CGFloat            ndNotchY;
+/// El boton de dar propina, para poder apagarlo al enviarla: una por viaje.
+/// Debil porque lo retiene la vista que lo contiene; fuerte seria un ciclo.
+@property (weak, nonatomic) UIButton *ndBotonPropina;
 @end
 
 @implementation UFareSummeryViewController
@@ -1865,6 +1869,8 @@
     // al inicio: el boton hacia justo lo contrario de lo que anunciaba, y la propina no
     // existia en iOS. Android la tiene en FareActivity.showTipInputDialog / submitTip.
     [propinaBtn addTarget:self action:@selector(ndPropinaTapped) forControlEvents:UIControlEventTouchUpInside];
+    // Se guarda para poder apagarlo al enviar la propina: una por viaje.
+    self.ndBotonPropina = propinaBtn;
     [sheet addSubview:propinaBtn];
 
     UIButton *submitBtn = [UIButton buttonWithType:UIButtonTypeCustom];
@@ -2243,30 +2249,82 @@
     [self presentViewController:alerta animated:YES completion:nil];
 }
 
+/**
+ La propina SALE de la billetera del pasajero y ENTRA en la del conductor, en el servidor.
+
+ ============ LO QUE HACIA ANTES, Y POR QUE ERA PEOR QUE NO TENERLA ============
+ Escribia `trip_tip` con un tripupdate -- un numero en la fila del viaje -- y NO MOVIA DINERO.
+ Y acto seguido le mandaba un push al conductor diciendo que tenia una propina. O sea: le
+ anunciaba un dinero que nadie le habia pagado, y el conductor lo iba a buscar a su saldo y no
+ estaba.
+
+ Ahora el traspaso lo hace conrraservices.com/taxi (ConrraPropinas) y el aviso al conductor lo
+ manda EL SERVIDOR, despues de mover el dinero. Ese orden es el punto: un aviso que sale de la
+ app puede anunciar una propina que fallo; uno que sale despues del traspaso, no.
+
+ Es la misma leccion que el cobro del viaje -- la app no mueve dinero -- y la razon de que la
+ app ya no toque la billetera en ningun sitio. Ver ConrraPagoDeViaje.
+ ===============================================================================
+
+ EL BOTON SE APAGA al enviarla, como en Android: una propina por viaje. Sin eso, un segundo
+ toque manda una segunda propina, y de esas no avisa nadie hasta que el pasajero mira su saldo.
+ */
 -(void)ndEnviarPropina:(NSString *)importe {
     [UtilityClass setLH:NO wt:[LanguageHelper getStringWithKey:@"k_r30_s3_loading"]];
 
-    NSDictionary *dict = @{
-        TRIP_ID     : [NSString stringWithFormat:@"%@", self.curr_trip.trip_Id],
-        @"trip_tip" : importe,
-    };
-
     __weak typeof(self) debil = self;
-    [GIC mkwu:TRIP_UPDATE d:dict isa:NO cb:^(id results, NSError *error) {
+    [ConrraPropinas darEnViaje:self.curr_trip.trip_Id
+                         monto:[importe doubleValue]
+                 cuandoTermine:^(BOOL ok, NSString *error, double saldo) {
         [UtilityClass setLH:YES wt:[LanguageHelper getStringWithKey:@"k_r30_s3_loading"]];
-        if ([[[results objectForKey:P_STATUS] uppercaseString] isEqualToString:@"OK"]) {
-            [debil ndAvisarPropinaAlConductor:importe];
-            [debil showAlert:@"" message:[LanguageHelper getStringWithKey:@"k_s10_propina_enviada"
-                                                            defaultValue:@"¡Propina enviada!"]];
-        } else if (results != nil) {
-            [debil showWarningWithMessgae:[results objectForKey:P_MESSAGE]];
-        } else {
-            [Utilities handleError:error viewController:debil defaultMessage:@""];
+        if (!ok) {
+            // El motivo del servidor si lo dio -- "saldo insuficiente" es el habitual --, y si
+            // no, uno generico: un fallo sin explicacion deja al pasajero sin saber si
+            // reintentar.
+            [debil showWarningWithMessgae:error.length > 0 ? error
+                : [LanguageHelper getStringWithKey:@"k_s10_propina_no_enviada"
+                                      defaultValue:@"No se pudo enviar la propina"]];
+            return;
         }
+        if (saldo >= 0) {
+            // El saldo que devuelve el servidor es la verdad; el guardado en el telefono ya
+            // esta viejo. Se refresca para que la proxima pantalla no ensene el de antes.
+            NSMutableDictionary *cuenta = [defaults_object(P_USER_DICT) mutableCopy];
+            if (cuenta != nil) {
+                [cuenta setObject:[Utilities formatAmount:(float)saldo] forKey:P_USER_WAlLET_AMOUNT];
+                defaults_set_object(P_USER_DICT, cuenta);
+                defaults_set_object(P_USER_DICT_LOGGED, cuenta);
+            }
+        }
+        [debil ndApagarBotonDePropina];
+        [debil showAlert:@"" message:[LanguageHelper getStringWithKey:@"k_s10_propina_enviada"
+                                                        defaultValue:@"¡Propina enviada!"]];
     }];
 }
 
+/// Una propina por viaje: el boton se apaga en cuanto sale.
+-(void)ndApagarBotonDePropina {
+    UIButton *b = self.ndBotonPropina;
+    if (b == nil) {
+        return;
+    }
+    b.enabled = NO;
+    b.alpha = 0.5f;
+}
+
 -(void)ndAvisarPropinaAlConductor:(NSString *)importe {
+    /*
+     ESTE AVISO YA NO SALE DE LA APP.
+
+     Lo manda el servidor despues de mover el dinero, y ese orden importa: desde aqui se
+     avisaba ANTES de que hubiera traspaso, asi que se le podia anunciar al conductor una
+     propina que fallo. Su unico llamador era ndEnviarPropina, que ya no lo llama.
+
+     Se corta en la entrada en vez de borrar el metodo porque lleva el armado del push del
+     conductor, que es util de referencia si algun dia hay que mandar otro aviso desde aqui.
+     */
+    NSLog(@"[Propinas] el aviso al conductor lo manda el servidor tras mover el dinero. Sin efecto.");
+    return;
     id conductor = self.curr_trip.driver;
     if (conductor == nil) {
         return;
