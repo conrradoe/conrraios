@@ -697,6 +697,26 @@
 
 
 -(void)payWithHireMeWallet:(BOOL)isSendNotification{
+    /*
+     ============ YA NO MARCA NADA. SIN LLAMADORES ============
+
+     Lo que sigue escribe trip_pay_mode=Wallet y trip_pay_status=Paid. Eso le dice al servidor
+     "este viaje ya esta cobrado", y entonces NO cobra la billetera: el pasajero no paga y el
+     conductor no cobra. Es el fallo contrario al cobro doble y mas silencioso, porque nadie
+     reclama un cobro que no le hicieron.
+
+     Su unico llamador era el cobro que hacia esta pantalla, borrado en este mismo cambio. Se
+     corta aqui en vez de borrar el metodo porque lleva ademas las transiciones de trip_status
+     (cancelado por el pasajero, completado) que alguien puede querer reusar; lo que no puede
+     seguir es la parte que toca el pago.
+
+     Si algun dia hace falta marcar un viaje pagado desde la app, el sitio es
+     ConrraCierreDeViaje -- que ya aparta los de billetera a proposito -- y no esto.
+     */
+    NSLog(@"[Billetera] payWithHireMeWallet: no se marca pagado desde la app;"
+          @" el servidor lo marca al cobrar. Sin efecto.");
+    return;
+
     //   if (!isCalledCashOnHand && !isCalledPayWithCard) {
     
     //       isCalledCashOnHand =YES;

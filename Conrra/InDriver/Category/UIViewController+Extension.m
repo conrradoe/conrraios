@@ -125,6 +125,30 @@
 
 
 -(void) payWithHireMeWalletWithTripModel:(TripModel *) tripModel completionBlock:(void (^)(id results, NSError *error))block isShowLoader:(BOOL)isShowLoader isSendNotification:(BOOL)isSendNotification withDelegate:(id<UIViewControllerExtensionDelegate>)delegate isFromBeginTrip:(BOOL)isFromBeginTrip{
+    /*
+     ============ ESTE CAMINO NO COBRA. CERRADO EN LA ENTRADA ============
+
+     Mas abajo hay un addtriptrans con pay_mode=Wallet y descripcion 'Trip Payment': la firma
+     exacta del cobro doble que se midio en produccion el 2026-11-24 (viaje 6431, dos cobros de
+     billetera con seis segundos de diferencia). La billetera la cobra el SERVIDOR al completar
+     el viaje; cualquier cobro desde la app es el segundo.
+
+     HOY NADIE LLAMA A ESTE METODO -- se comprobo en todo el proyecto, .m, .h y .swift, y es
+     privado de este fichero. Pero no se borro y conviene saber por que: son mas de doscientas
+     lineas de una categoria compartida que se llaman entre si, y arrancarlas a ciegas es mas
+     riesgo que el que cierra este guardia. Lo que no se puede dejar es codigo muerto que mueve
+     dinero: el dia que alguien lo vuelva a enchufar, cobraria dos veces otra vez.
+
+     Asi que se corta aqui, en la entrada, que es el unico sitio por donde se llega a los dos
+     metodos de dentro. Se avisa a quien llama por su bloque, para que nada se quede colgado.
+     */
+    NSLog(@"[Billetera] payWithHireMeWalletWithTripModel: la app NO cobra la billetera;"
+          @" la cobra el servidor al completar el viaje. Sin efecto.");
+    if (block != nil) {
+        block(nil, nil);
+    }
+    return;
+
     
     float tripFareEstmated=[tripModel.trip_fare floatValue];
     float tripFareFinal=tripFareEstmated;
@@ -202,6 +226,28 @@
 
 -(void) makeWalletPaymentWhenCardPaymentFailed:(TripModel *) tripModel tripFare:(float) tripFareFinal tripTax:(float ) tripTax isSendNotification:(BOOL)isSendNotification completionBlock:(void (^)(id results, NSError *error))block  withDelegate:(id<UIViewControllerExtensionDelegate>)delegate isAnyTripRunning:(BOOL)isAnyTripRunning
 {
+    /*
+     ============ ESTE TAMPOCO COBRA ============
+
+     El respaldo de "la tarjeta fallo, cobralo de la billetera". Dentro hay un addtriptrans con
+     pay_mode=Wallet, la misma firma del cobro doble: la billetera la cobra el servidor al
+     completar, asi que esto seria el segundo cobro.
+
+     SUS CUATRO LLAMADAS ESTAN COMENTADAS desde antes de este cambio -- se comprobo en todo el
+     proyecto --, asi que hoy no corre. Se cierra igualmente: el valor de un guardia aqui no es
+     lo que arregla hoy, es que alguien descomente una de esas cuatro lineas dentro de seis
+     meses y el cobro doble vuelva sin que nadie lo relacione.
+
+     Si de verdad hace falta cubrir una tarjeta que falla, lo correcto es dejar que el servidor
+     lo resuelva: ya pasa el viaje a efectivo cuando no puede cobrar la billetera.
+     */
+    NSLog(@"[Billetera] makeWalletPaymentWhenCardPaymentFailed: la app NO cobra la billetera."
+          @" Sin efecto.");
+    if (block != nil) {
+        block(nil, nil);
+    }
+    return;
+
     
     NSDictionary *dict1 = [[NSUserDefaults standardUserDefaults]objectForKey:P_USER_DICT];
     
