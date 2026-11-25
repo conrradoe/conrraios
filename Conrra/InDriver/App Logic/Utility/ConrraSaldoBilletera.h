@@ -64,6 +64,18 @@ NS_ASSUME_NONNULL_BEGIN
  Sin los numeros el aviso no sirve de nada: lo primero que se pregunta quien lee "saldo
  insuficiente" es cuanto le falta.
  */
+/**
+ ¿Esta la billetera en negativo?
+
+ Un saldo negativo no alcanza para NADA pagado con billetera -- ni para un importe cero ni
+ para uno desconocido --, asi que esta pregunta va antes que cualquier comparacion de
+ importes. Decision de Android del 2026-11-18.
+ */
++ (BOOL)tieneDeuda;
+
+/// Lo que se le dice al pasajero que quiere pagar con billetera estando en negativo.
++ (NSString *)mensajeDeDeuda;
+
 + (void)avisarEn:(nullable UIViewController *)vc
          importe:(float)importe
           moneda:(nullable NSString *)moneda NS_SWIFT_NAME(avisarEn(_:importe:moneda:));
