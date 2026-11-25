@@ -29,6 +29,7 @@
 #import "Utilities.h"
 #import <AVFoundation/AVFoundation.h>
 #import <AudioToolbox/AudioToolbox.h>
+#import "ConrraCelebracionPropina.h"
 #include <math.h>
 #import "LeftViewController.h"
 #import <MessageUI/MFMailComposeViewController.h>
@@ -597,6 +598,14 @@
 
 
 -(void)viewWillAppear:(BOOL)animated{
+    /*
+     Las propinas sin ver se preguntan AQUI, no al recibir el push.
+
+     El push solo adelanta la pregunta. Si el aviso se pierde -- y en iOS se pierden --, la
+     propina sale la proxima vez que el conductor vuelve a esta pantalla. Colgarlo del push
+     seria perder propinas sin que nadie se enterara.
+     */
+    [ConrraCelebracionPropina atender:self comoConductor:YES];
     [super viewWillAppear:animated];
     [Utilities applyTintOnButton:self.btnDirection color:[UIColor colorNamed:@"color_app_label"] name:@"ic_menu_map"];
     [self setUIFiels];
@@ -726,6 +735,7 @@
 
 
 -(void)viewWillDisappear:(BOOL)animated{
+    [ConrraCelebracionPropina desatender:self];
     [super viewWillDisappear:animated];
     if (_ndTripKvoAdded) {
         @try { [self.viewCancelBeforeBegin removeObserver:self forKeyPath:@"hidden"]; } @catch (...) {}

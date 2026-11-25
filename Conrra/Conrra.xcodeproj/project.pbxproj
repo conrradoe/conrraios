@@ -30,6 +30,7 @@
 		9A7E7A0001B4C0A000000001 /* ConrraPuertaVerificacion.m in Sources */ = {isa = PBXBuildFile; fileRef = 9A7E7A0001B4C0A000000003 /* ConrraPuertaVerificacion.m */; };
 		PA607A0001B4C0A000000001 /* ConrraPagoDeViaje.m in Sources */ = {isa = PBXBuildFile; fileRef = PA607A0001B4C0A000000003 /* ConrraPagoDeViaje.m */; };
 		9A0171EA0001B4C0A0000001 /* ConrraPropinas.m in Sources */ = {isa = PBXBuildFile; fileRef = 9A0171EA0001B4C0A0000003 /* ConrraPropinas.m */; };
+		CE1EB7A0001B4C0A00000001 /* ConrraCelebracionPropina.m in Sources */ = {isa = PBXBuildFile; fileRef = CE1EB7A0001B4C0A00000003 /* ConrraCelebracionPropina.m */; };
 		D1D17A0001B4C0A000000001 /* ConrraVerificacionDidit.m in Sources */ = {isa = PBXBuildFile; fileRef = D1D17A0001B4C0A000000003 /* ConrraVerificacionDidit.m */; };
 		E1641A0001B4C0A000000001 /* ConrraTelefonoE164.m in Sources */ = {isa = PBXBuildFile; fileRef = E1641A0001B4C0A000000003 /* ConrraTelefonoE164.m */; };
 		AA11BB22CC33DD44EE55FF01 /* RequestCardCell.m in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF03 /* RequestCardCell.m */; };
@@ -540,6 +541,7 @@
 		9A7E7A0001B4C0A000000002 /* ConrraPuertaVerificacion.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraPuertaVerificacion.h; sourceTree = "<group>"; };
 		PA607A0001B4C0A000000002 /* ConrraPagoDeViaje.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraPagoDeViaje.h; sourceTree = "<group>"; };
 		9A0171EA0001B4C0A0000002 /* ConrraPropinas.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraPropinas.h; sourceTree = "<group>"; };
+		CE1EB7A0001B4C0A00000002 /* ConrraCelebracionPropina.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraCelebracionPropina.h; sourceTree = "<group>"; };
 		D1D17A0001B4C0A000000002 /* ConrraVerificacionDidit.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraVerificacionDidit.h; sourceTree = "<group>"; };
 		E1641A0001B4C0A000000002 /* ConrraTelefonoE164.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraTelefonoE164.h; sourceTree = "<group>"; };
 		083FC0351047472FA58C03E5 /* RadarAnimationView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RadarAnimationView.h; sourceTree = "<group>"; };
@@ -569,6 +571,7 @@
 		9A7E7A0001B4C0A000000003 /* ConrraPuertaVerificacion.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraPuertaVerificacion.m; sourceTree = "<group>"; };
 		PA607A0001B4C0A000000003 /* ConrraPagoDeViaje.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraPagoDeViaje.m; sourceTree = "<group>"; };
 		9A0171EA0001B4C0A0000003 /* ConrraPropinas.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraPropinas.m; sourceTree = "<group>"; };
+		CE1EB7A0001B4C0A00000003 /* ConrraCelebracionPropina.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraCelebracionPropina.m; sourceTree = "<group>"; };
 		D1D17A0001B4C0A000000003 /* ConrraVerificacionDidit.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraVerificacionDidit.m; sourceTree = "<group>"; };
 		E1641A0001B4C0A000000003 /* ConrraTelefonoE164.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConrraTelefonoE164.m; sourceTree = "<group>"; };
 		92EF1D55C55542EC95B9AEF2 /* ConrraMapaSelectorViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConrraMapaSelectorViewController.h; sourceTree = "<group>"; };
@@ -2427,6 +2430,8 @@
 				PA607A0001B4C0A000000003 /* ConrraPagoDeViaje.m */,
 				9A0171EA0001B4C0A0000002 /* ConrraPropinas.h */,
 				9A0171EA0001B4C0A0000003 /* ConrraPropinas.m */,
+				CE1EB7A0001B4C0A00000002 /* ConrraCelebracionPropina.h */,
+				CE1EB7A0001B4C0A00000003 /* ConrraCelebracionPropina.m */,
 				D1D17A0001B4C0A000000002 /* ConrraVerificacionDidit.h */,
 				D1D17A0001B4C0A000000003 /* ConrraVerificacionDidit.m */,
 				E1641A0001B4C0A000000002 /* ConrraTelefonoE164.h */,
@@ -3867,6 +3872,7 @@
 				9A7E7A0001B4C0A000000001 /* ConrraPuertaVerificacion.m in Sources */,
 				PA607A0001B4C0A000000001 /* ConrraPagoDeViaje.m in Sources */,
 				9A0171EA0001B4C0A0000001 /* ConrraPropinas.m in Sources */,
+				CE1EB7A0001B4C0A00000001 /* ConrraCelebracionPropina.m in Sources */,
 				D1D17A0001B4C0A000000001 /* ConrraVerificacionDidit.m in Sources */,
 				E1641A0001B4C0A000000001 /* ConrraTelefonoE164.m in Sources */,
 				577B36D90960470B9954A54B /* ConrraDestinoDePlan.m in Sources */,

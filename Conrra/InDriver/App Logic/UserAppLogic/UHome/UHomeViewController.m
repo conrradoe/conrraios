@@ -53,6 +53,7 @@
 #import "AskForPassengerVC.h"
 #import "DatePickerViewController.h"
 #import "EstimateFareInfoViewController.h"
+#import "ConrraCelebracionPropina.h"
 #define DROP_LOCATION @"drop_loc"
 #define PICK_LOCATION @"pickup"
 #import "HomePaymentViewModel.h"
@@ -352,8 +353,20 @@
     }
 }
 
+-(void)viewWillDisappear:(BOOL)animated{
+    [super viewWillDisappear:animated];
+    // Sin esto la pantalla seguiria "atenta" despues de irse, y un push intentaria presentar
+    // una ventana sobre algo que ya no esta.
+    [ConrraCelebracionPropina desatender:self];
+}
+
 -(void)viewWillAppear:(BOOL)animated
 {
+    /*
+     Las gracias del conductor, igual que las propinas en su pantalla: se preguntan al volver
+     aqui. Lo que el pasajero ve es "te dio las gracias", y si el push se perdio sale ahora.
+     */
+    [ConrraCelebracionPropina atender:self comoConductor:NO];
     [super viewWillAppear:animated];
     // Restore bottom sheet and GPS button whenever we reappear (e.g. after popping Screen 2)
     if (isSheetSetup) {

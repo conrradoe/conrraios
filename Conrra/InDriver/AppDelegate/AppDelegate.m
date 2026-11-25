@@ -31,6 +31,7 @@
 #import "NotificationViewController.h"
 #import "AutoHideAlert.h"
 #import "BeginTripViewController.h"
+#import "ConrraCelebracionPropina.h"
 //#import "UNotificationViewController.h"
 //@import FBSDKCoreKit;
 @import Firebase;   // FIRAuth, para la verificacion del telefono
@@ -224,6 +225,27 @@
                 [self handleSideNotificationWithMessage:[dicAps objectForKey:@"alert"]];
             }
         }else{
+            /*
+             El aviso de propina NO ensena la ventana: solo despierta la pregunta.
+
+             Quien ensena es la pantalla que este atenta, y lo hace preguntando al servidor
+             (ConrraCelebracionPropina). Asi el push es un atajo y no un requisito: si se
+             pierde -- y en iOS se pierden --, la propina sale igual cuando el conductor vuelve
+             a su pantalla. Si la ventana colgara de este renglon, esa propina no se veria
+             nunca y nadie lo sabria.
+
+             Va ANTES del reparto de abajo porque "propina" no es un estado de viaje: si cayera
+             en esa cadena de comparaciones, el ultimo else intentaria tratarlo como un viaje
+             que no existe.
+             */
+            NSString *estadoDelAviso = [NSString stringWithFormat:@"%@", [dicAps objectForKey:@"trip_status"]];
+            // Sin distinguir mayusculas, como Android (equalsIgnoreCase): el estado lo
+            // escribe el servidor y no hay garantia de como lo capitaliza.
+            if ([estadoDelAviso caseInsensitiveCompare:@"propina"] == NSOrderedSame ||
+                [estadoDelAviso caseInsensitiveCompare:@"propina_gracias"] == NSOrderedSame) {
+                [ConrraCelebracionPropina llegoAviso];
+                return;
+            }
             if ([[dicAps objectForKey:@"trip_status"] isEqualToString:TS_REQUEST]||[[dicAps objectForKey:@"trip_status"] isEqualToString:TS_ACCEPTED]) {
                 self.isFromInactive =YES;
                 [self manageRemoteNotification:userInfo application:[UIApplication sharedApplication]];
